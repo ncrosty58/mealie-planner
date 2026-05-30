@@ -137,6 +137,11 @@ class MealieClient:
         r = requests.post(f"{self.api_url}/api/households/shopping/items/create-bulk", json=items, headers=self.headers)
         r.raise_for_status()
 
+    def update_shopping_list_item(self, item_id, payload):
+        """Update a specific shopping list item."""
+        r = requests.put(f"{self.api_url}/api/households/shopping/items/{item_id}", json=payload, headers=self.headers)
+        r.raise_for_status()
+
     def get_meal_plan(self, start_date, end_date):
         """Fetch scheduled meal plans for a date range."""
         r = requests.get(f"{self.api_url}/api/households/mealplans?startDate={start_date}&endDate={end_date}", headers=self.headers)
@@ -377,12 +382,13 @@ def clean_staple_name(note):
     
     # 2. Strip common units case-insensitive
     units = [
-        'tbsp', 'tablespoon', 'tablespoons', 'tbs',
-        'tsp', 'teaspoon', 'teaspoons',
+        'tbsp', 'tbsps', 'tablespoon', 'tablespoons', 'tbs',
+        'tsp', 'tsps', 'teaspoon', 'teaspoons',
         'cloves', 'clove', 'head of', 'heads of', 'head', 'heads',
         'bunch of', 'bunches of', 'bunch', 'bunches',
         'cans of', 'can of', 'cans', 'can',
-        'gallon of', 'gallon', 'gallons',
+        'gallon of', 'gallon', 'gallons', 'gal', 'gals',
+        'loaf of', 'loaf', 'loaves of', 'loaves',
         'bag of', 'bags of', 'bag', 'bags',
         'cup of', 'cups of', 'cups', 'cup',
         'oz', 'ounce', 'ounces',
@@ -427,9 +433,40 @@ def find_matching_staple(ing_note, staples):
     return None
 
 
+def clean_staples_list(client):
+    """
+    Fetch all items in the Staples shopping list and update any items
+    that have quantities or units in their names to be clean/amount-free.
+    """
+    try:
+        staples = client.get_shopping_list_items(STAPLES_LIST_ID)
+        for item in staples:
+            note = item.get('note')
+            if not note:
+                continue
+            clean_name = clean_staple_name(note)
+            if clean_name != note or item.get('quantity') != 0.0:
+                payload = {
+                    'id': item['id'],
+                    'shoppingListId': item['shoppingListId'],
+                    'note': clean_name,
+                    'display': clean_name,
+                    'checked': item['checked'],
+                    'position': item['position'],
+                    'quantity': 0.0,
+                    'labelId': item.get('labelId')
+                }
+                client.update_shopping_list_item(item['id'], payload)
+    except Exception as e:
+        print(f"Error cleaning staples list: {e}")
+
+
 def sync_shopping_list(start_date_str, end_date_str, low_staples_ids=[]):
     """Sync active shopping list based on scheduled recipes and low staples, reconciling quantities for staples."""
     client = MealieClient()
+    
+    # Automatically clean the staples list first
+    clean_staples_list(client)
     
     print(f"Syncing shopping list for range {start_date_str} to {end_date_str}...")
     meal_plans = client.get_meal_plan(start_date_str, end_date_str)
