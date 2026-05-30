@@ -428,6 +428,8 @@ def sync_shopping_list(start_date_str, end_date_str, low_staples_ids=[], progres
         def add_to_list(name, quantity=1.0):
             cleaned = name.strip()
             cleaned_lower = cleaned.lower()
+            if cleaned_lower == 'water':
+                return
             if cleaned_lower in ingredients_to_add:
                 ingredients_to_add[cleaned_lower]['quantity'] += quantity
             else:
