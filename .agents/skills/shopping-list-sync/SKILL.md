@@ -26,8 +26,11 @@ This skill takes the raw ingredient strings from dinner recipes, a list of house
     - If the ingredient does not match a staple, include it.
 
 3.  **Clean Ingredient Names:**
-    - Clean the ingredient names by removing quantities, fractions, numbers, and units of measure.
-    - Format and capitalize the ingredient name in Title Case (e.g., "1 lb chicken breast" -> "Chicken Breast", "3 cloves garlic, minced" -> "Garlic").
+    - Clean the ingredient names by removing:
+      - Quantities, fractions, numbers, and units of measure (e.g. "1 lb", "2 cups", "1/2 tsp", "3 large").
+      - Preparation/styling instructions, descriptions, and comments (e.g. "minced", "finely chopped", "grated", "sliced", "drained", "to taste", "optional", "warmed").
+      - Any parenthetical notes or leftover brackets/punctuation (e.g. "(optional)", "(, minced or finely chopped)", "($0.10)").
+    - Format and capitalize the ingredient name in Title Case representing the core ingredient (e.g. "1 lb chicken breast" -> "Chicken Breast", "3 cloves garlic, minced" -> "Garlic", "1/2 tsp fresh ginger (, minced or finely chopped)" -> "Fresh Ginger", "1 tsp grated fresh ginger*** ($0.10)" -> "Fresh Ginger", "1 tbsp ginger (, finely sliced (optional))" -> "Ginger").
 
 4.  **Aggregate and Sum Quantities:**
     - If the same cleaned ingredient name appears multiple times, aggregate their quantities by summing them if the units are compatible.
@@ -46,7 +49,7 @@ This skill takes the raw ingredient strings from dinner recipes, a list of house
 ## Example Input
 ```json
 {
-  "ingredients": ["2 lbs chicken breast", "1/2 cup salt", "3 cloves garlic", "2 cups water", "1 can coconut water"],
+  "ingredients": ["2 lbs chicken breast", "1/2 cup salt", "3 cloves garlic", "2 cups water", "1 can coconut water", "1/2 tsp fresh ginger (, minced or finely chopped)"],
   "staples": ["salt", "pepper", "garlic", "olive oil"],
   "low_staples": ["garlic"]
 }
@@ -66,6 +69,10 @@ This skill takes the raw ingredient strings from dinner recipes, a list of house
   {
     "name": "Coconut Water",
     "quantity": 1.0
+  },
+  {
+    "name": "Fresh Ginger",
+    "quantity": 0.5
   }
 ]
 ```
