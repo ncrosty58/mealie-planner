@@ -384,106 +384,6 @@ def clean_staple_names_batch(notes: list) -> dict:
         print(f"[AI] clean_staple_names_batch fallback: {e}")
         return {note: _regex_fallback(note) for note in notes}
 
-def detect_plain_water_batch(names: list) -> dict:
-    """
-    Use a single Gemini call to determine which ingredient names represent plain water.
-    Falls back to a robust regex/rule-based check per item if the AI call fails.
-    """
-    if not names:
-        return {}
-        
-    def _fallback_check(name):
-        if not name:
-            return False
-        n = name.lower().strip()
-        n = re.sub(r'\(.*?\)', '', n)
-        n = re.split(r'[,;]', n)[0].strip()
-        n = n.replace('/', ' ')
-        plain_water_terms = {
-            'water', 'cold water', 'warm water', 'hot water', 'filtered water',
-            'ice water', 'tap water', 'boiling water'
-        }
-        n = ' '.join(n.split())
-        if n in plain_water_terms:
-            return True
-        if n.endswith(' water'):
-            prefix = n[:-6].strip()
-            words = prefix.split()
-            allowed_adjectives = {'cold', 'warm', 'hot', 'filtered', 'ice', 'tap', 'boiling', 'clean', 'fresh', 'pure'}
-            if words and all(w in allowed_adjectives for w in words):
-                return True
-        return False
-
-    try:
-        unique_names = list(set(name.strip() for name in names if name))
-        if not unique_names:
-            return {}
-            
-        items_json = json.dumps(unique_names)
-        prompt = (
-            """You are an expert in the 'Plain Water Detection Skill'.
-
-""" +
-            _WATER_DETECTOR_SKILL_DEFINITION + """
-
-### CONTEXT FOR THIS INVOCATION:
-""" +
-            f"Ingredients to Classify: {items_json}\n\n" +
-            "Return ONLY the JSON object as specified in the skill definition."
-        )
-        result = json.loads(call_gemini(prompt, expect_json=True))
-        return {name: bool(result.get(name, _fallback_check(name))) for name in names}
-    except Exception as e:
-        print(f"[AI] detect_plain_water_batch fallback: {e}")
-        return {name: _fallback_check(name) for name in names}
-
-def is_plain_water(name: str, water_map: dict = None) -> bool:
-    """
-    Check if the ingredient name corresponds to plain water (which shouldn't go on a shopping list).
-    Allows things like coconut water, rose water, sparkling water, etc.
-    Uses pre-computed water_map if available.
-    """
-    if not name:
-        return False
-    cleaned = name.strip()
-    if water_map and cleaned in water_map:
-        return water_map[cleaned]
-        
-    # Logic fallback:
-    n = cleaned.lower()
-    # Remove text in parentheses: e.g., "water (cold)" -> "water"
-    n = re.sub(r'\(.*?\)', '', n)
-    # Split on comma or semicolon and take the first part: e.g., "water, cold" -> "water"
-    n = re.split(r'[,;]', n)[0].strip()
-    # Replace slashes with spaces: e.g., "warm/hot water" -> "warm hot water"
-    n = n.replace('/', ' ')
-    
-    # Check if it matches plain water terms
-    plain_water_terms = {
-        'water',
-        'cold water',
-        'warm water',
-        'hot water',
-        'filtered water',
-        'ice water',
-        'tap water',
-        'boiling water',
-    }
-    # Clean up multiple spaces
-    n = ' '.join(n.split())
-    if n in plain_water_terms:
-        return True
-        
-    # Also check if it ends with " water" and the words before are only standard water adjectives
-    if n.endswith(' water'):
-        prefix = n[:-6].strip()
-        words = prefix.split()
-        allowed_adjectives = {'cold', 'warm', 'hot', 'filtered', 'ice', 'tap', 'boiling', 'clean', 'fresh', 'pure'}
-        if words and all(w in allowed_adjectives for w in words):
-            return True
-            
-    return False
-
 def clean_staple_name(note: str) -> str:
     """
     Clean a single staple name. Delegates to the batch function for a single item.
@@ -494,12 +394,12 @@ def clean_staple_name(note: str) -> str:
     return result.get(note, note.strip().capitalize())
 
 def sync_shopping_list(start_date_str, end_date_str, low_staples_ids=[], progress_callback=None):
-    """Sync active shopping list based on scheduled recipes and low staples, reconciling quantities programmatically."""
+    """Sync active shopping list based on scheduled recipes and low staples using the unified shopping-list-sync AI skill."""
     client = MealieClient()
     
-    print(f"Starting programmatic shopping list sync for {start_date_str} to {end_date_str}...")
+    print(f"Starting AI shopping list sync for {start_date_str} to {end_date_str}...")
     if progress_callback:
-        progress_callback("Programmatic shopping list sync started...", 90)
+        progress_callback("AI shopping list sync started...", 90)
     try:
         # 1. Fetch data from Mealie
         meal_plans = client.get_meal_plan(start_date_str, end_date_str)
@@ -508,124 +408,78 @@ def sync_shopping_list(start_date_str, end_date_str, low_staples_ids=[], progres
         # Build set of low staples IDs (hyphen-insensitive)
         low_ids_clean = {s_id.replace('-', '') for s_id in low_staples_ids}
         
-        # 2. Clean all staples in batch
-        if progress_callback:
-            progress_callback("Cleaning staple names in batch using AI/rules...", 92)
-        staple_notes = [item['note'] for item in staples]
-        cleaned_staple_map = clean_staple_names_batch(staple_notes)
-        
-        # Build lookup maps for staples: lowercase cleaned name -> staple item
-        # and raw ID -> staple item
-        staple_lookup = {}
+        # Map low staples to their notes (names) and build staples notes list
+        staples_notes = [item['note'] for item in staples]
+        low_staples_notes = []
         for item in staples:
-            raw_note = item['note']
-            cleaned_name = cleaned_staple_map.get(raw_note, raw_note).strip()
-            # Save both Title Cased cleaned name and lowercase cleaned name
-            item['_cleaned_name'] = cleaned_name
-            staple_lookup[cleaned_name.lower()] = item
-            
-        ingredients_to_add = {} # cleaned_name_lower -> item_dict
-        water_map = {}
-        
-        def add_to_list(name, quantity=1.0):
-            cleaned = name.strip()
-            if is_plain_water(cleaned, water_map):
-                return
-            cleaned_lower = cleaned.lower()
-            if cleaned_lower in ingredients_to_add:
-                ingredients_to_add[cleaned_lower]['quantity'] += quantity
-            else:
-                tagged = tag_dirty_dozen(cleaned)
-                ingredients_to_add[cleaned_lower] = {
-                    "shoppingListId": ACTIVE_LIST_ID,
-                    "note": tagged,
-                    "quantity": quantity,
-                    "checked": False
-                }
+            clean_id = item['id'].replace('-', '')
+            if clean_id in low_ids_clean:
+                low_staples_notes.append(item['note'])
                 
-        # 3. Fetch details of all recipes in the meal plan to extract ingredients
+        # 2. Extract ingredient display strings from dinner recipes
         if progress_callback:
             progress_callback("Extracting ingredients from dinner recipes...", 93)
-        recipe_ingredients_by_dinner = []
-        raw_ing_texts = []
+        raw_recipe_ingredients = []
         
         for p in meal_plans:
             # We only sync ingredients for scheduled dinner recipes
             if p['entryType'] == 'dinner' and p.get('recipeId'):
                 try:
                     r_details = client.get_recipe_details(p['recipeId'])
-                    recipe_ings = []
                     for ing in r_details.get('recipeIngredient', []):
-                        # Extract the ingredient text
-                        ing_text = ""
-                        food = ing.get('food')
-                        if isinstance(food, dict) and food.get('name'):
-                            ing_text = food.get('name')
-                        elif ing.get('note'):
-                            ing_text = ing.get('note')
-                        else:
-                            ing_text = ing.get('display') or ing.get('originalText') or ""
-                        ing_text = ing_text.strip()
-                        if ing_text:
-                            qty = ing.get('quantity') or 1.0
-                            recipe_ings.append((ing_text, qty))
-                            raw_ing_texts.append(ing_text)
-                    recipe_ingredients_by_dinner.append((p, recipe_ings))
+                        disp = ing.get('display') or ing.get('originalText') or ""
+                        disp = disp.strip()
+                        if disp:
+                            raw_recipe_ingredients.append(disp)
                 except Exception as e:
                     print(f"Error fetching recipe details for recipe ID {p.get('recipeId')}: {e}")
                     
-        # 4. Clean all recipe ingredient names in batch
+        # 3. Call the unified shopping-list-sync AI skill
         if progress_callback:
-            progress_callback("Cleaning recipe ingredients using AI/rules...", 95)
-        unique_ing_texts = list(set(raw_ing_texts))
-        cleaned_ing_map = clean_staple_names_batch(unique_ing_texts)
+            progress_callback("Generating final shopping list using AI...", 96)
         
-        # 5. Detect plain water in batch using AI
-        if progress_callback:
-            progress_callback("Detecting plain water using AI...", 97)
-        candidate_names = set()
-        for item in staples:
-            candidate_names.add(item.get('_cleaned_name', item['note']))
-        for raw_ing in unique_ing_texts:
-            candidate_names.add(cleaned_ing_map.get(raw_ing, raw_ing).strip())
-            
-        water_map.update(detect_plain_water_batch(list(candidate_names)))
+        payload = {
+            "ingredients": raw_recipe_ingredients,
+            "staples": staples_notes,
+            "low_staples": low_staples_notes
+        }
         
-        # 6. Process manually marked low staples first
-        for item in staples:
-            clean_id = item['id'].replace('-', '')
-            if clean_id in low_ids_clean:
-                cleaned_name = item.get('_cleaned_name', item['note'])
-                add_to_list(cleaned_name, quantity=1.0)
-        
-        # 6. Reconcile dinner recipe ingredients
-        for p, recipe_ings in recipe_ingredients_by_dinner:
-            for raw_ing, qty in recipe_ings:
-                cleaned_name = cleaned_ing_map.get(raw_ing, raw_ing).strip()
-                cleaned_name_lower = cleaned_name.lower()
-                
-                # Check if it matches any staple
-                matched_staple = None
-                for c_staple_name_lower, staple_item in staple_lookup.items():
-                    # Handle exact, singular, and plural matching
-                    if (cleaned_name_lower == c_staple_name_lower or 
-                        cleaned_name_lower + 's' == c_staple_name_lower or 
-                        c_staple_name_lower + 's' == cleaned_name_lower):
-                        matched_staple = staple_item
-                        break
-                
-                if matched_staple:
-                    # If it is a staple, only add it if it was manually marked as low
-                    clean_staple_id = matched_staple['id'].replace('-', '')
-                    if clean_staple_id in low_ids_clean:
-                        add_to_list(matched_staple.get('_cleaned_name', matched_staple['note']), quantity=1.0)
-                else:
-                    # If it is not a staple, always add it with its recipe quantity!
-                    add_to_list(cleaned_name, quantity=qty)
-                    
-        ingredients_list = list(ingredients_to_add.values())
+        prompt = (
+            """You are an expert in the 'Shopping List Sync Skill'.
 
-        # 7. Clear the active list and add new items
+""" +
+            _SHOPPING_LIST_SYNC_SKILL_DEFINITION + """
+
+### CONTEXT FOR THIS INVOCATION:
+""" +
+            f"Input Data: {json.dumps(payload)}\n\n" +
+            "Return ONLY the JSON array of objects as specified in the skill definition."
+        )
+        
+        print("--- AI SHOPPING LIST SYNC PROMPT ---")
+        ai_response = call_gemini(prompt, expect_json=True)
+        try:
+            ai_output = json.loads(ai_response)
+        except Exception as parse_err:
+            print(f"Failed to parse AI response: {parse_err}. Response was: {ai_response}")
+            raise parse_err
+            
+        # 4. Process final ingredients: tag Dirty Dozen organic items
+        ingredients_list = []
+        for item in ai_output:
+            name = item.get('name', '').strip()
+            if not name:
+                continue
+            qty = item.get('quantity', 1.0)
+            tagged = tag_dirty_dozen(name)
+            ingredients_list.append({
+                "shoppingListId": ACTIVE_LIST_ID,
+                "note": tagged,
+                "quantity": qty,
+                "checked": False
+            })
+            
+        # 5. Clear the active list and add new items
         if progress_callback:
             progress_callback("Clearing active shopping list in Mealie...", 98)
         print(f"Clearing active shopping list {ACTIVE_LIST_ID}...")
@@ -634,14 +488,15 @@ def sync_shopping_list(start_date_str, end_date_str, low_staples_ids=[], progres
         if progress_callback:
             progress_callback(f"Bulk adding {len(ingredients_list)} items to active shopping list...", 99)
         print(f"Adding {len(ingredients_list)} items in bulk to active shopping list...")
-        client.add_shopping_list_items_bulk(ingredients_list)
-        
-        print(f"Programmatic shopping list sync completed successfully. Added {len(ingredients_list)} items.")
+        if ingredients_list:
+            client.add_shopping_list_items_bulk(ingredients_list)
+            
+        print(f"AI shopping list sync completed successfully. Added {len(ingredients_list)} items.")
         if progress_callback:
             progress_callback("Shopping list synchronization complete!", 100)
         return True
     except Exception as e:
-        print(f"Error during programmatic shopping list sync: {e}")
+        print(f"Error during AI shopping list sync: {e}")
         if progress_callback:
             progress_callback(f"Error during shopping list sync: {str(e)}", 100)
         return False

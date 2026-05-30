@@ -1,60 +1,71 @@
 ---
 name: shopping-list-sync
-description: Generate and synchronize the active shopping list in Mealie.
+description: Generate the final active shopping list by filtering out plain water and non-low staples from weekly ingredients, cleaning names, and aggregating quantities.
 ---
 
-# Mealie Shopping List Synchronization Skill
+# Shopping List Sync Skill
 
-This skill is responsible for intelligently generating and synchronizing the active shopping list in Mealie based on a weekly meal plan and a list of manually identified low staples. It includes logic for adding recipe ingredients, reconciling with existing staples, and preventing duplicates.
+This skill takes the raw ingredient strings from dinner recipes, a list of household staples, and a list of manually identified low staples, and generates the final structured active shopping list.
 
 ## Inputs
-- `active_list_id`: The ID of the active shopping list in Mealie.
-- `staples_list_id`: The ID of the staples shopping list in Mealie (for reference and cleaning).
-- `meal_plans_json`: A JSON string representing the scheduled meal plans for the week.
-- `low_staples_ids`: A list of IDs for staples that are manually marked as low and need to be added to the active list.
-- `current_staples_json`: A JSON string representing the current items in the staples shopping list.
-- `dirty_dozen_items_json`: A JSON string representing a list of items belonging to the "Dirty Dozen" that should be tagged as "(Buy Organic)".
-- `mealie_api_url`: The base URL for the Mealie API.
-- `mealie_api_token`: The API token for authenticating with Mealie.
+- `ingredients_json`: A JSON list of raw recipe ingredient strings (e.g. `["2 cloves garlic, minced", "1 lb chicken breast", "2 cups cold water", "1 tsp salt"]`).
+- `staples_json`: A JSON list of staple names (e.g. `["salt", "pepper", "olive oil", "garlic"]`).
+- `low_staples_json`: A JSON list of staple names that are currently running low and need to be replenished (e.g. `["garlic"]`).
 
 ## Workflow
 
-1.  **Initialize:** Start with an empty list of `ingredients_to_add` to the active shopping list and an empty set of `added_items` (lowercase note/name) to track duplicates.
+1.  **Exclude Plain Water:**
+    - Detect any ingredients representing plain tap water (e.g., "water", "cold water", "hot water", "tap water", "water to cover"). Exclude them entirely from the output.
+    - Keep specialty waters that must be purchased (e.g., "coconut water", "rose water", "sparkling water").
 
-2.  **Process Manually Marked Low Staples:**
-    *   Iterate through each `s_id` in `low_staples_ids`.
-    *   Find the corresponding staple item from `current_staples_json`.
-    *   Clean the staple item's name (remove quantities/units) using the "Mealie Staple Name Cleaning Skill" or similar logic.
-    *   If the cleaned name is not already in `added_items`:
-        *   Apply "(Buy Organic)" tag if the item is in `dirty_dozen_items`.
-        *   Add the item to `ingredients_to_add` with `shoppingListId = active_list_id`, `quantity = 0.0` (for clean display), and `checked = False`.
-        *   Add the cleaned name (lowercase) to `added_items`.
+2.  **Filter Staples:**
+    - Compare each recipe ingredient against the `staples` list (handle exact, singular/plural, and minor semantic variations, e.g. "cloves of garlic" or "garlic cloves" or "garlic" vs "garlic").
+    - If the ingredient matches a staple:
+      - Exclude it *unless* it matches an item in the `low_staples` list.
+      - If it is in the `low_staples` list, include it.
+    - If the ingredient does not match a staple, include it.
 
-3.  **Process Recipe Ingredients from Meal Plan:**
-    *   Parse `meal_plans_json` into a list of meal plan entries.
-    *   For each dinner entry in `meal_plans_json` that has a `recipeId`:
-        *   Fetch full recipe details using the Mealie API. *Note: You will need to make an HTTP GET request to `{mealie_api_url}/api/recipes/{recipeId}` with `mealie_api_token` in headers. You should cache these results if possible to avoid redundant fetches.*
-        *   Iterate through each ingredient in the recipe.
-        *   For each ingredient, check if it matches any item in `current_staples_json` (using cleaned names for comparison).
-        *   **If it's a staple:**
-            *   If it's also in `low_staples_ids` (meaning it's a low staple): Add its cleaned name (tagged organic if applicable) to `ingredients_to_add` (if not already added).
-            *   If it's *not* in `low_staples_ids`: Skip it (assume sufficient stock).
-        *   **If it's NOT a staple:** Add its original name (tagged organic if applicable) to `ingredients_to_add` (if not already added). Set `quantity = 0.0` to prevent Mealie from prepending numerical quantity.
+3.  **Clean Ingredient Names:**
+    - Clean the ingredient names by removing quantities, fractions, numbers, and units of measure.
+    - Format and capitalize the ingredient name in Title Case (e.g., "1 lb chicken breast" -> "Chicken Breast", "3 cloves garlic, minced" -> "Garlic").
 
-4.  **Clear and Add to Active Shopping List:**
-    *   Clear all existing items from the `active_list_id` using the Mealie API (`DELETE` request to `{mealie_api_url}/api/households/shopping/items` with `ids` parameter and `mealie_api_token` in headers).
-    *   Add all `ingredients_to_add` items to the `active_list_id` in bulk using the Mealie API (`POST` request to `{mealie_api_url}/api/households/shopping/items/create-bulk` with `mealie_api_token` in headers).
+4.  **Aggregate and Sum Quantities:**
+    - If the same cleaned ingredient name appears multiple times, aggregate their quantities by summing them if the units are compatible.
+    - If units are incompatible or missing, default to a sensible aggregate quantity or a default quantity of 1.0.
 
-5.  **Error Handling:** Log any errors during API calls or processing steps.
+5.  **Include Manually Added Low Staples:**
+    - Ensure any item from `low_staples` that was marked as low is included in the output list.
 
-## Output
-Return a JSON object with a single key `success` set to `true` if synchronization completes without critical errors, and `false` otherwise. Also include a `message` string summarizings the outcome and `items_added_count`.
+6.  **Construct Output:**
+    - Return a JSON array of objects representing the final shopping list items.
+    - Each object must have:
+      - `name`: Cleaned, Title Cased ingredient name (e.g. "Chicken Breast").
+      - `quantity`: Aggregated numeric quantity as a float (e.g. 1.0 or 2.0).
+    - Do not include any extra text or conversational response.
+
+## Example Input
+```json
+{
+  "ingredients": ["2 lbs chicken breast", "1/2 cup salt", "3 cloves garlic", "2 cups water", "1 can coconut water"],
+  "staples": ["salt", "pepper", "garlic", "olive oil"],
+  "low_staples": ["garlic"]
+}
+```
 
 ## Example Output
 ```json
-{
-  "success": true,
-  "message": "Successfully synced 25 items to active shopping list.",
-  "items_added_count": 25
-}
+[
+  {
+    "name": "Chicken Breast",
+    "quantity": 2.0
+  },
+  {
+    "name": "Garlic",
+    "quantity": 3.0
+  },
+  {
+    "name": "Coconut Water",
+    "quantity": 1.0
+  }
+]
 ```
