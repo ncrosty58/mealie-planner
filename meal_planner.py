@@ -395,44 +395,64 @@ def calculate_nutrition_for_range(start_date_str, end_date_str):
 # AI-powered: strip quantities/units from a staple name
 # ---------------------------------------------------------------------------
 
+def clean_staple_names_batch(notes: list) -> dict:
+    """
+    Use a single Gemini call to clean an entire list of staple name strings at once.
+    Returns a dict mapping original note -> cleaned name.
+    Falls back to simple regex stripping per item if the AI call fails.
+    """
+    if not notes:
+        return {}
+
+    def _regex_fallback(note):
+        fallback = re.sub(r'^[\d\.\s/]+(\w+\s+)?', '', note.strip()).strip()
+        return fallback.capitalize() if fallback else note.strip().capitalize()
+
+    try:
+        items_json = json.dumps(notes)
+        prompt = (
+            "You are a grocery list editor. "
+            "Given the following JSON array of grocery item strings, remove any leading or embedded "
+            "quantity, number, fraction, or unit of measure (e.g. '6 tbsp', '1 gallon', '2 cloves', '10 oz') "
+            "from each item and return ONLY the clean item name, properly Title Cased. "
+            "Return a JSON object where each key is the ORIGINAL string and each value is the cleaned name. "
+            "Do not add any explanation.\n\n"
+            f"Items: {items_json}"
+        )
+        result = json.loads(call_gemini(prompt, expect_json=True))
+        # Fill in any missing keys with fallback
+        return {note: result.get(note, _regex_fallback(note)) for note in notes}
+    except Exception as e:
+        print(f"[AI] clean_staple_names_batch fallback: {e}")
+        return {note: _regex_fallback(note) for note in notes}
+
+
 def clean_staple_name(note: str) -> str:
     """
-    Use Gemini to intelligently remove any quantity, number, or unit of measure
-    from a grocery item string, returning only the item name, properly capitalised.
-    Falls back to the raw note if the AI call fails.
+    Clean a single staple name. Delegates to the batch function for a single item.
     """
     if not note:
         return ""
-    try:
-        prompt = (
-            "You are a grocery list editor. "
-            "Given the following grocery item string, remove any leading or embedded quantity, "
-            "number, fraction, or unit of measure (e.g. '6 tbsp', '1 gallon', '2 cloves', '10 oz') "
-            "and return ONLY the clean item name, properly Title Cased. "
-            "Do not add any explanation. Return a JSON object with a single key 'name'.\n\n"
-            f"Item: {note}"
-        )
-        result = json.loads(call_gemini(prompt, expect_json=True))
-        clean = result.get("name", "").strip()
-        return clean if clean else note.strip().capitalize()
-    except Exception as e:
-        print(f"[AI] clean_staple_name fallback for '{note}': {e}")
-        # Simple numeric-prefix fallback
-        fallback = re.sub(r'^[\d\.\s/]+(\w+\s+)?', '', note.strip()).strip()
-        return fallback.capitalize() if fallback else note.strip().capitalize()
+    result = clean_staple_names_batch([note])
+    return result.get(note, note.strip().capitalize())
+
+
+# Module-level cache: original staple note -> cleaned name, populated during sync
+_staple_name_cache: dict = {}
 
 
 def find_matching_staple(ing_note, staples):
     """
     Check if a recipe ingredient note matches any staple item.
+    Uses the pre-built _staple_name_cache if available to avoid per-call AI requests.
     Returns the staple item if found, else None.
     """
     ing_lower = ing_note.lower()
     for s_item in staples:
-        s_note_lower = s_item['note'].lower()
-        s_clean = clean_staple_name(s_note_lower).lower()
-        
-        # Match if the cleaned staple name is a distinct word in the ingredient note
+        s_note = s_item.get('note', '')
+        # Use cached cleaned name if available, else clean on the fly
+        s_clean = _staple_name_cache.get(s_note, clean_staple_name(s_note)).lower()
+
         pattern = r'\b' + re.escape(s_clean) + r'\b'
         if re.search(pattern, ing_lower) or s_clean in ing_lower:
             return s_item
@@ -441,16 +461,24 @@ def find_matching_staple(ing_note, staples):
 
 def clean_staples_list(client):
     """
-    Fetch all items in the Staples shopping list and update any items
-    that have quantities or units in their names to be clean/amount-free.
+    Fetch all items in the Staples shopping list, batch-clean their names via a single
+    Gemini call, update any that have quantities/units, and populate the module-level
+    name cache for use by find_matching_staple during the same sync run.
     """
+    global _staple_name_cache
     try:
         staples = client.get_shopping_list_items(STAPLES_LIST_ID)
+        notes = [item.get('note', '') for item in staples if item.get('note')]
+
+        # One Gemini call for all staple names
+        cleaned_map = clean_staple_names_batch(notes)
+        _staple_name_cache = cleaned_map  # Populate cache for find_matching_staple
+
         for item in staples:
             note = item.get('note')
             if not note:
                 continue
-            clean_name = clean_staple_name(note)
+            clean_name = cleaned_map.get(note, note)
             if clean_name != note or item.get('quantity') != 0.0:
                 payload = {
                     'id': item['id'],
@@ -463,6 +491,7 @@ def clean_staples_list(client):
                     'labelId': item.get('labelId')
                 }
                 client.update_shopping_list_item(item['id'], payload)
+        print(f"[AI] Cleaned {len(notes)} staple names in one batch call.")
     except Exception as e:
         print(f"Error cleaning staples list: {e}")
 
