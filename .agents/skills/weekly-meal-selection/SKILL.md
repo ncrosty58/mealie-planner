@@ -13,6 +13,7 @@ This skill is responsible for intelligently selecting the best dinner recipes fo
 - `num_dinners_to_plan`: The exact number of dinner recipes to select.
 - `freezer_items_priority`: A string listing freezer items to prioritize in meal selection (e.g., "chicken thighs, ground beef").
 - `special_requests`: A string detailing any special meal requests from the family.
+- `recently_planned_recipes`: A list of recipe names that were planned recently and should be avoided to prevent repeating them week-to-week.
 - `recipe_catalogue_json`: A JSON string representing an array of available recipe objects. Each recipe object will have at least:
     - `id`: Unique identifier of the recipe.
     - `name`: Name of the recipe.
@@ -24,7 +25,7 @@ This skill is responsible for intelligently selecting the best dinner recipes fo
 
 ## Workflow
 
-1.  **Understand Constraints:** Carefully read and internalize the `family_dietary_rules_prompt`, `dinner_days`, `num_dinners_to_plan`, `freezer_items_priority`, and `special_requests`.
+1.  **Understand Constraints:** Carefully read and internalize the `family_dietary_rules_prompt`, `dinner_days`, `num_dinners_to_plan`, `freezer_items_priority`, `special_requests`, and `recently_planned_recipes`.
 
 2.  **Evaluate Recipe Catalogue:** Parse the `recipe_catalogue_json` into a list of recipe objects.
 
@@ -32,7 +33,7 @@ This skill is responsible for intelligently selecting the best dinner recipes fo
     *   **High Priority:** Recipes containing `freezer_items_priority` ingredients.
     *   **Medium Priority:** Recipes that fulfill `special_requests`.
     *   **Adherence to Rules:** Strictly follow `family_dietary_rules_prompt` (e.g., avoiding processed meats, penalizing expensive ingredients like beef/steak unless requested, preferring high-fiber, ensuring variety).
-    *   **Variety:** Avoid repeating the same recipe or very similar recipes within the planned week.
+    *   **Variety:** Avoid repeating the same recipe or very similar recipes within the planned week. Do not select any recipes from the `recently_planned_recipes` list unless absolutely necessary due to a lack of other options.
     *   **Family Preferences:** Factor in family preferences (e.g., salmon, chicken, turkey, Mexican, Italian, Asian cuisine, Blackstone griddle compatibility if relevant).
 
 4.  **Order Selection:** Return the selected recipe IDs in the order they should be scheduled for the `dinner_days`.

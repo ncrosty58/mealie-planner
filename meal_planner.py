@@ -37,7 +37,7 @@ _WATER_DETECTOR_SKILL_DEFINITION = load_skill_md('water-detector')
 # Gemini AI Client
 # ---------------------------------------------------------------------------
 
-def call_gemini(prompt: str, expect_json: bool = True) -> str:
+def call_gemini(prompt: str, expect_json: bool = True, temperature: float = 0.2) -> str:
     """
     Send a prompt to the Gemini API and return the text response.
     If expect_json=True, requests JSON output mode and returns the raw text
@@ -53,7 +53,7 @@ def call_gemini(prompt: str, expect_json: bool = True) -> str:
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
-            "temperature": 0.2,
+            "temperature": temperature,
             "responseMimeType": "application/json" if expect_json else "text/plain"
         }
     }
@@ -804,6 +804,19 @@ def generate_weekly_plan(start_date_str, end_date_str, exclude_text="", freezer_
     ]
     num_dinners = len(dinner_days)
 
+    # Fetch recently planned recipes (preceding 7 days) to avoid repeating them
+    recent_recipe_names = []
+    try:
+        prev_start = start_date - timedelta(days=7)
+        prev_end = start_date - timedelta(days=1)
+        prev_plans = client.get_meal_plan(prev_start.strftime("%Y-%m-%d"), prev_end.strftime("%Y-%m-%d"))
+        for p in prev_plans:
+            if p.get('recipe') and p['recipe'].get('name'):
+                recent_recipe_names.append(p['recipe']['name'])
+        recent_recipe_names = list(set(recent_recipe_names))
+    except Exception as e:
+        print(f"Error fetching recently planned recipes: {e}")
+
     recipe_catalogue = [
         {
             "id": r["id"],
@@ -816,6 +829,8 @@ def generate_weekly_plan(start_date_str, end_date_str, exclude_text="", freezer_
         }
         for r in allowed_recipes
     ]
+    # Shuffle the catalogue to break order bias and increase variety
+    random.shuffle(recipe_catalogue)
 
     selection_prompt = (
         """You are an expert in the 'Mealie Weekly Meal Selection Skill'.
@@ -830,7 +845,8 @@ def generate_weekly_plan(start_date_str, end_date_str, exclude_text="", freezer_
         f"- **Dinner nights this week**: {', '.join(dinner_days)}\n" +
         f"- **Number of dinners to plan**: {num_dinners}\n" +
         f"- **Freezer items to prioritize**: {freezer_items or 'none'}\n" +
-        f"- **Special requests from the family**: {special_requests or 'none'}\n\n" +
+        f"- **Special requests from the family**: {special_requests or 'none'}\n" +
+        f"- **Recently planned recipes (AVOID selecting these to ensure weekly variety)**: {', '.join(recent_recipe_names) if recent_recipe_names else 'none'}\n\n" +
         f"### RECIPE CATALOGUE (JSON):\n" +
         f"{json.dumps(recipe_catalogue, indent=2)}\n\n" +
         "Return ONLY the JSON object as specified in the skill definition."
@@ -839,7 +855,7 @@ def generate_weekly_plan(start_date_str, end_date_str, exclude_text="", freezer_
     if progress_callback:
         progress_callback("Querying Gemini AI for optimal dinner plan based on rules...", 50)
     try:
-        raw = call_gemini(selection_prompt, expect_json=True)
+        raw = call_gemini(selection_prompt, expect_json=True, temperature=0.7)
         ai_result = json.loads(raw)
         selected_ids = ai_result.get("dinner_ids", [])
         print(f"[AI] Selected {len(selected_ids)} dinner recipe IDs: {selected_ids}")
