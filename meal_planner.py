@@ -383,6 +383,47 @@ def clean_staple_names_batch(notes: list) -> dict:
         print(f"[AI] clean_staple_names_batch fallback: {e}")
         return {note: _regex_fallback(note) for note in notes}
 
+def is_plain_water(name: str) -> bool:
+    """
+    Check if the ingredient name corresponds to plain water (which shouldn't go on a shopping list).
+    Allows things like coconut water, rose water, sparkling water, etc.
+    """
+    if not name:
+        return False
+    n = name.lower().strip()
+    # Remove text in parentheses: e.g., "water (cold)" -> "water"
+    n = re.sub(r'\(.*?\)', '', n)
+    # Split on comma or semicolon and take the first part: e.g., "water, cold" -> "water"
+    n = re.split(r'[,;]', n)[0].strip()
+    # Replace slashes with spaces: e.g., "warm/hot water" -> "warm hot water"
+    n = n.replace('/', ' ')
+    
+    # Check if it matches plain water terms
+    plain_water_terms = {
+        'water',
+        'cold water',
+        'warm water',
+        'hot water',
+        'filtered water',
+        'ice water',
+        'tap water',
+        'boiling water',
+    }
+    # Clean up multiple spaces
+    n = ' '.join(n.split())
+    if n in plain_water_terms:
+        return True
+        
+    # Also check if it ends with " water" and the words before are only standard water adjectives
+    if n.endswith(' water'):
+        prefix = n[:-6].strip()
+        words = prefix.split()
+        allowed_adjectives = {'cold', 'warm', 'hot', 'filtered', 'ice', 'tap', 'boiling', 'clean', 'fresh', 'pure'}
+        if words and all(w in allowed_adjectives for w in words):
+            return True
+            
+    return False
+
 def clean_staple_name(note: str) -> str:
     """
     Clean a single staple name. Delegates to the batch function for a single item.
@@ -427,9 +468,9 @@ def sync_shopping_list(start_date_str, end_date_str, low_staples_ids=[], progres
         
         def add_to_list(name, quantity=1.0):
             cleaned = name.strip()
-            cleaned_lower = cleaned.lower()
-            if cleaned_lower == 'water':
+            if is_plain_water(cleaned):
                 return
+            cleaned_lower = cleaned.lower()
             if cleaned_lower in ingredients_to_add:
                 ingredients_to_add[cleaned_lower]['quantity'] += quantity
             else:
