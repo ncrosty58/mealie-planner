@@ -794,8 +794,8 @@
                     <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
                         <button type="button" class="btn btn-secondary" onclick="openStaplesModal()">📋 Manage Staples</button>
 
-                        <form action="{{ url_for('sync') }}" method="POST">
-                            <button type="submit" class="btn btn-secondary">🔄 Recalculate Shopping List</button>
+                        <form action="{{ url_for('sync') }}" method="POST" id="sync-list-form">
+                            <button type="submit" class="btn btn-secondary">🔄 Update Shopping List</button>
                         </form>
                         
                         <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you sure you want to clear the active shopping list and all scheduled meal plans for the current and next weeks?');">
@@ -879,7 +879,7 @@
                 <div class="progress-bar-fill" id="progress-bar-fill" style="width: 0%;"></div>
             </div>
             
-            <div class="loading-subtext" id="loading-subtext">Please do not close or leave this page. Your shopping list is being recalculated.</div>
+            <div class="loading-subtext" id="loading-subtext">Please do not close or leave this page. Your shopping list is being updated.</div>
             
             <div class="loading-log" id="loading-log" style="display: none;"></div>
         </div>
@@ -912,7 +912,7 @@
                 </div>
                 <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
                     <button type="button" class="btn btn-secondary" onclick="closeStaplesModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary" onclick="showLoading('Syncing Staples & Recalculating List...')">💾 Save & Recalculate</button>
+                    <button type="submit" class="btn btn-primary">💾 Add to Shopping List</button>
                 </div>
             </form>
         </div>
@@ -951,18 +951,26 @@
             recipeSelects.forEach(function(select) {
                 select.addEventListener('change', function() {
                     if (this.value) {
-                        showLoading('Swapping Recipe & Recalculating List...');
+                        showLoading('Swapping Recipe & Updating List...');
                     }
                 });
             });
 
-            // 2. Recalculate Shopping List button submit
-            const syncForms = document.querySelectorAll('form[action*="/sync"]');
-            syncForms.forEach(function(form) {
-                form.addEventListener('submit', function() {
-                    showLoading('Recalculating Shopping List...');
+            // 2. Sync Shopping List (Update) button submit
+            const syncListForm = document.getElementById('sync-list-form');
+            if (syncListForm) {
+                syncListForm.addEventListener('submit', function() {
+                    showLoading('Updating Shopping List...');
                 });
-            });
+            }
+
+            // Staples checklist form submit
+            const staplesForm = document.getElementById('staples-form');
+            if (staplesForm) {
+                staplesForm.addEventListener('submit', function() {
+                    showLoading('Adding Staples to Shopping List...');
+                });
+            }
 
             // 3. Main plan generation form submit
             const planForms = document.querySelectorAll('form[action*="/plan"]');
