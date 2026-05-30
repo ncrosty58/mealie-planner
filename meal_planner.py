@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import random
 import sqlite3
 import smtplib
@@ -65,6 +66,37 @@ RDA = {
 
 ACTIVE_LIST_ID = "9a1e2d1e33f24f27a01fef55c89a92de"
 STAPLES_LIST_ID = "1196f23a527b42a9a75b1c3850251948"
+
+
+# ---------------------------------------------------------------------------
+# Gemini AI Client
+# ---------------------------------------------------------------------------
+
+def call_gemini(prompt: str, expect_json: bool = True) -> str:
+    """
+    Send a prompt to the Gemini API and return the text response.
+    If expect_json=True, requests JSON output mode and returns the raw text
+    so callers can parse it themselves.
+    """
+    api_key = os.getenv('GOOGLE_API_KEY')
+    model = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
+    if not api_key:
+        raise RuntimeError("GOOGLE_API_KEY is not set in environment.")
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.2,
+            "responseMimeType": "application/json" if expect_json else "text/plain"
+        }
+    }
+
+    resp = requests.post(url, json=payload, timeout=60)
+    resp.raise_for_status()
+    data = resp.json()
+    return data["candidates"][0]["content"]["parts"][0]["text"]
 
 def get_mealie_token():
     """Retrieve the API token automatically from the Mealie SQLite database."""
@@ -359,52 +391,35 @@ def calculate_nutrition_for_range(start_date_str, end_date_str):
     return daily_nutrients, averages
 
 
-def clean_staple_name(note):
+# ---------------------------------------------------------------------------
+# AI-powered: strip quantities/units from a staple name
+# ---------------------------------------------------------------------------
+
+def clean_staple_name(note: str) -> str:
     """
-    Remove quantities, measurements, and units from a staple note.
-    E.g. '6 tbsp Butter' -> 'Butter', '10 cloves Garlic' -> 'Garlic', '1 gallon Milk' -> 'Milk'.
+    Use Gemini to intelligently remove any quantity, number, or unit of measure
+    from a grocery item string, returning only the item name, properly capitalised.
+    Falls back to the raw note if the AI call fails.
     """
     if not note:
         return ""
-    cleaned = note.strip().lower()
-    
-    # 1. Strip leading quantities (e.g. 6, 10, 3.5, 1/2, 1-2)
-    cleaned = re.sub(r'^\d+[\./\-\d]*\s*', '', cleaned)
-    
-    # 2. Strip common units case-insensitive
-    units = [
-        'tbsp', 'tbsps', 'tablespoon', 'tablespoons', 'tbs',
-        'tsp', 'tsps', 'teaspoon', 'teaspoons',
-        'cloves', 'clove', 'head of', 'heads of', 'head', 'heads',
-        'bunch of', 'bunches of', 'bunch', 'bunches',
-        'cans of', 'can of', 'cans', 'can',
-        'gallon of', 'gallon', 'gallons', 'gal', 'gals',
-        'loaf of', 'loaf', 'loaves of', 'loaves',
-        'bag of', 'bags of', 'bag', 'bags',
-        'cup of', 'cups of', 'cups', 'cup',
-        'oz', 'ounce', 'ounces',
-        'lbs', 'lb', 'pound', 'pounds',
-        'packs of', 'pack of', 'packs', 'pack',
-        'pieces of', 'piece of', 'pieces', 'piece',
-        'container of', 'containers of', 'container', 'containers',
-        'bottle of', 'bottles of', 'bottle', 'bottles',
-        'box of', 'boxes of', 'box', 'boxes',
-        'jar of', 'jars of', 'jar', 'jars',
-        'slice of', 'slices of', 'slice', 'slices',
-        'pkg', 'pkgs', 'package', 'packages', 'package of', 'packages of',
-        'c.', 't.', 'g', 'ml', 'l'
-    ]
-    
-    units.sort(key=len, reverse=True)
-    for unit in units:
-        pattern = r'^' + re.escape(unit) + r'\b\s*(?:of\b\s*)?'
-        if re.search(pattern, cleaned):
-            cleaned = re.sub(pattern, '', cleaned)
-            break
-            
-    cleaned = re.sub(r'^of\s+', '', cleaned)
-    cleaned = cleaned.strip()
-    return cleaned.capitalize() if cleaned else note
+    try:
+        prompt = (
+            "You are a grocery list editor. "
+            "Given the following grocery item string, remove any leading or embedded quantity, "
+            "number, fraction, or unit of measure (e.g. '6 tbsp', '1 gallon', '2 cloves', '10 oz') "
+            "and return ONLY the clean item name, properly Title Cased. "
+            "Do not add any explanation. Return a JSON object with a single key 'name'.\n\n"
+            f"Item: {note}"
+        )
+        result = json.loads(call_gemini(prompt, expect_json=True))
+        clean = result.get("name", "").strip()
+        return clean if clean else note.strip().capitalize()
+    except Exception as e:
+        print(f"[AI] clean_staple_name fallback for '{note}': {e}")
+        # Simple numeric-prefix fallback
+        fallback = re.sub(r'^[\d\.\s/]+(\w+\s+)?', '', note.strip()).strip()
+        return fallback.capitalize() if fallback else note.strip().capitalize()
 
 
 def find_matching_staple(ing_note, staples):
@@ -737,121 +752,67 @@ def get_recipes_from_db():
         except:
             return []
 
-def parse_exclusions(text):
+# ---------------------------------------------------------------------------
+# AI-powered: parse free-text meal exclusions
+# ---------------------------------------------------------------------------
+
+def parse_exclusions(text: str) -> dict:
     """
-    Parse a free text description of meal exclusions and return a dict of:
-    {
-        'Monday': ['dinner'],
-        'Tuesday': ['dinner', 'lunch'],
-        'Friday': ['breakfast']
+    Use Gemini to interpret a free-text description of which meals to skip,
+    and return a structured dict: {"Monday": ["dinner"], "Friday": ["breakfast", "dinner"], ...}.
+    Valid meal values are: breakfast, lunch, dinner.
+    Valid day keys are: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday.
+    """
+    if not text or not text.strip():
+        return {}
+
+    today = datetime.now()
+    next_monday = today + timedelta(days=(7 - today.weekday()))
+    week_dates = {
+        (next_monday + timedelta(days=i)).strftime("%A"): (next_monday + timedelta(days=i)).strftime("%Y-%m-%d")
+        for i in range(7)
     }
-    """
-    exclusions = {}
-    if not text:
+
+    prompt = (
+        "You are a meal planning assistant. The user has described which meals they want to SKIP "
+        "or OPT OUT of for the upcoming week. "
+        f"The week runs: {', '.join(f'{d} ({dt})' for d, dt in week_dates.items())}.\n\n"
+        "Based on the user's input below, return a JSON object where:\n"
+        "  - Keys are day names: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday\n"
+        "  - Values are arrays of meal names to SKIP for that day\n"
+        "  - Valid meal names are: breakfast, lunch, dinner\n"
+        "  - Only include days where at least one meal should be skipped\n"
+        "  - If no meals should be skipped, return an empty object {}\n\n"
+        "Examples:\n"
+        "  Input: 'skip dinner Saturday and Sunday'\n"
+        "  Output: {\"Saturday\": [\"dinner\"], \"Sunday\": [\"dinner\"]}\n\n"
+        "  Input: 'we are eating out all week'\n"
+        "  Output: {\"Monday\": [\"dinner\"], \"Tuesday\": [\"dinner\"], \"Wednesday\": [\"dinner\"], "
+        "\"Thursday\": [\"dinner\"], \"Friday\": [\"dinner\"], \"Saturday\": [\"dinner\"], \"Sunday\": [\"dinner\"]}\n\n"
+        "  Input: 'Monday through Wednesday no cooking at all'\n"
+        "  Output: {\"Monday\": [\"breakfast\", \"lunch\", \"dinner\"], \"Tuesday\": [\"breakfast\", \"lunch\", \"dinner\"], "
+        "\"Wednesday\": [\"breakfast\", \"lunch\", \"dinner\"]}\n\n"
+        f"User input: {text}\n\n"
+        "Return ONLY the JSON object, nothing else."
+    )
+
+    try:
+        raw = call_gemini(prompt, expect_json=True)
+        result = json.loads(raw)
+        # Validate structure
+        valid_days = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
+        valid_meals = {"breakfast", "lunch", "dinner"}
+        exclusions = {}
+        for day, meals in result.items():
+            if day in valid_days and isinstance(meals, list):
+                cleaned_meals = [m for m in meals if m in valid_meals]
+                if cleaned_meals:
+                    exclusions[day] = cleaned_meals
+        print(f"[AI] Parsed exclusions: {exclusions}")
         return exclusions
-        
-    text_lower = text.lower()
-    
-    days_of_week = {
-        'monday': 'Monday', 'tuesday': 'Tuesday', 'wednesday': 'Wednesday',
-        'thursday': 'Thursday', 'friday': 'Friday', 'saturday': 'Saturday', 'sunday': 'Sunday',
-        'mon': 'Monday', 'tue': 'Tuesday', 'wed': 'Wednesday', 'thu': 'Thursday',
-        'fri': 'Friday', 'sat': 'Saturday', 'sun': 'Sunday'
-    }
-    
-    ordered_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    
-    meals_map = {
-        'breakfast': 'breakfast', 'bf': 'breakfast',
-        'lunch': 'lunch', 'ln': 'lunch',
-        'dinner': 'dinner', 'dn': 'dinner'
-    }
-    
-    all_meals_keywords = ['all meals', 'every meal', 'meals', 'all day', 'whole day', 'full day', 'everything', 'no cooking', 'away']
-    
-    triggers = ['skip', 'out', 'no', 'none', 'don\'t', 'dont', 'except', 'exclude', 'without', 'off', 'opt out', 'away', 'not cooking', 'eating out', 'restaurant', 'cancel']
-    
-    # Pre-process day ranges: "X to Y" or "X through Y" or "X thru Y" or "X until Y"
-    day_pattern = r'\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b'
-    range_regex = day_pattern + r'\s+(?:to|through|thru|until)\s+' + day_pattern
-    
-    def replace_range(match):
-        start_str = match.group(1)
-        end_str = match.group(2)
-        start_day = days_of_week[start_str]
-        end_day = days_of_week[end_str]
-        try:
-            start_idx = ordered_days.index(start_day)
-            end_idx = ordered_days.index(end_day)
-            if start_idx <= end_idx:
-                days = ordered_days[start_idx : end_idx + 1]
-            else:
-                days = ordered_days[start_idx:] + ordered_days[:end_idx + 1]
-            return ", ".join(days)
-        except ValueError:
-            return match.group(0)
-            
-    processed_text = re.sub(range_regex, replace_range, text_lower).lower()
-    
-    # Split text into segments by sentence/clause boundaries
-    # We split by period, semicolon, newline, comma, and the word "and"
-    clauses = re.split(r'[\.,;\n]|\band\b', processed_text)
-    
-    active_meals = ['dinner']  # Default context
-    active_days = []
-    
-    for clause in clauses:
-        clause = clause.strip()
-        if not clause:
-            continue
-            
-        # Check days/groups in this clause
-        clause_days = []
-        
-        # Check weekend/weekdays keywords
-        if 'weekend' in clause:
-            clause_days.extend(['Saturday', 'Sunday'])
-        if 'weekday' in clause or 'workday' in clause or 'work day' in clause:
-            clause_days.extend(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])
-            
-        for kw, day_name in days_of_week.items():
-            if re.search(r'\b' + re.escape(kw) + r'\b', clause):
-                if day_name not in clause_days:
-                    clause_days.append(day_name)
-                    
-        # Check meals in this clause
-        clause_meals = []
-        
-        # Check if they want all meals
-        wants_all_meals = any(kw in clause for kw in all_meals_keywords)
-        if wants_all_meals:
-            clause_meals = ['breakfast', 'lunch', 'dinner']
-        else:
-            for kw, meal_name in meals_map.items():
-                if re.search(r'\b' + re.escape(kw) + r'\b', clause):
-                    if meal_name not in clause_meals:
-                        clause_meals.append(meal_name)
-                    
-        has_trigger = any(re.search(r'\b' + re.escape(t) + r'\b', clause) for t in triggers)
-        
-        # Update context
-        if clause_meals:
-            active_meals = clause_meals
-        if clause_days:
-            active_days = clause_days
-            
-        # Apply the exclusions
-        # If we have days and either a trigger, a meal, or a day mentioned, apply the exclusions!
-        has_day_mention = any(re.search(r'\b' + re.escape(kw) + r'\b', clause) for kw in days_of_week) or 'weekend' in clause or 'weekday' in clause or 'workday' in clause
-        if active_days and (has_trigger or clause_meals or has_day_mention):
-            for d in active_days:
-                if d not in exclusions:
-                    exclusions[d] = []
-                for m in active_meals:
-                    if m not in exclusions[d]:
-                        exclusions[d].append(m)
-                        
-    return exclusions
+    except Exception as e:
+        print(f"[AI] parse_exclusions failed: {e} — no exclusions applied")
+        return {}
 
 
 def generate_weekly_plan(start_date_str, end_date_str, exclude_text="", freezer_items="", special_requests="", low_staples_ids=[]):
@@ -896,108 +857,88 @@ def generate_weekly_plan(start_date_str, end_date_str, exclude_text="", freezer_
         print("Warning: No recipes left after filtering! Using unfiltered recipes.")
         allowed_recipes = all_recipes
 
-    # 4. Score allowed recipes based on rules
-    scored_recipes = []
-    special_req_lower = special_requests.lower() if special_requests else ""
-    
-    # Theme keywords mapping for special requests
-    themes = {
-        "mexican": ["mexican", "taco", "fajita", "burrito", "quesadilla", "enchilada", "salsa"],
-        "italian": ["italian", "pasta", "ziti", "ravioli", "lasagna", "macaroni", "parmesan", "marinara", "pesto"],
-        "asian": ["asian", "teriyaki", "sesame", "pad thai", "lo mein", "ramen", "fried rice", "stir fry", "ginger", "soy"],
-        "burger": ["burger", "smash", "burgers"],
-        "salmon": ["salmon", "fish"],
-        "soup": ["soup", "chowder", "stew", "chili"],
-        "blackstone": ["blackstone", "griddle", "smash burger", "skewers", "flat top"]
-    }
-    
-    # Determine requested themes
-    requested_themes = []
-    if special_req_lower:
-        for theme, patterns in themes.items():
-            if theme in special_req_lower or any(p in special_req_lower for p in patterns):
-                requested_themes.append(theme)
-                
-    # Derive breakfast rotation directly from the nutrition profiles so the two can't drift
-    breakfasts = list(BREAKFAST_PROFILES.keys())
-    
-    for r in allowed_recipes:
-        score = 0
-        r_id = r['id']
-        name_lower = r['name'].lower()
-        slug_lower = r.get('slug', '').lower()
-        desc_lower = r.get('description', '').lower() if r.get('description') else ''
-        tags = r.get('tags', [])
-        ings = r.get('ingredients', [])
-        insts = r.get('instructions', [])
-        
-        # Reuse the pre-computed all_text from the filtering pass to avoid rebuilding it
-        all_text = r.get('_all_text') or (f"{name_lower} {slug_lower} {desc_lower} " + " ".join(tags))
-        
-        # A. Freezer items match (Highest Priority)
-        # If the recipe ID was explicitly identified as priority freezer recipe
-        if r_id in priority_recipe_ids:
-            score += 2000
-        elif freezer_items:
-            f_items = [i.strip().lower() for i in freezer_items.split(",") if i.strip()]
-            for item in f_items:
-                if item in name_lower:
-                    score += 1000
-                if any(item in ing for ing in ings):
-                    score += 800
-                if item in slug_lower:
-                    score += 500
-                if any(item in tag for tag in tags):
-                    score += 500
-                if item in desc_lower:
-                    score += 200
-                    
-        # B. Special requests match
-        if special_req_lower:
-            # Direct name/slug match
-            if special_req_lower in name_lower or name_lower in special_req_lower:
-                score += 500
-                
-            # Theme matching
-            for theme in requested_themes:
-                patterns = themes[theme]
-                if any(p in all_text for p in patterns):
-                    score += 500
-                # Specific check for Blackstone recipes when blackstone is requested
-                if theme == 'blackstone':
-                    instructions_text = " ".join(insts)
-                    if 'blackstone' in name_lower or 'griddle' in name_lower or 'blackstone' in instructions_text or 'griddle' in instructions_text:
-                        score += 800
-                        
-        # C. High fiber optimization
-        # Extract fiber content
-        fiber_val = parse_nutrient_val(r.get('fiber_content'))
-        if fiber_val > 0:
-            score += fiber_val * 15  # 1g of fiber gives +15 points
-            
-        # D. Beef/Steak penalty (expensive/seldom)
-        beef_steak_kws = {'beef', 'steak', 'ribeye', 'sirloin', 'chuck', 'brisket', 'ground beef'}
-        if any(kw in all_text for kw in beef_steak_kws):
-            score -= 100
-            
-        # E. Add small random variation to shuffle recipes with equal scores
-        score += random.uniform(-2, 2)
-        
-        scored_recipes.append((score, r))
-        
-    # Sort recipes by descending score
-    scored_recipes.sort(key=lambda x: x[0], reverse=True)
-    clean_recipes = [x[1] for x in scored_recipes]
+    # 4. Use Gemini to select and rank dinners for the week
+    #    We tell it everything: family preferences, dietary rules, special requests,
+    #    freezer items, and the full allowed recipe catalogue.
+    #    It returns an ordered list of recipe IDs — one per dinner slot.
+
+    start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+    end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+    num_days = (end_date - start_date).days + 1
+    exclusions = parse_exclusions(exclude_text)
+    dinner_days = [
+        (start_date + timedelta(days=i)).strftime("%A")
+        for i in range(num_days)
+        if 'dinner' not in exclusions.get((start_date + timedelta(days=i)).strftime("%A"), [])
+    ]
+    num_dinners = len(dinner_days)
+
+    # Build a compact recipe catalogue for the AI prompt
+    recipe_catalogue = [
+        {
+            "id": r["id"],
+            "name": r["name"],
+            "description": (r.get("description") or "")[:120],
+            "tags": r.get("tags", []),
+            "fiber_g": r.get("fiber_content"),
+            "ingredients_preview": ", ".join(r.get("ingredients", [])[:5]),
+            "instructions_preview": " ".join(r.get("instructions", []))[:80]
+        }
+        for r in allowed_recipes
+    ]
+
+    selection_prompt = (
+        "You are a meal planner for the Crosty family. "
+        "Your job is to select the best dinners for the upcoming week from the recipe catalogue below, "
+        "following all family rules and preferences.\n\n"
+        "=== FAMILY DIETARY RULES ===\n"
+        "- Avoid processed meats entirely: sausage, hotdog, chorizo, salami, pepperoni, bacon, ham, pancetta\n"
+        "- Beef and steak are expensive and eaten seldom — give them a significant penalty unless specifically requested\n"
+        "- Pork is acceptable\n"
+        "- Prefer high-fiber meals where possible\n"
+        "- Variety matters — do not repeat the same recipe more than once in a week\n"
+        "- The family enjoys: salmon, chicken, turkey, vegetarian dishes, Mexican, Italian, and Asian cuisine\n"
+        "- The family has a Blackstone griddle and enjoys using it occasionally\n\n"
+        "=== THIS WEEK'S CONTEXT ===\n"
+        f"- Dinner nights this week: {', '.join(dinner_days)}\n"
+        f"- Number of dinners to plan: {num_dinners}\n"
+        f"- Freezer items to prioritise (use recipes containing these first): {freezer_items or 'none'}\n"
+        f"- Special requests from the family: {special_requests or 'none'}\n\n"
+        "=== RECIPE CATALOGUE (JSON) ===\n"
+        f"{json.dumps(recipe_catalogue, indent=2)}\n\n"
+        "=== YOUR TASK ===\n"
+        f"Select exactly {num_dinners} recipe IDs from the catalogue above, one for each dinner night. "
+        "Return them in order (first ID = first dinner night). "
+        "Prioritise variety, family preferences, freezer items, and special requests. "
+        "Return a JSON object with a single key 'dinner_ids' containing the ordered list of recipe ID strings. "
+        "Example: {\"dinner_ids\": [\"abc123\", \"def456\", ...]}"
+    )
+
+    try:
+        raw = call_gemini(selection_prompt, expect_json=True)
+        ai_result = json.loads(raw)
+        selected_ids = ai_result.get("dinner_ids", [])
+        print(f"[AI] Selected {len(selected_ids)} dinner recipe IDs: {selected_ids}")
+    except Exception as e:
+        print(f"[AI] Recipe selection failed: {e} — falling back to random selection")
+        random.shuffle(allowed_recipes)
+        selected_ids = [r["id"] for r in allowed_recipes[:num_dinners]]
+
+    # Map selected IDs back to recipe objects (validate against catalogue)
+    id_to_recipe = {r["id"]: r for r in allowed_recipes}
+    clean_recipes = [id_to_recipe[rid] for rid in selected_ids if rid in id_to_recipe]
+    # If AI hallucinated IDs or we got too few, pad with random allowed recipes
+    used_ids = {r["id"] for r in clean_recipes}
+    remaining = [r for r in allowed_recipes if r["id"] not in used_ids]
+    random.shuffle(remaining)
+    clean_recipes = clean_recipes + remaining
     
     # 5. Build calendar meals list
     meals = []
-    start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
-    end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
     current_date = start_date
     recipe_index = 0
-    
-    exclusions = parse_exclusions(exclude_text)
-    
+    # Derive breakfast rotation directly from the nutrition profiles so the two can't drift
+    breakfasts = list(BREAKFAST_PROFILES.keys())
     while current_date <= end_date:
         d_str = current_date.strftime("%Y-%m-%d")
         day_name = current_date.strftime("%A")
