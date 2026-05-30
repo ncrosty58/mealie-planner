@@ -224,13 +224,26 @@ def send_email(subject, html_content):
         print("SMTP settings are missing. Cannot send email.")
         return False
 
+    recipients = []
     try:
-        client = MealieClient()
-        users = client.get_users()
-        recipients = [u['email'] for u in users if u.get('email')]
+        db_path = os.getenv('MEALIE_DB_PATH', '/mealie-data/mealie.db')
+        if os.path.exists(db_path):
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT email FROM users WHERE email IS NOT NULL AND email != ''")
+            recipients = [row[0] for row in cursor.fetchall()]
+            conn.close()
     except Exception as e:
-        print(f"Error fetching email recipients: {e}")
-        recipients = [smtp_user]  # Fallback to sender
+        print(f"Error querying SQLite users for email: {e}")
+
+    if not recipients:
+        try:
+            client = MealieClient()
+            users = client.get_users()
+            recipients = [u['email'] for u in users if u.get('email')]
+        except Exception as e:
+            print(f"Error fetching email recipients via API: {e}")
+            recipients = [smtp_user]
 
     if not recipients:
         print("No recipient emails found. Cannot send email.")
