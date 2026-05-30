@@ -37,7 +37,7 @@ This skill contains the constraints, business rules, and integration workflows f
 
 ## Scraping & Web Searching
 - If a freezer item is specified and no local recipe exists in Mealie:
-  1. Search DuckDuckGo HTML for a healthy vegetarian recipe.
+  1. Search DuckDuckGo HTML for recipes. Use query `healthy recipe with {ingredient}` if ingredient contains meat keywords (chicken, turkey, pork, fish, salmon, beef, steak, etc.); otherwise, use `healthy vegetarian recipe with {ingredient}`.
   2. Attempt to scrape the recipe into Mealie using the Mealie REST API URL import endpoint (`/api/recipes/create/url`).
   3. Schedule the newly imported recipe.
 

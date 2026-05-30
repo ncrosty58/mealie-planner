@@ -468,7 +468,11 @@ def find_recipe_for_ingredient(ingredient):
 def find_and_import_recipe(ingredient):
     """Search DuckDuckGo HTML for a recipe, and attempt to scrape and import it into Mealie."""
     print(f"No existing recipe using '{ingredient}'. Searching the web...")
-    query = f"healthy vegetarian recipe with {ingredient}"
+    meat_kws = {'chicken', 'turkey', 'pork', 'salmon', 'fish', 'tuna', 'shrimp', 'beef', 'steak', 'meat'}
+    if any(kw in ingredient.lower() for kw in meat_kws):
+        query = f"healthy recipe with {ingredient}"
+    else:
+        query = f"healthy vegetarian recipe with {ingredient}"
     data = urllib.parse.urlencode({'q': query}).encode()
     url = 'https://html.duckduckgo.com/html/'
     headers = {
