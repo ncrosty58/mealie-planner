@@ -545,7 +545,10 @@ def sync_shopping_list(start_date_str, end_date_str, low_staples_ids=[]):
                             # If it is NOT marked as low, we skip adding it entirely (stock is sufficient)
                             continue
                         
-                        # It is NOT a staple, so we add it as a normal ingredient with its original quantities
+                        # It is NOT a staple, so we add it as a normal ingredient with its original quantities.
+                        # The note/display string already contains the full ingredient text including quantity
+                        # (e.g. "1 lime", "2 cups flour"). Setting quantity=0.0 prevents Mealie from
+                        # prepending the numeric quantity a second time, which would produce "1 1 lime".
                         note_tagged = tag_dirty_dozen(note)
                         # Avoid duplicates for identical recipe ingredients
                         if note_tagged.lower() not in added_items:
@@ -554,7 +557,7 @@ def sync_shopping_list(start_date_str, end_date_str, low_staples_ids=[]):
                                 "note": note_tagged,
                                 "display": note_tagged,
                                 "checked": False,
-                                "quantity": 1.0
+                                "quantity": 0.0
                             })
                             added_items.add(note_tagged.lower())
             except Exception as e:
