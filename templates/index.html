@@ -131,7 +131,7 @@
         .main-container {
             flex: 1;
             overflow-y: auto;
-            padding: 2rem 2.5rem;
+            padding: 2rem 2.5rem calc(6rem + env(safe-area-inset-bottom));
             display: flex;
             flex-direction: column;
             gap: 1.5rem;
@@ -266,7 +266,7 @@
         @media (max-width: 1024px) {
             .sidebar { position: fixed; left: -100%; height: 100vh; transition: left 0.3s; z-index: 1200; }
             .sidebar.active { left: 0; }
-            .main-container { padding: 4.5rem 1rem 2rem 1rem; }
+            .main-container { padding: 4.5rem 1rem calc(6rem + env(safe-area-inset-bottom)) 1rem; }
             .mobile-header { display: flex; }
             .menu-row { grid-template-columns: 1fr; gap: 0.5rem; }
             .action-col { justify-content: flex-start; }
@@ -438,6 +438,11 @@
             </div>
         </div>
         {% endif %}
+        
+        <footer style="margin-top: auto; padding-top: 4rem; text-align: center; opacity: 0.3;">
+            <div class="ornament" style="font-size: 0.8rem;">❖ &bull; ❖ &bull; ❖</div>
+            <p style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-top: 1rem;">Crosty Kitchen Culinary Companion</p>
+        </footer>
     </main>
 
     <div id="staples-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 2000; align-items: center; justify-content: center;">
