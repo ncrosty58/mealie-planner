@@ -84,37 +84,36 @@ class EmailNotifier:
             "instructions": instructions
         }
 
-    def generate_daily_ai_summary(self, day_name, breakfast, lunch, dinner_title, recipe_details=None, prep_note=None):
-        """Call Gemini to generate a refined, appetizing culinary briefing of the day's meals."""
-        prompt = f"""You are a refined culinary writer and editor for a high-end gastronomic publication (such as Bon Appétit or NYT Cooking).
-Write an appetizing, mouth-watering daily menu summary and kitchen prep guide for today ({day_name}).
+    def generate_daily_ai_summary(self, day_name, breakfast, lunch, dinner_title, recipe_details=None, prep_note=None, tomorrow_title=None, tomorrow_recipe_details=None, tomorrow_prep_note=None):
+        """Call Gemini to generate a brief, practical daily kitchen briefing of the day's meals."""
+        prompt = f"""You are a professional culinary assistant writing a brief, practical daily kitchen briefing.
+Write a clean, appetizing, but grounded menu summary and preparation guide for today ({day_name}).
 
 Today's Menu:
 - Breakfast: {breakfast}
 - Lunch: {lunch}
 - Dinner: {dinner_title}
+
+Today's Dinner details:
+- Recipe description: {recipe_details.get('description', '') if recipe_details else ''}
+- Ingredients: {', '.join(recipe_details.get('ingredients', [])) if recipe_details else ''}
+- Instructions: {" ".join(recipe_details.get('instructions', []))[:1000] if recipe_details else ''}
+- Manual Prep Note: {prep_note or ''}
 """
-        if recipe_details:
+        if tomorrow_title:
             prompt += f"""
-Dinner Recipe Details:
-- Name: {recipe_details.get('name')}
-- Description: {recipe_details.get('description', '')}
-- Ingredients: {', '.join(recipe_details.get('ingredients', []))}
-- Instructions: {" ".join(recipe_details.get('instructions', []))[:1000]}
+Tomorrow's Dinner details:
+- Name: {tomorrow_title}
+- Tomorrow's Instructions: {" ".join(tomorrow_recipe_details.get('instructions', []))[:1000] if tomorrow_recipe_details else ''}
+- Tomorrow's Manual Prep Note: {tomorrow_prep_note or ''}
 """
-        if prep_note:
-            prompt += f"\nSpecific Dinner Prep Note: {prep_note}\n"
 
         prompt += """
-Guidelines for writing:
-1. **Appetizing Sensory Description**: Describe the flavors, textures, and sensory qualities of today's dinner using specific ingredients from the recipe. Avoid vague praise like "delicious", "tasty", "mouth-watering", "perfect", or "amazing". Instead, use concrete, evocative language (e.g., "velvety cream sauce", "fragrant sautéed garlic", "tender wilted spinach", "spicy kick of crushed red pepper").
-2. **Crisp Kitchen Prep Brief**: Detail the exact tasks required to prepare dinner based on the instructions or prep notes (e.g. boiling pasta, sautéing aromatics, griddle preparation, or marinating). Keep it practical and direct.
-3. **Strict Style Prohibitions (Zero Chatbot Cringe)**:
-   - NEVER start with greetings (e.g., "Good morning", "Happy Sunday").
-   - NEVER address the family or users by name (never write "Nathan", "Kristin", "Crosty family", "you", or "your").
-   - NEVER use corporate/robotic AI transitions or filler phrases (e.g., "Here is today's menu", "Today's plan is", "Get ready for", "culinary journey", "symphony of flavors", "culinary endeavor", "delight your taste buds").
-   - Do NOT use emojis or markdown (no asterisks, bolding, lists, or bullets).
-4. **Format**: Exactly one cohesive paragraph (3-4 sentences total, under 100 words). Keep it text-only and clean.
+Guidelines for the briefing:
+1. **Breakfast & Lunch**: Briefly state what is planned.
+2. **Today's Dinner & Practical Advice**: Describe today's dinner, focusing on flavor expectations, assembly, and practical watch-outs (e.g. cooking tips, doneness cues, griddle control, or prep steps).
+3. **Next-Day Prep**: Look ONLY at "Tomorrow's Dinner details" (instructions or prep notes) to see if there are prep tasks that should be started *today* (like thawing meat, marinating overnight, or prepping components ahead). If so, explicitly advise doing them today for tomorrow's dinner. Do NOT associate today's manual prep notes or today's salad prep with tomorrow's dinner name. If no next-day prep is needed for tomorrow, omit this entirely.
+4. **Style/Tone**: Practical, grounded, and concise. No greetings, names ("Nathan", "Kristin"), emojis, or markdown. Keep it under 110 words in a single cohesive paragraph.
 """
         try:
             summary = self.gemini.call(prompt, expect_json=False, temperature=0.4).strip()
@@ -123,6 +122,46 @@ Guidelines for writing:
             print(f"[Email] Failed to generate AI summary: {e}")
             prep_str = f" Prep: {prep_note}" if prep_note else ""
             return f"Today we have {breakfast} for breakfast, {lunch} for lunch, and {dinner_title} for dinner.{prep_str}"
+
+    def generate_weekly_themes_summary(self, meal_plans, start_date_str, end_date_str):
+        """Call Gemini to generate a brief summary and thematic analysis of the upcoming week's meals."""
+        dinners = []
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+        for i in range(7):
+            curr = start_date + timedelta(days=i)
+            d_str = curr.strftime("%Y-%m-%d")
+            day_name = curr.strftime("%A")
+            dinner_item = next((p for p in meal_plans if p['date'] == d_str and p['entryType'] == 'dinner'), None)
+            title = "Eating Out"
+            if dinner_item:
+                title = dinner_item.get('title') or ""
+                if dinner_item.get('recipeId') and not title:
+                    try:
+                        r = self.client.get_recipe_details(dinner_item['recipeId'])
+                        title = r['name']
+                    except:
+                        title = "Recipe Details Unavailable"
+            dinners.append(f"- {day_name}: {title}")
+            
+        dinners_str = "\n".join(dinners)
+        
+        prompt = f"""You are a professional menu planner and culinary trend analyst.
+Analyze the upcoming weekly dinner menu for the Crosty family and write a brief, sophisticated synopsis (2-3 sentences) of the week's themes, culinary styles, or ingredient trends (e.g. griddle-focused, Mediterranean accents, comfort food classics, or quick weekday stir-fries).
+
+Weekly Dinner Menu:
+{dinners_str}
+
+Guidelines:
+1. Identify 1 or 2 prominent culinary trends, themes, or core ingredients repeating in the menu.
+2. Keep the tone sophisticated, warm, and highly engaging.
+3. Absolutely no greetings, names, markdown formatting, or emojis.
+4. Keep it under 60 words.
+"""
+        try:
+            return self.gemini.call(prompt, expect_json=False, temperature=0.5).strip().strip('"').strip("'")
+        except Exception as e:
+            print(f"[Email] Failed to generate weekly themes summary: {e}")
+            return "A diverse week of planned dinners, highlighting fresh ingredients and easy-to-cook recipes."
 
     def build_daily_briefing_html(self, day_name, date_str, bf, ln, dn_title, dn_recipe, ai_prep_note, today_nutrients, ai_summary, weekly_content_html=None):
         """Build a premium, beautiful HTML email daily briefing."""
@@ -250,20 +289,22 @@ Guidelines for writing:
         try:
             dt = datetime.strptime(date_str, "%Y-%m-%d")
             day_name = dt.strftime("%A")
+            tomorrow_dt = dt + timedelta(days=1)
+            tomorrow_str = tomorrow_dt.strftime("%Y-%m-%d")
         except Exception as e:
             print(f"[Email] Error parsing date: {e}")
             return False
             
-        # Fetch meal plans for today
-        plans = self.client.get_meal_plan(date_str, date_str)
+        # Fetch meal plans for today and tomorrow
+        plans = self.client.get_meal_plan(date_str, tomorrow_str)
         if not plans:
             print(f"[Email] No scheduled meals for {date_str}.")
             return False
             
-        bf = next((p['title'] for p in plans if p['entryType'] == 'breakfast'), "Staples")
-        ln = next((p['title'] for p in plans if p['entryType'] == 'lunch'), "Leftovers")
+        bf = next((p['title'] for p in plans if p['date'] == date_str and p['entryType'] == 'breakfast'), "Staples")
+        ln = next((p['title'] for p in plans if p['date'] == date_str and p['entryType'] == 'lunch'), "Leftovers")
         
-        dinner_item = next((p for p in plans if p['entryType'] == 'dinner'), None)
+        dinner_item = next((p for p in plans if p['date'] == date_str and p['entryType'] == 'dinner'), None)
         dn_title = "Eating Out"
         dn_recipe = None
         ai_prep_note = ""
@@ -280,9 +321,36 @@ Guidelines for writing:
             elif dinner_item.get('title'):
                 dn_title = dinner_item['title']
 
+        # Tomorrow's dinner details for next-day prep notes
+        tomorrow_dinner_item = next((p for p in plans if p['date'] == tomorrow_str and p['entryType'] == 'dinner'), None)
+        tomorrow_title = "None scheduled"
+        tomorrow_recipe = None
+        tomorrow_prep_note = ""
+        if tomorrow_dinner_item:
+            tomorrow_prep_note = tomorrow_dinner_item.get('text') or ""
+            if tomorrow_dinner_item.get('recipeId'):
+                try:
+                    tomorrow_recipe = self.client.get_recipe_details(tomorrow_dinner_item['recipeId'])
+                    tomorrow_title = tomorrow_recipe['name']
+                except:
+                    tomorrow_title = "Recipe Details Unavailable"
+            elif tomorrow_dinner_item.get('title'):
+                tomorrow_title = tomorrow_dinner_item['title']
+
         # Generate AI summary
         parsed_recipe_info = self.parse_recipe_details_for_ai(dn_recipe) if dn_recipe else None
-        ai_summary = self.generate_daily_ai_summary(day_name, bf, ln, dn_title, parsed_recipe_info, ai_prep_note)
+        parsed_tomorrow_recipe_info = self.parse_recipe_details_for_ai(tomorrow_recipe) if tomorrow_recipe else None
+        ai_summary = self.generate_daily_ai_summary(
+            day_name=day_name,
+            breakfast=bf,
+            lunch=ln,
+            dinner_title=dn_title,
+            recipe_details=parsed_recipe_info,
+            prep_note=ai_prep_note,
+            tomorrow_title=tomorrow_title,
+            tomorrow_recipe_details=parsed_tomorrow_recipe_info,
+            tomorrow_prep_note=tomorrow_prep_note
+        )
         
         # Nutrition for today
         daily_nutrition, _ = self.nutrition.calculate_nutrition_for_range(date_str, date_str)
@@ -383,6 +451,9 @@ Guidelines for writing:
             staples_str = f"<br/>&bull; <strong>Low Staples Added</strong>: {', '.join(low_staples_names)}" if low_staples_names else ""
             exclude_text_str = exclude_text if exclude_text else "None"
 
+            # Generate weekly thematic analysis
+            weekly_themes = self.generate_weekly_themes_summary(meal_plans, start_date_str, end_date_str)
+
             # Assemble the appended weekly content HTML
             weekly_content_html = f"""
             <div style="margin-top: 35px; border-top: 2px double #D5CEB8; padding-top: 25px;">
@@ -390,6 +461,12 @@ Guidelines for writing:
               <p style="font-size: 14px; line-height: 1.5; color: #8C8273; text-align: center; margin-bottom: 25px; font-family: 'Plus Jakarta Sans', sans-serif;">
                 The active shopping list in Mealie has been populated with ingredients for the week of <strong>{start_date_str} to {end_date_str}</strong>.
               </p>
+
+              <!-- Weekly Themes Synopsis -->
+              <div style="background-color: #FAF9F6; border-left: 2px solid #3C5A54; padding: 16px 20px; border-radius: 4px; margin: 20px 0; font-size: 14px; color: #5C5247; border: 1px solid #EFECE6; font-family: 'Plus Jakarta Sans', sans-serif;">
+                <strong style="color: #3C5A54; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 6px;">Week in Review & Culinary Themes</strong>
+                <span style="line-height: 1.5; font-style: italic; display: block;">"{weekly_themes}"</span>
+              </div>
 
               <h3 style="color: #3C5A54; border-bottom: 1px solid #EFECE6; padding-bottom: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-family: 'Plus Jakarta Sans', sans-serif; margin-top: 30px;">📅 Weekly Calendar</h3>
               <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
@@ -449,9 +526,37 @@ Guidelines for writing:
                 elif sat_dn_item.get('title'):
                     sat_dn_title = sat_dn_item['title']
 
-            # 5. Generate AI Summary for Saturday
+            # Sunday (tomorrow) details for Saturday's daily briefing prefix next-day prep notes
+            sun_dt_str = (start_date + timedelta(days=1)).strftime("%Y-%m-%d")
+            sun_dn_item = next((p for p in meal_plans if p['date'] == sun_dt_str and p['entryType'] == 'dinner'), None)
+            sun_dn_title = "Eating Out"
+            sun_recipe = None
+            sun_prep_note = ""
+            if sun_dn_item:
+                sun_prep_note = sun_dn_item.get('text') or ""
+                if sun_dn_item.get('recipeId'):
+                    try:
+                        sun_recipe = self.client.get_recipe_details(sun_dn_item['recipeId'])
+                        sun_dn_title = sun_recipe['name']
+                    except:
+                        sun_dn_title = "Recipe Details Unavailable"
+                elif sun_dn_item.get('title'):
+                    sun_dn_title = sun_dn_item['title']
+
+            # 5. Generate AI Summary for Saturday, including tomorrow's prep details
             parsed_recipe_info = self.parse_recipe_details_for_ai(sat_recipe) if sat_recipe else None
-            sat_ai_summary = self.generate_daily_ai_summary("Saturday", sat_bf, sat_ln, sat_dn_title, parsed_recipe_info, sat_prep_note)
+            parsed_sun_recipe_info = self.parse_recipe_details_for_ai(sun_recipe) if sun_recipe else None
+            sat_ai_summary = self.generate_daily_ai_summary(
+                day_name="Saturday",
+                breakfast=sat_bf,
+                lunch=sat_ln,
+                dinner_title=sat_dn_title,
+                recipe_details=parsed_recipe_info,
+                prep_note=sat_prep_note,
+                tomorrow_title=sun_dn_title,
+                tomorrow_recipe_details=parsed_sun_recipe_info,
+                tomorrow_prep_note=sun_prep_note
+            )
 
             # 6. Saturday Nutrition
             sat_nutrients = daily_nutrients.get(start_date_str, {})
