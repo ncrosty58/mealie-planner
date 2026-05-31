@@ -13,7 +13,7 @@ This skill takes the raw ingredient strings from dinner recipes, a list of house
     - `staples`: A list of staple names already in the house (e.g. `["salt", "pepper"]`).
     - `inventory_items`: A list of specific items the user wants to "use up" from their freezer/pantry/fridge (e.g. `["1 lb chicken thighs", "pesto sauce"]`).
     - `low_staples`: A list of staple names that are currently running low and MUST be added (e.g. `["garlic"]`).
-    - `available_labels`: A list of actual category labels from the user's Mealie instance (e.g. `["Vegetables & Greens", "Poultry", "Dairy & Eggs"]`).
+    - `available_labels`: A list of actual category labels from the user's Mealie instance (e.g. `["1. Produce: Vegetables & Greens", "2. Bakery & Bread"]`).
 - `family_dietary_rules`: The family-specific dietary rules and preferences (which includes the "Dirty Dozen" list).
 
 ## Workflow
@@ -46,37 +46,27 @@ This skill takes the raw ingredient strings from dinner recipes, a list of house
     - Ensure any item from `low_staples` that was marked as low is included in the output list with `unit: null`.
 
 6.  **Categorize Using Available Labels (Grocery Store Path Logic):**
-    - You must categorize items to reflect the **physical path** of a standard grocery store to make shopping as efficient as possible.
-    - **Department Mapping:** Map ingredients to the most descriptive label provided in `available_labels` based on these standard store "zones":
-        1. **Produce / Fresh Greens**: (e.g. "Vegetables & Greens", "Fruits", "Mushrooms", "Herbs") - This is always the first stop.
-        2. **Bakery / Bread**: Freshly baked goods.
-        3. **Meat & Seafood**: Butchery and fish counters.
-        4. **Dairy & Eggs**: Refrigerated milk, cheese, and egg cases.
-        5. **Center Aisles (Pantry/Canned)**: Dry goods, pasta, canned beans, stocks.
-        6. **Baking & Spices**: Flour, sugars, oils, dried seasonings.
-        7. **Beverages**: Bottled water, soda, wine/beer.
-        8. **Frozen**: Ice cream, frozen veggies, frozen meals.
-        9. **Household**: Paper towels, cleaning supplies, miscellaneous.
-    - If multiple labels could fit, prioritize the most descriptive one (e.g. prefer "Vegetables & Greens" over a generic "Produce").
-    - If a label matches exactly or is a very strong semantic fit for a store zone, use it.
-    - If no provided label is a good fit, set `category` to `null`.
+    - You must categorize items into exactly one of the provided `available_labels`.
+    - **Physical Layout Logic:** Use your knowledge of grocery store layouts to group items. The provided labels are ordered 1-9 to reflect a standard walking path.
+    - **Clean Naming:** For the `category` field in the output, you must use the EXACT string from `available_labels`.
+    - **Natural Sorting:** Sort the final JSON array first by the category number (1-9), and then alphabetically by ingredient name within each category. This ensures the list is ready for shopping.
 
 7.  **Construct Output:**
-    - Return a JSON array of objects representing the final shopping list items.
-    - Each object must have:
-      - `name`: Cleaned, Title Cased ingredient name (e.g. "Chicken Breast").
+    - Return a JSON array of objects.
+    - Each object:
+      - `name`: Cleaned, Title Cased name (e.g. "Chicken Breast").
       - `quantity`: Aggregated numeric quantity as a float (e.g. 1.0 or 2.0).
-      - `unit`: The extracted unit of measure (e.g. "lb", "cup", "can", "clove", "tsp", "tbsp"). For staples, this MUST be `null`.
-      - `category`: The EXACT name of the selected label from `available_labels`, or `null`.
+      - `unit`: The extracted unit of measure (e.g. "lb", "cup", "can"). For staples, this MUST be `null`.
+      - `category`: The EXACT zone name from `available_labels` (e.g. "1. Produce: Vegetables & Greens").
     - Do not include any extra text or conversational response.
 
 ## Example Input
 ```json
 {
-  "ingredients": ["2 lbs chicken breast", "1/2 cup salt", "3 cloves garlic", "2 cups water", "1 can coconut water", "1/2 tsp fresh ginger (, minced or finely chopped)"],
+  "ingredients": ["2 lbs chicken breast", "1/2 cup salt", "3 cloves garlic", "2 cups water", "1 can coconut water", "1/2 tsp fresh ginger"],
   "staples": ["salt", "pepper", "garlic", "olive oil"],
   "low_staples": ["garlic"],
-  "available_labels": ["Vegetables & Greens", "Poultry", "Dairy & Eggs", "Beverages"]
+  "available_labels": ["1. Produce: Vegetables & Greens", "3. Meat, Poultry & Seafood", "4. Dairy & Eggs", "7. Beverages"]
 }
 ```
 
@@ -87,25 +77,25 @@ This skill takes the raw ingredient strings from dinner recipes, a list of house
     "name": "Fresh Ginger",
     "quantity": 0.5,
     "unit": "tsp",
-    "category": "Vegetables & Greens"
+    "category": "1. Produce: Vegetables & Greens"
   },
   {
     "name": "Garlic",
     "quantity": 3.0,
     "unit": null,
-    "category": "Vegetables & Greens"
+    "category": "1. Produce: Vegetables & Greens"
   },
   {
     "name": "Chicken Breast",
     "quantity": 2.0,
     "unit": "lbs",
-    "category": "Poultry"
+    "category": "3. Meat, Poultry & Seafood"
   },
   {
     "name": "Coconut Water",
     "quantity": 1.0,
     "unit": "can",
-    "category": "Beverages"
+    "category": "7. Beverages"
   }
 ]
 ```
