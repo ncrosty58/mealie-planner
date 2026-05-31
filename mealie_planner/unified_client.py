@@ -172,6 +172,26 @@ class UnifiedMealieClient(MealieFetcher):
         """
         return self._handle_request("POST", "/api/recipes/create/url", json={"url": url})
 
+    def get_detailed_meal_plan(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
+        """
+        Fetches meal plan entries and enriches them with full recipe details 
+        (ingredients, instructions, etc.) in a single call.
+        """
+        plans = self.get_meal_plan(start_date, end_date)
+        recipe_ids = list(set(p['recipeId'] for p in plans if p.get('recipeId')))
+        
+        if not recipe_ids:
+            return plans
+            
+        details_map = self.get_recipes_details_bulk(recipe_ids)
+        
+        for p in plans:
+            rid = p.get('recipeId')
+            if rid and rid in details_map:
+                p['recipe'] = details_map[rid]
+                
+        return plans
+
     def parse_raw_ingredients(self, ingredients: List[str]) -> List[Dict[str, Any]]:
         """Helper to parse a list of ingredients using Mealie's NLP ingredient parser endpoint."""
         try:

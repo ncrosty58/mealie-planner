@@ -47,6 +47,26 @@ register_all_tools(mcp, mealie)
 # 2. Register Custom/Overlay Tools that override or extend the base tools
 
 @mcp.tool()
+def get_detailed_meal_plan(
+    start_date: str,
+    end_date: str
+) -> List[Dict[str, Any]]:
+    """Get meal plans enriched with full recipe details (ingredients, etc.).
+    Use this to see exactly what is in the scheduled meals.
+
+    Args:
+        start_date: Start date (YYYY-MM-DD).
+        end_date: End date (YYYY-MM-DD).
+
+    Returns:
+        List[Dict[str, Any]]: List of meal plan entries with nested recipe details.
+    """
+    try:
+        return mealie.get_detailed_meal_plan(start_date, end_date)
+    except Exception as e:
+        raise ToolError(f"Error fetching detailed meal plan: {str(e)}")
+
+@mcp.tool()
 def create_recipe_from_url(url: str) -> Dict[str, Any]:
     """Create a new recipe by scraping/importing from a URL with automatic ingredient parsing.
 

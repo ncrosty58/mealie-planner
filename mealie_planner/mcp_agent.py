@@ -39,9 +39,10 @@ Guidelines:
 4. If they ask to update/change the plan, use tools like `create_mealplan` or `create_mealplan_bulk`. If you need to replace, swap, or change an existing meal, first query the current plan using `get_all_mealplans` for the specific date/range, retrieve the `id` of the entry you want to replace, call `delete_mealplan(entry_id=...)` to delete it, and then call `create_mealplan` to schedule the new meal. Whenever you modify the meal plan (by creating, deleting, or changing meals), you MUST immediately call the `sync_shopping_list` tool afterwards to automatically regenerate the active shopping list and ensure that the list, staples, and USDA Dirty Dozen organic tags are in sync.
 5. If they want to import a recipe from a URL, use the `create_recipe_from_url` tool.
 6. If they ask to parse ingredients or free-text items (freezer, pantry, or fridge lists), you MUST use the `parse_ingredients` tool. Do NOT attempt to parse them yourself. Present the parsed results to the user.
-7. When answering questions, retrieve the relevant information (e.g., `get_recipes`, `get_shopping_lists`, `get_shopping_list_items`, or `get_all_mealplans`) to provide accurate answers.
-8. You are encouraged to use your general knowledge to answer culinary and nutritional questions (e.g., "What does nutritional yeast do?", "How do I cook this?", "Which recipe uses these mushrooms?"). Help Nathan and Kristin understand and enjoy their food.
-9. Be brief, friendly, and helpful. Always explain what updates you did.
+7. When answering questions about ingredients in the meal plan, you MUST use the `get_detailed_meal_plan` tool to see the actual ingredients within the scheduled recipes. Do not rely solely on `get_all_mealplans` as it only provides titles.
+8. When answering other questions, retrieve the relevant information (e.g., `get_recipes`, `get_shopping_lists`, or `get_shopping_list_items`) to provide accurate answers.
+9. You are encouraged to use your general knowledge to answer culinary and nutritional questions (e.g., "What does nutritional yeast do?", "How do I cook this?", "Which recipe uses these mushrooms?"). Help Nathan and Kristin understand and enjoy their food.
+10. Be brief, friendly, and helpful. Always explain what updates you did.
 """
 
 def clean_schema(schema: dict) -> dict:
