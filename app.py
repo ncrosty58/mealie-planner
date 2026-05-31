@@ -315,6 +315,27 @@ def change_meal():
     return redirect(url_for('index'))
 
 
+@app.route('/toggle-shopping-item', methods=['POST'])
+def toggle_shopping_item():
+    """Toggle the 'checked' status of a shopping list item in Mealie."""
+    try:
+        data = request.get_json()
+        item_id = data.get('item_id')
+        is_checked = data.get('checked')
+        
+        client = MealieClient()
+        # To avoid data loss on PUT, we should ideally fetch the current item details 
+        # but Mealie items are usually returned as a flat list from the main list endpoint.
+        # We'll just send the update payload for the 'checked' field.
+        payload = {"checked": is_checked}
+        client.update_shopping_list_item(item_id, payload)
+        
+        return json.dumps({"success": True})
+    except Exception as e:
+        print(f"Error toggling shopping item: {e}")
+        return json.dumps({"success": False, "error": str(e)}), 500
+
+
 @app.route('/trigger-qa')
 def trigger_qa():
     """Manual trigger endpoint for Saturday Q/A email."""

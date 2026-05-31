@@ -93,7 +93,7 @@
             padding: 0.5rem 0.75rem;
             border-radius: 4px;
             cursor: pointer;
-            z-index: 1001;
+            z-index: 1010;
             transition: all 0.2s;
         }
 
@@ -103,12 +103,13 @@
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 0.5rem;
+                padding-right: 60px; /* Make room for the button */
             }
             .hamburger-btn {
                 display: block;
-                position: absolute;
-                top: 0;
-                right: 0;
+                position: fixed;
+                top: 2rem;
+                right: 1rem;
             }
         }
 
@@ -678,7 +679,7 @@
         .shopping-item {
             background: rgba(255, 255, 255, 0.02);
             border: 1px solid var(--border-glow);
-            border-radius: 10px;
+            border-radius: 4px;
             padding: 0.75rem 1rem;
             margin-bottom: 0.5rem;
             display: flex;
@@ -692,9 +693,15 @@
             border: 1px solid rgba(16, 185, 129, 0.3);
             color: var(--color-success);
             padding: 0.15rem 0.5rem;
-            border-radius: 99px;
+            border-radius: 2px;
             font-size: 0.75rem;
             font-weight: 600;
+        }
+
+        .checked-item {
+            text-decoration: line-through;
+            color: var(--text-muted);
+            opacity: 0.6;
         }
 
         /* Nutrition Analysis styling */
@@ -834,21 +841,21 @@
         <!-- STATE B: ACTIVE WEEK DASHBOARD -->
         
         <div class="dashboard-grid">
-
-            <!-- Column 1: Primary Content (Calendar & Shopping List) -->
+            
+            <!-- Column 1: Primary Content (Weekly Calendar) -->
             <div>
                 <!-- Weekly Calendar Card -->
                 <div class="card">
                     <div class="card-title">
                         📅 Weekly Menu Calendar
                     </div>
-
+                    
                     <div class="calendar-list">
                         {% for d_str in planning_dates %}
                             {% set day = d_str | select_day_name %}
                             {% set meals = {'breakfast': 'Staples', 'lunch': 'Leftovers', 'dinner': 'Eating Out'} %}
                             {% set dinner_entry = [] %}
-
+                            
                             {% for item in meal_plans %}
                                 {% if item.date == d_str %}
                                     {% if item.entryType == 'breakfast' %}
@@ -865,7 +872,7 @@
                                     {% endif %}
                                 {% endif %}
                             {% endfor %}
-
+                            
                             <div class="calendar-day-card">
                                 <div>
                                     <div class="day-name">{{ day }}</div>
@@ -907,41 +914,9 @@
                         {% endfor %}
                     </div>
                 </div>
-
-                <!-- Shopping List Card (Moved to Column 1) -->
-                <div class="card">
-                    <div class="card-title">
-                        🛒 Active Shopping List (Preview)
-                    </div>
-                    <div class="shopping-list-container">
-                        {% if shopping_list %}
-                            {% for item in shopping_list %}
-                            <div class="shopping-item">
-                                <span>
-                                    {% if item.checked %}
-                                        <del style="color: var(--text-muted);">
-                                            {% if item.quantity > 0 %}{{ item.quantity | float | round(2) | string | replace('.0', '') }} {% endif %}{{ item.note }}
-                                        </del>
-                                    {% else %}
-                                        <strong>{% if item.quantity > 0 %}{{ item.quantity | float | round(2) | string | replace('.0', '') }} {% endif %}</strong>{{ item.note }}
-                                    {% endif %}
-                                </span>
-                                {% if "buy organic" in item.note.lower() %}
-                                    <span class="organic-pill">Organic</span>
-                                {% endif %}
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <p style="color: var(--text-muted); font-size: 0.9rem; font-style: italic;">No items currently in active shopping list.</p>
-                        {% endif %}
-                    </div>
-                    <div style="margin-top: 1.5rem; text-align: center;">
-                        <a href="{{ mealie_url }}/shopping-lists/{{ active_list_id }}" class="btn btn-secondary" style="font-size: 0.8rem;">View Full List in Mealie</a>
-                    </div>
-                </div>
             </div>
 
-            <!-- Column 2: Secondary Content / Mobile Drawer (Controls & Nutrition) -->
+            <!-- Column 2: Secondary Content / Mobile Drawer (Controls, Nutrition, & LIVE Shopping List) -->
             <aside id="side-drawer" class="side-drawer">
                 <span class="drawer-close" id="drawer-close">&times;</span>
 
@@ -1013,6 +988,36 @@
                         </div>
                     {% endfor %}
                 </div>
+
+                <!-- LIVE Shopping List Card -->
+                <div class="card">
+                    <div class="card-title">
+                        🛒 Live Shopping List
+                    </div>
+                    <div class="shopping-list-container">
+                        {% if shopping_list %}
+                            {% for item in shopping_list %}
+                            <div class="shopping-item">
+                                <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; width: 100%;">
+                                    <input type="checkbox" class="custom-checkbox shopping-list-checkbox" 
+                                           data-id="{{ item.id }}" {% if item.checked %}checked{% endif %}>
+                                    <span class="shopping-item-text {% if item.checked %}checked-item{% endif %}">
+                                        {% if item.quantity > 0 %}<strong>{{ item.quantity | float | round(2) | string | replace('.0', '') }}</strong> {% endif %}{{ item.note }}
+                                    </span>
+                                </label>
+                                {% if "buy organic" in item.note.lower() %}
+                                    <span class="organic-pill">Organic</span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p style="color: var(--text-muted); font-size: 0.9rem; font-style: italic;">No items currently in active shopping list.</p>
+                        {% endif %}
+                    </div>
+                    <div style="margin-top: 1.5rem; text-align: center;">
+                        <a href="{{ mealie_url }}/shopping-lists/{{ active_list_id }}" class="btn btn-secondary" style="font-size: 0.8rem;">View Full List in Mealie</a>
+                    </div>
+                </div>
             </aside>
         </div>
         {% endif %}
@@ -1075,7 +1080,8 @@
             const drawerOverlay = document.getElementById('drawer-overlay');
 
             if (drawerToggle && sideDrawer && drawerOverlay) {
-                const toggleDrawer = () => {
+                const toggleDrawer = (e) => {
+                    if (e) e.preventDefault();
                     sideDrawer.classList.toggle('active');
                     drawerOverlay.classList.toggle('active');
                     document.body.style.overflow = sideDrawer.classList.contains('active') ? 'hidden' : '';
@@ -1085,6 +1091,45 @@
                 if (drawerClose) drawerClose.addEventListener('click', toggleDrawer);
                 drawerOverlay.addEventListener('click', toggleDrawer);
             }
+
+            // Live Shopping List Interactivity
+            const shoppingCheckboxes = document.querySelectorAll('.shopping-list-checkbox');
+            shoppingCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', async function() {
+                    const itemId = this.getAttribute('data-id');
+                    const isChecked = this.checked;
+                    const textSpan = this.nextElementSibling;
+
+                    // Immediate visual feedback
+                    if (isChecked) {
+                        textSpan.classList.add('checked-item');
+                    } else {
+                        textSpan.classList.remove('checked-item');
+                    }
+
+                    try {
+                        const response = await fetch('/toggle-shopping-item', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ item_id: itemId, checked: isChecked })
+                        });
+                        const result = await response.json();
+                        if (!result.success) {
+                            throw new Error(result.error || 'Failed to update Mealie');
+                        }
+                    } catch (error) {
+                        console.error('Error updating shopping list item:', error);
+                        // Revert on error
+                        this.checked = !isChecked;
+                        if (this.checked) {
+                            textSpan.classList.add('checked-item');
+                        } else {
+                            textSpan.classList.remove('checked-item');
+                        }
+                        alert('Error updating shopping list in Mealie. Please refresh.');
+                    }
+                });
+            });
         });
 
         function openStaplesModal() {
