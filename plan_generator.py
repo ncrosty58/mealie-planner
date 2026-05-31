@@ -197,6 +197,7 @@ def generate_weekly_plan(start_date_str, end_date_str, exclude_text="", freezer_
         for day_entry in ai_result.get("days", []):
             d_str = day_entry['date']
             m = day_entry['meals']
+            prep_note = m.get('prep_note') or ""
             
             # Breakfast
             meals.append({"date": d_str, "entryType": "breakfast", "title": m.get('breakfast', 'Staples'), "recipeId": None})
@@ -217,9 +218,9 @@ def generate_weekly_plan(start_date_str, end_date_str, exclude_text="", freezer_
                     is_uuid = False
             
             if is_uuid:
-                meals.append({"date": d_str, "entryType": "dinner", "title": "", "recipeId": din_val})
+                meals.append({"date": d_str, "entryType": "dinner", "title": "", "recipeId": din_val, "text": prep_note})
             else:
-                meals.append({"date": d_str, "entryType": "dinner", "title": din_val or "Eating Out", "recipeId": None})
+                meals.append({"date": d_str, "entryType": "dinner", "title": din_val or "Eating Out", "recipeId": None, "text": prep_note})
             
         print(f"[AI] Successfully generated structured 7-day plan.")
     except Exception as e:
@@ -275,6 +276,7 @@ def generate_weekly_plan(start_date_str, end_date_str, exclude_text="", freezer_
             date_str=m['date'],
             entry_type=m['entryType'],
             title=m.get('title') or "",
+            text=m.get('text') or "",
             recipe_id=m.get('recipeId')
         )
         
