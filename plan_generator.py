@@ -13,6 +13,7 @@ from email_notifier import send_saturday_report_email
 
 _MEAL_EXCLUSION_PARSING_SKILL_DEFINITION = load_skill_md('meal-exclusion-parsing')
 _WEEKLY_MEAL_SELECTION_SKILL_DEFINITION = load_skill_md('weekly-meal-selection')
+_BANNED_RECIPES_SKILL_DEFINITION = load_skill_md('banned-recipes')
 
 def parse_exclusions(text: str) -> dict:
     """Use Gemini to interpret a free-text description of which meals to skip, delegating to the AI skill."""
@@ -156,8 +157,8 @@ def generate_weekly_plan(start_date_str, end_date_str, exclude_text="", freezer_
             "description": (r.get("description") or "")[:120],
             "tags": r.get("tags", []),
             "fiber_g": r.get("fiber_content"),
-            "ingredients_preview": ", ".join(r.get("ingredients", [])[:5]),
-            "instructions_preview": " ".join(r.get("instructions", []))[:80]
+            "ingredients": r.get("ingredients", []),
+            "instructions_preview": " ".join(r.get("instructions", []))[:120]
         }
         for r in allowed_recipes
     ]
@@ -169,6 +170,11 @@ def generate_weekly_plan(start_date_str, end_date_str, exclude_text="", freezer_
 
 """ +
         _WEEKLY_MEAL_SELECTION_SKILL_DEFINITION +
+        """
+
+### BANNED RECIPES SKILL RULES:
+""" +
+        _BANNED_RECIPES_SKILL_DEFINITION +
         """
 
 ### CONTEXT FOR THIS INVOCATION:

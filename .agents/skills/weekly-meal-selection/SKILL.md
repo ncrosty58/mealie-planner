@@ -22,6 +22,7 @@ This skill is responsible for generating a complete 7-day meal plan. It intellig
     *   **Anti-Hallucination:** ONLY select IDs from the provided catalogue.
     *   **Priorities:** High: "Use up" items; Medium: Special requests; General: Variety, fiber, no processed meats.
     *   **Ingredient Synergy / Re-use:** Prioritize selecting recipes that share overlapping fresh/perishable ingredients (e.g., cilantro, lime, cabbage, spinach, broccoli, fresh herbs) to minimize grocery waste.
+    *   **Banned Recipes Exclusions:** You MUST strictly avoid selecting any recipes that match the names, name variants, ingredient profiles, or culinary themes of banned recipes defined in the Banned Recipes Skill (e.g., do not select any cilantro or coriander-based soup recipes, even if named differently). Use semantic reasoning to filter them out.
 
 2.  **Plan Dinners (Ordering):** 
     *   **Perishability:** Fresh/perishable ingredients go Early Week (Sat-Tue). Frozen/shelf-stable go Late Week (Wed-Fri).

@@ -57,8 +57,8 @@ def run_substep_profile():
             "description": (r.get("description") or "")[:120],
             "tags": r.get("tags", []),
             "fiber_g": r.get("fiber_content"),
-            "ingredients_preview": ", ".join(r.get("ingredients", [])[:5]),
-            "instructions_preview": " ".join(r.get("instructions", []))[:80]
+            "ingredients": r.get("ingredients", []),
+            "instructions_preview": " ".join(r.get("instructions", []))[:120]
         }
         for r in all_recipes
     ]
@@ -70,6 +70,11 @@ def run_substep_profile():
 
 """ +
         meal_planner._WEEKLY_MEAL_SELECTION_SKILL_DEFINITION +
+        """
+
+### BANNED RECIPES SKILL RULES:
+""" +
+        meal_planner._BANNED_RECIPES_SKILL_DEFINITION +
         """
 
 ### CONTEXT FOR THIS INVOCATION:
