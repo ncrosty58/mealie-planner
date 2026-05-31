@@ -106,12 +106,16 @@ class UnifiedMealieClient(MealieFetcher):
         return self._handle_request("POST", "/api/households/mealplans", json=payload)
 
     def clear_shopping_list(self, list_id: str):
-        """Missing method to clear all items from a shopping list."""
-        items_res = self.get_shopping_list_items(per_page=500) # Should filter by list_id if API supports it
-        # Note: The Mealie API for shopping items often returns items across all lists.
-        # We should filter them here to be safe.
+        """Missing method to clear all items from a shopping list. Dash-insensitive comparison."""
+        items_res = self.get_shopping_list_items(per_page=500)
         items = items_res.get('items', []) if isinstance(items_res, dict) else []
-        item_ids_to_delete = [item['id'] for item in items if item.get('shoppingListId') == list_id]
+        
+        target_id_clean = list_id.replace('-', '')
+        item_ids_to_delete = []
+        for item in items:
+            list_id_raw = item.get('shoppingListId')
+            if list_id_raw and list_id_raw.replace('-', '') == target_id_clean:
+                item_ids_to_delete.append(item['id'])
         
         if item_ids_to_delete:
             return self.delete_shopping_list_items_bulk(item_ids_to_delete)
@@ -130,11 +134,15 @@ class UnifiedMealieClient(MealieFetcher):
         return super().get_shopping_list_items(*args, **kwargs)
 
     def get_shopping_list_items_for_list(self, list_id: str) -> List[Dict[str, Any]]:
-        """Helper to get items specifically for one list, handling pagination if needed."""
-        # For now, 500 should be enough
+        """Helper to get items specifically for one list. Dash-insensitive."""
         res = self.get_shopping_list_items(per_page=500)
         items = res.get('items', []) if isinstance(res, dict) else []
-        return [item for item in items if item.get('shoppingListId') == list_id]
+        
+        target_id_clean = list_id.replace('-', '')
+        return [
+            item for item in items 
+            if item.get('shoppingListId') and item.get('shoppingListId').replace('-', '') == target_id_clean
+        ]
 
     def get_shopping_list_items_legacy(self, list_id: str) -> List[Dict[str, Any]]:
         """Fetch all items currently on a shopping list (legacy compatibility)."""

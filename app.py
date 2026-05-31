@@ -144,7 +144,7 @@ def index():
 
         shopping_list = []
         try:
-            shopping_list = client.get_shopping_list_items(ACTIVE_LIST_ID)
+            shopping_list = client.get_shopping_list_items_for_list(ACTIVE_LIST_ID)
             shopping_list.sort(key=lambda x: x.get('position', 0))
         except Exception as e:
             print(f"Error reading active shopping list: {e}")
