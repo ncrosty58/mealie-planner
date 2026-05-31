@@ -51,6 +51,12 @@ This skill is responsible for generating a complete 7-day meal plan. It intellig
 
 4.  **Plan Breakfasts:** Assign standard options providing daily variety. The allowed options are: "Cereal & Milk", "Yogurt with Granola", "Bagels & Cream Cheese", "English Muffins with Jam", "Oats", and "Toast with Jam". Do not use any other breakfast titles.
 
+5.  **Respect Meal Exclusions:** Before finalizing each day, check the `exclusions` input.
+    *   If a day is in `exclusions` and `breakfast` is in its list, set `breakfast` to **"Skipped"**.
+    *   If `lunch` is in the list, set `lunch` to **"Skipped"**.
+    *   If `dinner` is in the list, set `dinner` to **"Eating Out"**.
+    *   You MUST NOT select recipes for excluded dinners.
+
 ## Output
 Return a JSON object containing a `days` array. Each day must have `date`, and a `meals` object with `breakfast`, `lunch`, `dinner`, and `prep_note`. 
 For `dinner`, use the `id` from the catalogue. For `breakfast` and `lunch`, use the string title (e.g., "Leftovers", "PB&J Sandwich", "Cereal & Milk").

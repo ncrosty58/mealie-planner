@@ -19,16 +19,27 @@ class PlanGenerator:
         self.shopping = ShoppingListSync(mealie_client, gemini_client)
         self.notifier = EmailNotifier(mealie_client, gemini_client)
 
-    def parse_exclusions(self, text: str) -> dict:
+    def parse_exclusions(self, text: str, start_date_str: str = None, end_date_str: str = None) -> dict:
         """Use Gemini to interpret a free-text description of which meals to skip, delegating to the AI skill."""
         if not text or not text.strip():
             return {}
 
-        today = datetime.now()
-        next_monday = today + timedelta(days=(7 - today.weekday()))
+        if start_date_str and end_date_str:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+        else:
+            # Standard app logic: Find the most recent Saturday
+            from .config import TIMEZONE
+            import pytz
+            today = datetime.now(pytz.timezone(TIMEZONE))
+            days_since_saturday = (today.weekday() - 5 + 7) % 7
+            start_date = today - timedelta(days=days_since_saturday)
+            end_date = start_date + timedelta(days=6)
+
+        num_days = (end_date - start_date).days + 1
         week_dates = {
-            (next_monday + timedelta(days=i)).strftime("%A"): (next_monday + timedelta(days=i)).strftime("%Y-%m-%d")
-            for i in range(7)
+            (start_date + timedelta(days=i)).strftime("%A"): (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
+            for i in range(num_days)
         }
 
         prompt = (
@@ -166,7 +177,7 @@ class PlanGenerator:
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
         end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
         num_days = (end_date - start_date).days + 1
-        exclusions = self.parse_exclusions(exclude_text)
+        exclusions = self.parse_exclusions(exclude_text, start_date_str, end_date_str)
         dinner_days = [
             (start_date + timedelta(days=i)).strftime("%A")
             for i in range(num_days)
@@ -241,28 +252,45 @@ class PlanGenerator:
                 m = day_entry['meals']
                 prep_note = m.get('prep_note') or ""
                 
-                meals.append({"date": d_str, "entryType": "breakfast", "title": m.get('breakfast', 'Staples'), "recipeId": None})
-                meals.append({"date": d_str, "entryType": "lunch", "title": m.get('lunch', 'Leftovers'), "recipeId": None})
-                
-                din_val = m.get('dinner')
-                is_uuid = False
-                if din_val:
-                    try:
-                        import uuid
-                        uuid.UUID(str(din_val))
-                        is_uuid = True
-                    except ValueError:
-                        is_uuid = False
-                
-                if is_uuid:
-                    # Deterministic Safety Check: Verify ID exists in catalogue
-                    if din_val in catalogue_ids:
-                        meals.append({"date": d_str, "entryType": "dinner", "title": "", "recipeId": din_val, "text": prep_note})
-                    else:
-                        print(f"[Plan Generation] WARNING: AI hallucinated recipe ID {din_val}. Falling back to text entry.")
-                        meals.append({"date": d_str, "entryType": "dinner", "title": "Planned Dinner", "recipeId": None, "text": prep_note})
+                # Deterministic Exclusion Enforcement
+                day_name = datetime.strptime(d_str, "%Y-%m-%d").strftime("%A")
+                day_exclusions = exclusions.get(day_name, [])
+
+                # Breakfast
+                if 'breakfast' in day_exclusions:
+                    meals.append({"date": d_str, "entryType": "breakfast", "title": "Skipped", "recipeId": None})
                 else:
-                    meals.append({"date": d_str, "entryType": "dinner", "title": din_val or "Eating Out", "recipeId": None, "text": prep_note})
+                    meals.append({"date": d_str, "entryType": "breakfast", "title": m.get('breakfast', 'Staples'), "recipeId": None})
+                
+                # Lunch
+                if 'lunch' in day_exclusions:
+                    meals.append({"date": d_str, "entryType": "lunch", "title": "Skipped", "recipeId": None})
+                else:
+                    meals.append({"date": d_str, "entryType": "lunch", "title": m.get('lunch', 'Leftovers'), "recipeId": None})
+                
+                # Dinner
+                if 'dinner' in day_exclusions:
+                    meals.append({"date": d_str, "entryType": "dinner", "title": "Eating Out", "recipeId": None, "text": prep_note})
+                else:
+                    din_val = m.get('dinner')
+                    is_uuid = False
+                    if din_val:
+                        try:
+                            import uuid
+                            uuid.UUID(str(din_val))
+                            is_uuid = True
+                        except ValueError:
+                            is_uuid = False
+                    
+                    if is_uuid:
+                        # Deterministic Safety Check: Verify ID exists in catalogue
+                        if din_val in catalogue_ids:
+                            meals.append({"date": d_str, "entryType": "dinner", "title": "", "recipeId": din_val, "text": prep_note})
+                        else:
+                            print(f"[Plan Generation] WARNING: AI hallucinated recipe ID {din_val}. Falling back to text entry.")
+                            meals.append({"date": d_str, "entryType": "dinner", "title": "Planned Dinner", "recipeId": None, "text": prep_note})
+                    else:
+                        meals.append({"date": d_str, "entryType": "dinner", "title": din_val or "Eating Out", "recipeId": None, "text": prep_note})
                 
             print(f"[AI] Successfully generated structured 7-day plan.")
         except Exception as e:
