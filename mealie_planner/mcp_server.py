@@ -9,8 +9,17 @@ from mcp.server.fastmcp.exceptions import ToolError
 # Add mealie-mcp-server/src to the python path to import vendored tools and client
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 mcp_src_dir = os.path.join(base_dir, "mealie-mcp-server", "src")
+
+# Critical: Ensure mcp_src_dir is at the VERY FRONT to avoid shadowing 'utils' or 'mealie'
+# Also remove the script's own directory from sys.path to prevent 'from .config import TIMEZONE' errors
+# in files that are improperly imported as top-level modules.
+script_dir = os.path.dirname(os.path.abspath(__file__))
+if script_dir in sys.path:
+    sys.path.remove(script_dir)
 if mcp_src_dir not in sys.path:
     sys.path.insert(0, mcp_src_dir)
+if base_dir not in sys.path:
+    sys.path.append(base_dir)
 
 from tools import register_all_tools
 from mealie_planner.unified_client import UnifiedMealieClient
