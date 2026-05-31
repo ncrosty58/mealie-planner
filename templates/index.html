@@ -825,7 +825,6 @@
                             <div class="control-group-label">System</div>
                             <div class="control-group-buttons">
                                 <a href="{{ mealie_url }}" target="_blank" class="btn btn-secondary">🌐 Open Mealie UI</a>
-                                <button type="button" id="pwa-install-btn" class="btn btn-secondary" style="display: none;">📱 Install App</button>
                             </div>
                         </div>
                     </div>
@@ -1087,62 +1086,17 @@
         });
     </script>
     <script>
-        // PWA Installation & Diagnostic Logic
-        let deferredPrompt;
-        const installBtn = document.getElementById('pwa-install-btn');
-
-        console.log('🚀 PWA: Initializing diagnostics...');
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            console.log('✅ PWA: beforeinstallprompt event fired!');
-            // Prevent the mini-infobar from appearing on mobile
-            e.preventDefault();
-            // Stash the event so it can be triggered later.
-            deferredPrompt = e;
-            // Update UI notify the user they can install the PWA
-            if (installBtn) {
-                installBtn.style.display = 'block';
-                console.log('✅ PWA: Install button shown.');
-            }
-        });
-
-        if (installBtn) {
-            installBtn.addEventListener('click', async () => {
-                if (!deferredPrompt) return;
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                console.log(`ℹ️ PWA: User response to prompt: ${outcome}`);
-                deferredPrompt = null;
-                installBtn.style.display = 'none';
-            });
-        }
-
-        window.addEventListener('appinstalled', (event) => {
-            console.log('🎉 PWA: Successfully installed!');
-            deferredPrompt = null;
-            if (installBtn) installBtn.style.display = 'none';
-        });
-
         // PWA Service Worker Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
                     .then(registration => {
-                        console.log('✅ PWA: SW registered with scope:', registration.scope);
+                        console.log('SW registered: ', registration);
                     })
-                    .catch(error => {
-                        console.log('❌ PWA: SW registration failed:', error);
+                    .catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
                     });
             });
-
-            // Check if already controlled
-            if (navigator.serviceWorker.controller) {
-                console.log('✅ PWA: Page is currently controlled by a Service Worker.');
-            } else {
-                console.log('ℹ️ PWA: Page is not yet controlled by a Service Worker (refresh might be needed).');
-            }
-        } else {
-            console.log('❌ PWA: Service Workers are not supported in this browser.');
         }
     </script>
 </body>
