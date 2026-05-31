@@ -50,6 +50,10 @@ def select_day_name(date_str):
 # Shared variable to hold manually selected low staples IDs for the current week's sync
 current_week_low_staples = []
 
+@app.route('/favicon.ico')
+def favicon():
+    return redirect(url_for('static', filename='favicon.svg'))
+
 @app.route('/')
 def index():
     success_msg = request.args.get('success_msg')
