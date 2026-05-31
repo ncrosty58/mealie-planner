@@ -217,9 +217,47 @@
         .chat-window { position: fixed; bottom: 5.5rem; right: 1.5rem; width: 420px; height: 580px; background: white; border: 1px solid var(--color-border); border-radius: 8px; box-shadow: var(--shadow-md); display: flex; flex-direction: column; overflow: hidden; opacity: 0; transform: translateY(10px); pointer-events: none; transition: all 0.2s; z-index: 950; }
         .chat-window.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .chat-header { padding: 1rem; background: var(--color-primary); color: white; display: flex; justify-content: space-between; align-items: center; }
-        .chat-msg { padding: 0.75rem 1rem; border-radius: 4px; font-size: 0.9rem; line-height: 1.5; max-width: 85%; }
-        .chat-msg.user { align-self: flex-end; background: var(--color-divider); color: var(--text-main); }
-        .chat-msg.bot { align-self: flex-start; background: white; border: 1px solid var(--color-border); }
+        .chat-msg {
+            padding: 0.85rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            max-width: 88%;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            white-space: pre-wrap;
+            box-shadow: var(--shadow-sm);
+        }
+        .chat-msg.user { 
+            align-self: flex-end; 
+            background: var(--color-primary); 
+            color: white; 
+            border-bottom-right-radius: 2px;
+        }
+        .chat-msg.bot { 
+            align-self: flex-start; 
+            background: white; 
+            border: 1px solid var(--color-border);
+            color: var(--text-main);
+            border-bottom-left-radius: 2px;
+        }
+
+        /* Typing Dots */
+        .typing { 
+            display: flex; 
+            align-items: center; 
+            gap: 5px; 
+            padding: 0.75rem 1.25rem; 
+            background: #f0f0f0; 
+            border-radius: 8px; 
+            align-self: flex-start; 
+            margin-bottom: 0.5rem;
+        }
+        .typing span { width: 6px; height: 6px; background: #999; border-radius: 50%; animation: blink 1.4s infinite both; }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
 
         /* --- MOBILE --- */
         .mobile-header { display: none; position: fixed; top: 0; left: 0; right: 0; height: 56px; background: white; border-bottom: 1px solid var(--color-border); padding: 0 1.25rem; align-items: center; justify-content: space-between; z-index: 1000; }
@@ -320,7 +358,8 @@
                                     <input type="hidden" name="date" value="{{ d_str }}">
                                     <input type="hidden" name="entry_id" value="{{ dinner_entry[0].id if dinner_entry else '' }}">
                                     <select name="recipe_id" class="select-recipe" onchange="this.form.submit()">
-                                        <option value="">Edit Dinner</option><option value="SKIP">🚫 Eating Out</option>
+                                        <option value="">Swap Dinner...</option>
+                                        <option value="SKIP">🚫 Eating Out</option>
                                         {% for rec in all_recipes %}<option value="{{ rec.id }}">{{ rec.name }}</option>{% endfor %}
                                     </select>
                                 </form>
@@ -364,7 +403,13 @@
                         {% endif %}
                         <div class="shopping-item">
                             <input type="checkbox" class="item-checkbox shopping-list-checkbox" data-id="{{ item.id }}" {% if item.checked %}checked{% endif %}>
-                            <div class="item-text {% if item.checked %}checked{% endif %}">{{ item.note }}{% if '(Buy Organic)' in item.note %}<span class="badge-organic">Organic</span>{% endif %}</div>
+                            <div class="item-text {% if item.checked %}checked{% endif %}">
+                                {% if item.quantity and item.quantity > 0 %}
+                                    <span style="font-weight: 800; color: var(--color-primary); margin-right: 2px;">{{ item.quantity | round(2) | replace(".0", "") }}</span>
+                                {% endif %}
+                                {{ item.note }}
+                                {% if '(Buy Organic)' in item.note %}<span class="badge-organic">Organic</span>{% endif %}
+                            </div>
                         </div>
                         {% if loop.last %}</div></div>{% endif %}
                     {% endfor %}
@@ -502,22 +547,69 @@
             function addMsg(s, t, save=true) {
                 const d = document.createElement('div');
                 d.className = `chat-msg ${s === 'user' ? 'user' : 'bot'}`;
-                d.innerHTML = t; cmessages.appendChild(d); cmessages.scrollTop = cmessages.scrollHeight;
-                if (save) { messages.push({s, t}); localStorage.setItem('mealie_chat_messages', JSON.stringify(messages)); }
+                d.innerHTML = t;
+                cmessages.appendChild(d);
+                cmessages.scrollTop = cmessages.scrollHeight;
+                if (save) {
+                    messages.push({s, t});
+                    localStorage.setItem('mealie_chat_messages', JSON.stringify(messages));
+                }
+            }
+
+            function showTyping() {
+                const d = document.createElement('div');
+                d.id = 'typing-indicator';
+                d.className = 'typing';
+                d.innerHTML = '<span></span><span></span><span></span>';
+                cmessages.appendChild(d);
+                cmessages.scrollTop = cmessages.scrollHeight;
+            }
+
+            function hideTyping() {
+                const d = document.getElementById('typing-indicator');
+                if (d) d.remove();
             }
             
             messages.forEach(m => addMsg(m.s, m.t, false));
 
             document.getElementById('chat-clear').onclick = () => {
-                if (confirm("Clear history?")) { history = []; messages = []; localStorage.removeItem('mealie_chat_history'); localStorage.removeItem('mealie_chat_messages'); cmessages.innerHTML = ''; }
+                if (confirm("Clear history?")) {
+                    history = [];
+                    messages = [];
+                    localStorage.removeItem('mealie_chat_history');
+                    localStorage.removeItem('mealie_chat_messages');
+                    cmessages.innerHTML = '';
+                }
             };
 
             cin.oninput = () => csend.disabled = !cin.value.trim();
             csend.onclick = async () => {
-                const t = cin.value.trim(); addMsg('user', t); cin.value = ''; csend.disabled = true;
-                const r = await fetch('/chat', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({message: t, history}) });
-                const res = await r.json();
-                if (res.success) { addMsg('bot', res.reply); history = res.history; localStorage.setItem('mealie_chat_history', JSON.stringify(history)); }
+                const t = cin.value.trim();
+                addMsg('user', t);
+                cin.value = '';
+                csend.disabled = true;
+                
+                showTyping();
+                
+                try {
+                    const r = await fetch('/chat', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({message: t, history})
+                    });
+                    const res = await r.json();
+                    hideTyping();
+                    if (res.success) {
+                        addMsg('bot', res.reply);
+                        history = res.history;
+                        localStorage.setItem('mealie_chat_history', JSON.stringify(history));
+                    } else {
+                        addMsg('bot', 'Chef is having some technical difficulties. Please try again.');
+                    }
+                } catch (e) {
+                    hideTyping();
+                    addMsg('bot', 'Lost connection to the kitchen. Please check the server.');
+                }
             };
         });
     </script>
