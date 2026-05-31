@@ -86,7 +86,7 @@ class ShoppingListSync:
             progress_callback("AI shopping list sync started...", 90)
         try:
             # Give Mealie a moment to process previous scheduling calls
-            time.sleep(1.5)
+            time.sleep(1.0)
 
             # 1. Fetch data from Mealie
             meal_plans = self.client.get_meal_plan(start_date_str, end_date_str)
@@ -124,8 +124,6 @@ class ShoppingListSync:
             # Combine modal-marked low staples with currently active ones
             combined_low_staples = list(set(low_staples_notes + active_staple_names))
             
-            print(f"[Sync] Low staples for AI: {combined_low_staples}")
-                    
             # 2. Extract ingredient display strings from meals
             if progress_callback:
                 progress_callback("Extracting ingredients from scheduled meals...", 93)
@@ -190,7 +188,6 @@ class ShoppingListSync:
                 "Return ONLY the JSON array of objects as specified in the skill definition."
             )
             
-            print(f"--- AI SHOPPING LIST SYNC PROMPT ({len(raw_recipe_ingredients)} ingredients, {len(combined_low_staples)} staples) ---")
             ai_response = self.gemini.call(prompt, expect_json=True)
             
             try:
@@ -200,75 +197,93 @@ class ShoppingListSync:
             except Exception as e:
                 raise SkillParsingError(f"Failed to parse AI response: {e}")
 
-            # 4. Fetch current list state to preserve checkmarks (Safe Sync)
+            # 4. State-Aware Merge (Preserve checkmarks and prevent disappearing staples)
             if progress_callback:
-                progress_callback("Preserving your checkmarks...", 97)
+                progress_callback("Merging updates and preserving checkmarks...", 97)
             
-            # Map of normalized string -> checked status
-            checked_items_cache = {}
-            try:
-                # We use active_items fetched earlier
-                for item in active_items:
-                    if item.get('checked'):
-                        # Cache various text fields to handle Mealie's internal re-parsing
-                        possible_texts = [item.get('note'), item.get('display'), item.get('originalText')]
-                        for txt in possible_texts:
-                            if txt:
-                                checked_items_cache[txt.strip().lower()] = True
-                print(f"[Sync] Cached {len(checked_items_cache)} unique checked item strings.")
-            except Exception as e:
-                print(f"[Sync] Warning: State preservation failed: {e}")
-
-            # 5. Write to Mealie
-            if progress_callback:
-                progress_callback("Writing items to Mealie shopping list...", 98)
-            
-            print(f"[Sync] Final list has {len(final_items)} items. Clearing active list and writing bulk.")
-            
-            self.client.clear_shopping_list(ACTIVE_LIST_ID)
-            
-            ingredients_list = []
-            preserved_count = 0
-            for idx, item in enumerate(final_items):
-                name = item.get('name', 'Unknown Item')
-                qty = item.get('quantity', 1.0)
-                unit = item.get('unit') or ''
-                unit = unit.strip()
-                
-                category_name = item.get('category')
-                label_id = label_name_to_id.get(category_name) if category_name else None
-                full_note = f"{unit} {name}".strip() if unit else name
-                
-                # Safe Sync: Match against cache
-                is_checked = False
-                note_key = full_note.strip().lower()
-                clean_name = name.strip().lower()
-                
-                if note_key in checked_items_cache or clean_name in checked_items_cache:
-                    is_checked = True
+            # Step A: Map current items for easy lookup
+            # Keys: foodId or cleaned note
+            current_map = {}
+            for item in active_items:
+                f_id = item.get('foodId') or (item.get('food', {}) or {}).get('id')
+                if f_id:
+                    current_map[f_id] = item
                 else:
-                    # Tightened fuzzy match: only if name is significant (3+ chars)
-                    if len(clean_name) > 2:
-                        for old_note in checked_items_cache.keys():
-                            # Require word-boundary or containment that isn't too broad
-                            if clean_name in old_note or old_note in clean_name:
-                                is_checked = True
-                                break
-                
-                if is_checked: preserved_count += 1
+                    note = item.get('note', '').strip().lower()
+                    if note:
+                        current_map[note] = item
 
-                ingredients_list.append({
-                    "shoppingListId": ACTIVE_LIST_ID,
-                    "note": full_note,
-                    "quantity": qty,
-                    "checked": is_checked,
-                    "position": idx,
-                    "labelId": label_id
-                })
+            to_add = []
+            to_update = []
+            matched_current_ids = set()
+
+            # Step B: Match new items against current ones
+            # First, we need to get Mealie IDs for our new items
+            new_item_names = [item.get('name', 'Unknown') for item in final_items]
+            new_item_structures = self.client.parse_raw_ingredients(new_item_names)
+
+            for idx, ai_item in enumerate(final_items):
+                name = ai_item.get('name', 'Unknown Item')
+                qty = ai_item.get('quantity', 1.0)
+                unit = ai_item.get('unit') or ''
+                
+                # Get structured info from Mealie parser
+                m_ing = new_item_structures[idx] if idx < len(new_item_structures) else {}
+                m_food_id = (m_ing.get('food', {}) or {}).get('id')
+                m_label_id = (m_ing.get('food', {}) or {}).get('labelId')
+                m_unit_id = (m_ing.get('unit', {}) or {}).get('id')
+                
+                full_note = f"{unit.strip()} {name}".strip() if unit else name
+                
+                # Try to find match
+                match = current_map.get(m_food_id) if m_food_id else None
+                if not match:
+                    match = current_map.get(full_note.strip().lower())
+                
+                if match:
+                    # UPDATE existing item
+                    matched_current_ids.add(match['id'])
+                    # Preserve checked status!
+                    updated_item = match.copy()
+                    updated_item['note'] = full_note
+                    updated_item['quantity'] = qty
+                    updated_item['unitId'] = m_unit_id
+                    updated_item['foodId'] = m_food_id
+                    updated_item['labelId'] = m_label_id or match.get('labelId')
+                    to_update.append(updated_item)
+                else:
+                    # ADD new item
+                    to_add.append({
+                        "shoppingListId": ACTIVE_LIST_ID,
+                        "note": full_note,
+                        "quantity": qty,
+                        "checked": False,
+                        "unitId": m_unit_id,
+                        "foodId": m_food_id,
+                        "labelId": m_label_id,
+                        "position": idx
+                    })
+
+            # Step C: Identify items to DELETE
+            # Current items that were NOT matched by the new plan
+            to_delete_ids = [item['id'] for item in active_items if item['id'] not in matched_current_ids]
+
+            # 5. Execute in Mealie
+            if progress_callback:
+                progress_callback("Writing changes to Mealie...", 99)
+
+            if to_delete_ids:
+                print(f"[Sync] Deleting {len(to_delete_ids)} old items.")
+                self.client.delete_shopping_list_items_bulk(to_delete_ids)
             
-            print(f"[Sync] Preserved {preserved_count} checkmarks.")
-            self.client.add_shopping_list_items_bulk(ingredients_list)
-            
+            if to_update:
+                print(f"[Sync] Updating {len(to_update)} existing items (preserving checkmarks).")
+                self.client.update_shopping_list_items_bulk(to_update)
+                
+            if to_add:
+                print(f"[Sync] Adding {len(to_add)} new items.")
+                self.client.add_shopping_list_items_bulk(to_add)
+
             if progress_callback:
                 progress_callback("Shopping list sync complete!", 100)
             return True
