@@ -29,8 +29,12 @@ This skill is responsible for generating a complete 7-day meal plan. It intellig
         *   **Banned Recipes Skill:** Strictly avoid recipes matching the names, variants, or themes of banned recipes defined in the Banned Recipes Skill (e.g., cilantro/coriander soups). Use semantic reasoning for enforcement.
 
 2.  **Plan Dinners (Ordering & Griddle Prep):** 
-    *   **Perishability:** Fresh/perishable ingredients go Early Week (Sat-Tue). Frozen/shelf-stable go Late Week (Wed-Fri).
-    *   **"Use Up" Items:** If they are frozen/stable, they MUST go Late Week.
+    *   **Perishability & 'Use Up' Sequencing (STRICT RULE):** 
+        *   **Early Week (Sat-Tue):** Reserve these days for recipes using fresh/highly-perishable ingredients (e.g., fresh fish, soft greens, berries, fresh herbs).
+        *   **Late Week (Wed-Fri):** Use these days for recipes using frozen, canned, or shelf-stable ingredients.
+        *   **'Use Up' Item Analysis:** Look at the descriptions/names in `mandatory_priority_recipes` and `freezer_pantry_fridge_items_priority`. 
+            *   If an item contains keywords like **"frozen"**, **"canned"**, **"shelf-stable"**, **"dry"**, or **"pantry"**, you **MUST** schedule the corresponding recipe for **Wednesday, Thursday, or Friday**.
+            *   Conversely, if an item is described as **"fresh"** or is a fresh vegetable/fruit, it **MUST** be scheduled for **Saturday, Sunday, Monday, or Tuesday**.
     *   **Blackstone Griddle & Batch Optimization:** 
         *   **Semantic Detection:** Identify if a recipe is compatible with a Blackstone griddle (even if not explicitly named so) based on ingredients and techniques (e.g., stir-fries, smashed burgers, seared proteins, chopped vegetables).
         *   **Prep Notes:** If a dinner is griddle-compatible, or if adjacent dinners share prep steps, you **MUST** provide a `prep_note`.
