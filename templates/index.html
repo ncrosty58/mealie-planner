@@ -1002,6 +1002,27 @@
             font-size: 0.9rem;
         }
 
+        /* Past Day Styling */
+        .past-day {
+            opacity: 0.5;
+            filter: grayscale(0.6);
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.01) !important;
+            border: 1px dashed rgba(255, 255, 255, 0.05) !important;
+        }
+
+        .past-day .day-name {
+            color: var(--text-muted);
+        }
+
+        .past-day .meal-desc {
+            opacity: 0.7;
+        }
+
+        .past-day select, .past-day .select-recipe {
+            display: none !important;
+        }
+
         .organic-pill {
             background: rgba(16, 185, 129, 0.15);
             border: 1px solid rgba(16, 185, 129, 0.3);
@@ -1235,7 +1256,7 @@
                                 {% endif %}
                             {% endfor %}
                             
-                            <div class="calendar-day-card">
+                            <div class="calendar-day-card {% if d_str < today_str %}past-day{% endif %}">
                                 <div>
                                     <div class="day-name">{{ day }}</div>
                                     <div style="font-size: 0.75rem; color: var(--text-muted);">
@@ -1248,7 +1269,11 @@
                                     <div class="meal-desc" style="color: var(--color-primary); font-weight: 500; font-size: 0.95rem; margin-top: 0.25rem;">
                                         🥘 <strong>D:</strong> 
                                         {% if dinner_entry and dinner_entry[0].recipeId %}
-                                            <a href="{{ mealie_url }}/g/home/r/{{ dinner_entry[0].recipe.slug }}" style="color: inherit; text-decoration: none; border-bottom: 1px dotted var(--color-primary);">{{ meals.dinner }}</a>
+                                            {% if d_str < today_str %}
+                                                {{ meals.dinner }}
+                                            {% else %}
+                                                <a href="{{ mealie_url }}/g/home/r/{{ dinner_entry[0].recipe.slug }}" style="color: inherit; text-decoration: none; border-bottom: 1px dotted var(--color-primary);">{{ meals.dinner }}</a>
+                                            {% endif %}
                                             {% if dinner_entry[0].is_blackstone %}
                                                 <span style="font-size: 0.75rem; background: rgba(229, 131, 37, 0.2); color: var(--color-primary); padding: 1px 6px; border-radius: 4px; margin-left: 5px; font-weight: bold;">🍳 GRIDDLE</span>
                                             {% endif %}
@@ -1258,6 +1283,7 @@
                                     </div>
                                 </div>
                                 <div>
+                                    {% if d_str >= today_str %}
                                     <form action="{{ url_for('change_meal') }}" method="POST">
                                         <input type="hidden" name="date" value="{{ d_str }}">
                                         <input type="hidden" name="entry_id" value="{{ dinner_entry[0].id if dinner_entry else '' }}">
@@ -1271,6 +1297,7 @@
                                             {% endfor %}
                                         </select>
                                     </form>
+                                    {% endif %}
                                 </div>
                             </div>
                         {% endfor %}
@@ -1347,7 +1374,7 @@
                             
                             {% if day_prep_entries %}
                                 {% set ns.prep_found = true %}
-                                <div style="margin-bottom: 1.5rem;">
+                                <div style="margin-bottom: 1.5rem;" class="{% if d_str < today_str %}past-day{% endif %}">
                                     <div class="control-group-label" style="margin-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.25rem;">
                                         {{ d_str | select_day_name }} ({{ d_str }})
                                     </div>
