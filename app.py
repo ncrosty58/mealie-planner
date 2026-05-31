@@ -294,6 +294,28 @@ def toggle_shopping_item():
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)}), 500
 
+@app.route('/check-all-items', methods=['POST'])
+def check_all_items():
+    """Mark all items in the active shopping list as checked."""
+    try:
+        client = UnifiedMealieClient()
+        items = client.get_shopping_list_items_for_list(ACTIVE_LIST_ID)
+        
+        # Build bulk update payload
+        bulk_items = []
+        for item in items:
+            if not item.get('checked'):
+                item['checked'] = True
+                bulk_items.append(item)
+        
+        if bulk_items:
+            client.update_shopping_list_items_bulk(bulk_items)
+            
+        return json.dumps({"success": True, "count": len(bulk_items)})
+    except Exception as e:
+        print(f"Error checking all items: {e}")
+        return json.dumps({"success": False, "error": str(e)}), 500
+
 @app.route('/change-meal', methods=['POST'])
 def change_meal():
     try:

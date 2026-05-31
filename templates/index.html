@@ -441,7 +441,13 @@
 
         <div id="tab-shopping" class="tab-view" style="display: none;">
             <div class="card">
-                <div class="card-header"><h2 class="card-title">Shopping List</h2><button class="btn btn-secondary" onclick="copyShoppingList(this)">Copy List</button></div>
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2 class="card-title">Shopping List</h2>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-secondary" onclick="checkAllItems(this)">Check All</button>
+                        <button class="btn btn-secondary" onclick="copyShoppingList(this)">Copy List</button>
+                    </div>
+                </div>
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
                     <input type="text" id="quick-add-input" class="textarea-input" style="padding: 0.6rem;" placeholder="Add item..." onkeypress="if(event.key === 'Enter') quickAddShoppingItem()">
                     <button class="btn btn-primary" onclick="quickAddShoppingItem()">Add</button>
@@ -555,6 +561,42 @@
         function openStaplesModal() { document.getElementById('staples-modal').style.display = 'flex'; }
         function closeStaplesModal() { document.getElementById('staples-modal').style.display = 'none'; }
         
+        function checkAllItems(btn) {
+            if (!confirm("Check off all items on this list?")) return;
+            
+            const originalText = btn.innerText;
+            btn.innerText = "Checking...";
+            btn.disabled = true;
+
+            fetch('/check-all-items', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update UI immediately
+                        document.querySelectorAll('.shopping-list-checkbox').forEach(cb => {
+                            cb.checked = true;
+                            const textSpan = cb.parentElement.querySelector('.item-text');
+                            if (textSpan) textSpan.classList.add('checked');
+                        });
+                        btn.innerText = "All Checked!";
+                        setTimeout(() => { 
+                            btn.innerText = originalText;
+                            btn.disabled = false;
+                        }, 2000);
+                    } else {
+                        alert("Error checking items: " + data.error);
+                        btn.innerText = originalText;
+                        btn.disabled = false;
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("Connection error.");
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                });
+        }
+
         function copyShoppingList(btn) {
             const lines = [];
             const groups = document.querySelectorAll('.category-group');
