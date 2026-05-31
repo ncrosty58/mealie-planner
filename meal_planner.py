@@ -12,7 +12,7 @@ from recipe_crawler import (
     check_blackstone_compatibility
 )
 from email_notifier import (
-    send_email, send_saturday_report_email
+    send_email, send_saturday_report_email, send_daily_reminder_email
 )
 from plan_generator import (
     generate_weekly_plan, parse_exclusions
