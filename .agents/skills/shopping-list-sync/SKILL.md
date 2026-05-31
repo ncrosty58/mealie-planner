@@ -13,6 +13,7 @@ This skill takes the raw ingredient strings from dinner recipes, a list of house
     - `staples`: A list of staple names already in the house (e.g. `["salt", "pepper"]`).
     - `inventory_items`: A list of specific items the user wants to "use up" from their freezer/pantry/fridge (e.g. `["1 lb chicken thighs", "pesto sauce"]`).
     - `low_staples`: A list of staple names that are currently running low and MUST be added (e.g. `["garlic"]`).
+- `family_dietary_rules`: The family-specific dietary rules and preferences (which includes the "Dirty Dozen" list).
 
 ## Workflow
 
@@ -31,8 +32,7 @@ This skill takes the raw ingredient strings from dinner recipes, a list of house
 
 3.  **Clean Ingredient Names & Organic Tagging:**
     - For each ingredient, extract the core name by removing quantities, units, and preparation instructions.
-    - **Organic Tagging (Dirty Dozen):** If the cleaned ingredient name matches any item from the "Dirty Dozen" list below, automatically append **(Buy Organic)** to the name.
-      - *Dirty Dozen List:* Strawberries, Spinach, Kale, Collard Greens, Mustard Greens, Grapes, Peaches, Pears, Nectarines, Apples, Bell Peppers, Hot Peppers, Chili Peppers, Cherries, Blueberries, Green Beans.
+    - **Organic Tagging (Dirty Dozen):** If the cleaned ingredient name matches any item from the "Dirty Dozen" list found in the `family_dietary_rules`, automatically append **(Buy Organic)** to the name.
     - Format and capitalize the resulting ingredient name in Title Case (e.g. "1 lb spinach" -> "Spinach (Buy Organic)", "3 cloves garlic" -> "Garlic").
 
 4.  **Extract Unit and Aggregate Quantities:**

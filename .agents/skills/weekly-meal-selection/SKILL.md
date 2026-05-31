@@ -24,8 +24,8 @@ This skill is responsible for generating a complete 7-day meal plan. It intellig
     *   **MANDATORY "Use Up" Items (HIGHEST PRIORITY):** If `mandatory_priority_recipes` is provided, you **MUST** include **EVERY** recipe ID from that mapping in the plan. This is non-negotiable. Do not skip any of them. If there are 3 items, all 3 corresponding recipes must appear as dinners. The remaining dinner slots should be filled with other catalogue recipes following the priorities below.
     *   **Other Priorities:** Medium: Special requests; General: Variety, fiber, no processed meats.
     *   **Ingredient Synergy / Re-use:** Prioritize selecting recipes that share overlapping fresh/perishable ingredients (e.g., cilantro, lime, cabbage, spinach, broccoli, fresh herbs) to minimize grocery waste.
-    *   **Banned Recipes & Processed Meats Exclusions:** 
-        *   **Strict Prohibition:** You MUST NOT select any recipes that contain processed, sausage-type meats. This includes: Sausages, Hot Dogs, Chorizo, Salami, Pepperoni, Bacon, Ham, and Pancetta.
+    *   **Banned Recipes & Dietary Exclusions:** 
+        *   **Dietary Rules:** You MUST strictly follow all meat prohibitions and dietary constraints defined in the `family_dietary_rules_prompt`.
         *   **Banned Recipes Skill:** Strictly avoid recipes matching the names, variants, or themes of banned recipes defined in the Banned Recipes Skill (e.g., cilantro/coriander soups). Use semantic reasoning for enforcement.
 
 2.  **Plan Dinners (Ordering & Griddle Prep):** 

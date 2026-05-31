@@ -3,7 +3,7 @@ import json
 import re
 
 from .config import (
-    ACTIVE_LIST_ID, STAPLES_LIST_ID,
+    ACTIVE_LIST_ID, STAPLES_LIST_ID, FAMILY_DIETARY_RULES_PROMPT,
     _SHOPPING_LIST_SYNC_SKILL_DEFINITION
 )
 from .recipe_crawler import RecipeCrawler
@@ -94,7 +94,8 @@ class ShoppingListSync:
 
 ### CONTEXT FOR THIS INVOCATION:
 """ +
-                f"Input Data: {json.dumps(payload)}\n\n" +
+                f"Input Data: {json.dumps(payload)}\n" +
+                f"Family Dietary Rules: {FAMILY_DIETARY_RULES_PROMPT}\n\n" +
                 "Return ONLY the JSON array of objects as specified in the skill definition."
             )
             
