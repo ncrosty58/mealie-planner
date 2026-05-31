@@ -9,6 +9,17 @@ from .config import (
 from .recipe_crawler import RecipeCrawler
 from .exceptions import MealieAPIError, SkillParsingError
 
+def normalize_ingredient_name(name: str) -> str:
+    """Normalize ingredient name for matching by stripping quantity, unit, descriptors, and organic tag."""
+    name = name.lower().strip()
+    name = re.sub(r'\(buy organic\)', '', name).strip()
+    name = re.sub(r'\b(fresh|frozen|canned|organic|raw|cooked)\b', '', name).strip()
+    # Remove leading quantity/unit e.g. "2 lbs ", "1/2 cup ", "3 cloves "
+    name = re.sub(r'^[\d\/\s\.\-]+(lbs?|oz|cups?|cans?|cloves?|tsps?|tbsps?|g|kg|ml|l|packages?|bags?|pieces?|slices?)\b', '', name).strip()
+    # Remove leading digits and remaining spaces
+    name = re.sub(r'^[\d\/\s\.\-]+', '', name).strip()
+    return name
+
 class ShoppingListSync:
     def __init__(self, mealie_client, gemini_client):
         self.client = mealie_client
@@ -22,20 +33,21 @@ class ShoppingListSync:
             staples = self.client.get_shopping_list_items(STAPLES_LIST_ID)
             active_items = self.client.get_shopping_list_items_for_list(ACTIVE_LIST_ID)
             low_ids_clean = {s_id.replace('-', '').lower() for s_id in low_staples_ids}
-            staple_names = {s['note'].strip().lower(): s for s in staples}
+            staple_names = {normalize_ingredient_name(s['note']): s for s in staples}
             
             active_staple_notes = []
             active_notes_set = set()
             for item in active_items:
-                note = item['note'].strip().lower()
-                active_notes_set.add(note)
-                if note in staple_names:
+                note_norm = normalize_ingredient_name(item['note'])
+                active_notes_set.add(note_norm)
+                if note_norm in staple_names:
                     active_staple_notes.append(item)
 
             to_add = []
             for s in staples:
+                s_norm = normalize_ingredient_name(s['note'])
                 if s['id'].replace('-', '').lower() in low_ids_clean:
-                    if s['note'].strip().lower() not in active_notes_set:
+                    if s_norm not in active_notes_set:
                         to_add.append({
                             "shoppingListId": ACTIVE_LIST_ID,
                             "note": s['note'],
@@ -46,7 +58,8 @@ class ShoppingListSync:
 
             to_delete_ids = []
             for item in active_staple_notes:
-                master_staple = staple_names.get(item['note'].strip().lower())
+                item_norm = normalize_ingredient_name(item['note'])
+                master_staple = staple_names.get(item_norm)
                 if master_staple:
                     m_id = master_staple['id'].replace('-', '').lower()
                     if m_id not in low_ids_clean:
@@ -60,7 +73,7 @@ class ShoppingListSync:
             return False
 
     def sync_shopping_list(self, start_date_str, end_date_str, low_staples_ids=[], progress_callback=None, freezer_items="") -> bool:
-        """Non-destructive sync using Multi-Tiered matching to protect checkmarks and staples."""
+        """Non-destructive sync using Gemini AI to perform semantic matching and checkmark/ID retention."""
         print(f"Starting non-destructive sync for {start_date_str} to {end_date_str}...")
         if progress_callback: progress_callback("Sync started...", 90)
         
@@ -72,40 +85,11 @@ class ShoppingListSync:
             staples = self.client.get_shopping_list_items(STAPLES_LIST_ID)
             active_items = self.client.get_shopping_list_items_for_list(ACTIVE_LIST_ID)
             
-            staple_names_lower = {s['note'].strip().lower() for s in staples}
             low_ids_clean = {sid.replace('-', '').lower() for sid in low_staples_ids}
             low_staples_notes = [s['note'] for s in staples if s['id'].replace('-', '').lower() in low_ids_clean]
 
-            # 2. Analyze current items for "Checkmark Memory"
+            # 2. Extract ingredients from scheduled recipes
             if progress_callback: progress_callback("Analyzing current progress...", 93)
-            
-            # Memory of what was checked
-            checked_notes = set()    # Exact strings
-            checked_entities = set() # Base food names
-            checked_keywords = set() # Individual core words
-            active_staple_notes = []
-            
-            if active_items:
-                current_notes = [item.get('note', '') for item in active_items]
-                current_parsed = self.client.parse_raw_ingredients(current_notes)
-                
-                for idx, item in enumerate(active_items):
-                    p_ing = current_parsed[idx] if idx < len(current_parsed) else {}
-                    food_name = (p_ing.get('food', {}) or {}).get('name', '').strip().lower()
-                    note_lower = item.get('note', '').strip().lower()
-                    
-                    # Track staples currently on the list for AI protection
-                    if food_name in staple_names_lower or note_lower in staple_names_lower:
-                        active_staple_notes.append(item['note'])
-
-                    if item.get('checked'):
-                        checked_notes.add(note_lower)
-                        if food_name: checked_entities.add(food_name)
-                        # Keywords (e.g., "Chicken", "Cilantro")
-                        keywords = [w for w in re.findall(r'\w+', note_lower) if len(w) > 3]
-                        checked_keywords.update(keywords)
-
-            # 3. Extract ingredients from scheduled recipes
             recipe_ids_to_fetch = set()
             meal_plan_mapping = []
             all_recipes_overview = self.crawler.get_recipes_from_db()
@@ -131,10 +115,9 @@ class ShoppingListSync:
                             txt = ing.get('display') or ing.get('originalText') or ""
                             if txt.strip(): raw_recipe_ingredients.append(txt.strip())
 
-            # 4. Call AI Skill
+            # 3. Call AI Skill
             if progress_callback: progress_callback("Generating optimized list...", 96)
             
-            combined_low = list(set(low_staples_notes + active_staple_notes))
             all_labels = self.client.get_labels()
             label_name_to_id = {l['name']: l['id'] for l in all_labels}
 
@@ -142,76 +125,103 @@ class ShoppingListSync:
                 "ingredients": raw_recipe_ingredients,
                 "staples": [s['note'] for s in staples],
                 "inventory_items": [i.strip() for i in freezer_items.split(",")] if freezer_items else [],
-                "low_staples": combined_low,
-                "available_labels": [l['name'] for l in all_labels]
+                "low_staples": low_staples_notes,
+                "available_labels": [l['name'] for l in all_labels],
+                "active_shopping_list": [
+                    {
+                        "index": idx,
+                        "note": item["note"],
+                        "checked": item.get("checked", False)
+                    }
+                    for idx, item in enumerate(active_items)
+                ]
             }
             
-            prompt = f"You are an expert in 'Shopping List Sync Skill'.\n\n{_SHOPPING_LIST_SYNC_SKILL_DEFINITION}\n\n### CONTEXT:\nInput: {json.dumps(payload)}\nDietary: {FAMILY_DIETARY_RULES_PROMPT}\n\nReturn ONLY JSON."
+            prompt = f"""You are an expert in 'Shopping List Sync Skill'.
+
+{_SHOPPING_LIST_SYNC_SKILL_DEFINITION}
+
+### MERGING & ID RETENTION RULES
+In addition to the standard Shopping List Sync workflow, you must merge the newly compiled shopping list with the current `active_shopping_list` using robust semantic matching to preserve their active checking state and database IDs:
+1. For each item in your final compiled shopping list, check if it matches an item in `active_shopping_list` semantically:
+   - Ignore leading/trailing quantities (e.g., "1", "2.5"), unit names (e.g., "tablespoon", "tbsp", "cup", "cloves", "oz", "lbs", "sprigs"), and misspellings.
+   - Ignore plural vs. singular differences (e.g., "Parsley" matches "Parsleys", "Tomato" matches "Tomatoes").
+   - Ignore descriptive prefixes, suffixes, preparation words, and adjectives (e.g., "Fresh", "Freshly Chopped", "Raw", "Canned", "Frozen", "Organic", "Leaves", "sprigs"). For example, "Lemon Juice" (or "tablespoon Lemon Juice") MUST match "tablespoon Fresh Lemon Juice", and "Cilantro" (or "Cilantro Leaves") MUST match "cup Fresh Cilantro Leaves".
+   - Be extremely generous and aggressive with matching. If both strings share the same core ingredient name (e.g., "Lemon Juice", "Cilantro", "Thyme", "Asparagus", "Tomato"), they MUST be matched.
+2. If there is a semantic match:
+   - Set `active_item_index` to the matching item's `index` integer from `active_shopping_list`.
+   - Retain the `checked` status (boolean) from the matched item in `active_shopping_list`.
+3. If there is NO semantic match:
+   - Set `active_item_index` to null.
+   - Set `checked` to false.
+4. **Staples Preservation Rule**: If there is an item in `active_shopping_list` that matches a staple in `staples` (using semantic matching), you MUST include it in the final output (with `unit: null`, setting `active_item_index` to its `index` and preserving its `checked` status) even if it is not required by any recipes in `ingredients`. This ensures that staples already on the list (whether checked or unchecked) are preserved rather than deleted.
+5. **Low Staples Rule**: Any staple in `low_staples` MUST be in the final output. If it is already in `active_shopping_list`, reuse its `index` and `checked` status. If it is NOT in `active_shopping_list`, set `active_item_index` to null and `checked` to false.
+6. **Staples Exclude Rule (Critical)**: If an ingredient in `ingredients` matches a staple in `staples` (using semantic matching), you MUST filter it out and NOT include it in the final output, UNLESS it is explicitly listed in `low_staples` or is already on the `active_shopping_list` (in which case it is preserved by Rule 4/5). Nathan and Kristin already have staples in stock, so do not put in-stock staples on the shopping list.
+7. Do not include any other items from `active_shopping_list` in the output that do not belong to the compiled shopping list anymore (i.e. they are no longer needed, they should be deleted, so do not output them).
+8. For the output, construct a JSON array of objects, where each object has these exact fields:
+   - `active_item_index`: The matched active item's index integer, or null if it's a new item.
+   - `name`: Cleaned, Title Cased name (e.g. "Chicken Breast").
+   - `quantity`: Aggregated numeric quantity as a float.
+   - `unit`: The extracted unit of measure (e.g. "lb", "cup", "can"), or null if it is a staple.
+   - `checked`: The matched `checked` state (boolean).
+   - `category`: The EXACT zone name from `available_labels`.
+
+### CONTEXT:
+Input: {json.dumps(payload)}
+Dietary: {FAMILY_DIETARY_RULES_PROMPT}
+
+Return ONLY the JSON array of objects. Do not include any extra text or conversational response."""
             ai_response = self.gemini.call(prompt, expect_json=True)
             final_items = json.loads(ai_response)
 
-            # 5. Smart Merge with Multi-Tiered Matching
+            # 4. Merge changes in Mealie
             if progress_callback: progress_callback("Merging changes...", 98)
-            
-            new_item_names = [item.get('name', 'Unknown') for item in final_items]
-            new_parsed = self.client.parse_raw_ingredients(new_item_names)
             
             to_add, to_update, matched_ids = [], [], set()
 
             for idx, ai_item in enumerate(final_items):
-                name, qty, unit = ai_item.get('name', 'Unknown'), ai_item.get('quantity', 1.0), ai_item.get('unit') or ''
+                active_idx = ai_item.get('active_item_index')
+                name = ai_item.get('name', 'Unknown')
+                qty = ai_item.get('quantity', 1.0)
+                unit = ai_item.get('unit') or ''
+                checked = ai_item.get('checked', False)
                 cat_name = ai_item.get('category')
+                
                 full_note = f"{unit.strip()} {name}".strip() if unit else name
-                note_lower = full_note.strip().lower()
-                
-                m_ing = new_parsed[idx] if idx < len(new_parsed) else {}
-                new_food_name = (m_ing.get('food', {}) or {}).get('name', '').strip().lower()
-                new_food_id = (m_ing.get('food', {}) or {}).get('id')
-                
-                # Checkmark Memory Match
-                is_checked = False
-                if note_lower in checked_notes: is_checked = True
-                elif new_food_name and new_food_name in checked_entities: is_checked = True
-                else:
-                    new_keywords = [w for w in re.findall(r'\w+', note_lower) if len(w) > 3]
-                    for kw in new_keywords:
-                        if kw in checked_keywords:
-                            is_checked = True
-                            break
+                label_id = label_name_to_id.get(cat_name)
 
-                # Object Matching (to prevent duplicates/re-creation)
-                # 1. Direct name match
-                match = next((i for i in active_items if i['note'].strip().lower() == note_lower), None)
-                # 2. Entity ID match
-                if not match and new_food_id:
-                    match = next((i for i in active_items if (i.get('foodId') or (i.get('food') or {}).get('id')) == new_food_id), None)
-                # 3. Fuzzy core-word match (prevent re-adding slightly differently named items)
-                if not match and new_food_name:
-                    match = next((i for i in active_items if new_food_name in i['note'].lower()), None)
+                original = None
+                if active_idx is not None:
+                    try:
+                        active_idx = int(active_idx)
+                        if 0 <= active_idx < len(active_items):
+                            original = active_items[active_idx]
+                    except (ValueError, TypeError):
+                        pass
 
-                if match:
-                    matched_ids.add(match['id'])
-                    updated = match.copy()
+                if original:
+                    matched_ids.add(original['id'])
+                    updated = original.copy()
                     updated.update({
-                        "note": full_note, 
-                        "quantity": qty, 
-                        "checked": is_checked, 
-                        "labelId": label_name_to_id.get(cat_name) or match.get('labelId')
+                        "note": full_note,
+                        "quantity": qty,
+                        "checked": checked,
+                        "labelId": label_id or original.get('labelId')
                     })
                     to_update.append(updated)
                 else:
                     to_add.append({
-                        "shoppingListId": ACTIVE_LIST_ID, 
-                        "note": full_note, 
-                        "quantity": qty, 
-                        "checked": is_checked, 
-                        "labelId": label_name_to_id.get(cat_name), 
+                        "shoppingListId": ACTIVE_LIST_ID,
+                        "note": full_note,
+                        "quantity": qty,
+                        "checked": checked,
+                        "labelId": label_id,
                         "position": idx
                     })
 
             to_delete = [i['id'] for i in active_items if i['id'] not in matched_ids]
 
-            # 6. Apply
+            # 5. Apply changes to Mealie
             if to_delete: self.client.delete_shopping_list_items_bulk(to_delete)
             if to_update: self.client.update_shopping_list_items_bulk(to_update)
             if to_add: self.client.add_shopping_list_items_bulk(to_add)

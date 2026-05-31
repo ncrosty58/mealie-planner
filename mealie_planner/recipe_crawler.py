@@ -1,9 +1,8 @@
-import re
 import urllib.request
 import urllib.parse
-from concurrent.futures import ThreadPoolExecutor
 from bs4 import BeautifulSoup
 import requests
+import json
 
 from .config import load_skill_md, _RECIPE_FINDER_SKILL_DEFINITION, get_banned_recipes
 from .exceptions import MealieAPIError, SkillParsingError
@@ -15,87 +14,79 @@ class RecipeCrawler:
         self._detailed_recipes_cache = None
 
     def check_blackstone_compatibility(self, recipe_details):
-        """Analyze recipe name and instructions to see if it's compatible with a Blackstone griddle."""
+        """Analyze recipe details using Gemini semantic reasoning to check flat top griddle compatibility."""
         if not recipe_details:
             return False
-        name_lower = recipe_details.get('name', '').lower()
-        instructions = recipe_details.get('recipeInstructions', [])
-        instructions_text = " ".join([i.get('text', '').lower() for i in instructions if i.get('text')]).lower()
+            
+        name = recipe_details.get('name', '')
+        instructions = [i.get('text', '') for i in recipe_details.get('recipeInstructions', []) if i.get('text')]
         
-        return 'blackstone' in name_lower or 'griddle' in name_lower or 'blackstone' in instructions_text or 'griddle' in instructions_text
+        # Fast-Path: Keyword match to save API latency
+        name_lower = name.lower()
+        instructions_text = " ".join(instructions).lower()
+        if 'blackstone' in name_lower or 'griddle' in name_lower or 'blackstone' in instructions_text or 'griddle' in instructions_text:
+            return True
+            
+        # Semantic Path: Let Gemini evaluate if the style/technique fits flat top griddling
+        prompt = f"""You are an expert griddle chef. Analyze if the following recipe can or should be cooked on an outdoor flat top griddle/Blackstone (e.g. stir-fries, smashed burgers, seared steaks, fajitas, pancakes, fried rice, street tacos).
+
+Recipe Name: {name}
+Instructions:
+{" ".join(instructions)}
+
+Respond with ONLY 'YES' or 'NO'."""
+        try:
+            response = self.gemini.call(prompt, expect_json=False)
+            return 'YES' in response.upper()
+        except Exception as e:
+            print(f"[Crawler] Blackstone griddle AI check failed, falling back: {e}")
+            return False
 
     def get_recipes_from_db(self):
         """Fetch all current recipes from the Mealie DB."""
         return self.client.get_all_recipes()
 
     def find_recipe_for_ingredient(self, ingredient_name, all_recipes=None):
-        """Search the current recipe database for a recipe that matches the ingredient name."""
+        """Search the current recipe database for a recipe that matches the title, falling back to semantic AI matching."""
         if not all_recipes:
             all_recipes = self.get_recipes_from_db()
             
         search_term = ingredient_name.lower().strip()
-        # 1. Look for exact name match
+        
+        # 1. Fast-Path: Exact name match
         for r in all_recipes:
             if r['name'].lower().strip() == search_term:
                 return r['id']
         
-        # 2. Look for name containing term
-        for r in all_recipes:
-            if search_term in r['name'].lower():
-                return r['id']
-                
-        # 3. Look for term in slug
+        # 2. Fast-Path: Slug match
         for r in all_recipes:
             if search_term.replace(' ', '-') in r.get('slug', '').lower():
                 return r['id']
 
-        # 4. Look inside recipe ingredients (fetch details in parallel)
-        # Check singular/plural and key noun variants to handle e.g. "chicken thighs" -> "chicken thigh" or "thigh"
-        variants = [search_term]
-        if search_term.endswith('s'):
-            variants.append(search_term[:-1])
-        if search_term.endswith('es'):
-            variants.append(search_term[:-2])
-            
-        words = search_term.split()
-        if len(words) > 1:
-            last_word = words[-1]
-            variants.append(last_word)
-            if last_word.endswith('s'):
-                variants.append(last_word[:-1])
-            if last_word.endswith('es'):
-                variants.append(last_word[:-2])
-                
-        # Remove empty strings or duplicates, sorted by length descending
-        variants = sorted(list(set(v for v in variants if v)), key=len, reverse=True)
+        # 3. Semantic Path: Ask Gemini to resolve the closest culinary match
+        catalogue = [{"id": r["id"], "name": r["name"]} for r in all_recipes]
+        prompt = f"""You are a culinary search engine. Match the meal plan title to the single most relevant recipe ID from the catalogue.
 
-        if self._detailed_recipes_cache is None:
-            # Use the client's safe bulk fetcher to populate our local cache
-            recipe_ids = [r['id'] for r in all_recipes]
-            details_map = self.client.get_recipes_details_bulk(recipe_ids)
-            self._detailed_recipes_cache = [d for d in details_map.values() if d]
+Meal Plan Title: {ingredient_name}
 
-        for r_details in self._detailed_recipes_cache:
-            if not r_details:
-                continue
+Recipe Catalogue:
+{json.dumps(catalogue, indent=2)}
+
+Guidelines:
+- Match semantically (e.g. "Fish Tacos" matches "Cod Tacos", "Burgers" matches "Smashed Burgers").
+- If no recipe is a good culinary match, respond with 'NONE'.
+- Respond with ONLY the matched recipe ID/UUID or 'NONE'."""
+        try:
+            response = self.gemini.call(prompt, expect_json=False).strip()
+            if response and response.upper() != 'NONE' and len(response) > 20:
+                # Validate it's a valid ID from the catalogue
+                valid_ids = {r["id"] for r in all_recipes}
+                if response in valid_ids:
+                    print(f"[Crawler] Semantic match found: '{ingredient_name}' -> recipe ID '{response}'")
+                    return response
+        except Exception as e:
+            print(f"[Crawler] Semantic recipe matching failed: {e}")
             
-            for ing in r_details.get('recipeIngredient', []):
-                texts = []
-                if isinstance(ing, dict):
-                    if ing.get('ingredient') and isinstance(ing['ingredient'], dict):
-                        texts.append(ing['ingredient'].get('name') or '')
-                    texts.append(ing.get('display') or '')
-                    texts.append(ing.get('note') or '')
-                    texts.append(ing.get('originalText') or '')
-                else:
-                    texts.append(str(ing))
-                    
-                full_ing_text = " ".join(texts).lower()
-                for variant in variants:
-                    if variant in full_ing_text:
-                        print(f"[Crawler] Found ingredient match for variant '{variant}' of '{search_term}' in recipe: {r_details['name']}")
-                        return r_details['id']
-                
         return None
 
     def search_recipes(self, query):
@@ -114,10 +105,8 @@ class RecipeCrawler:
             links = []
             for a in soup.find_all('a', class_='result__a', href=True):
                 href = a['href']
-                # Clean DuckDuckGo redirect URLs
                 if 'uddg=' in href:
                     try:
-                        # Extract uddg query param
                         parsed_href = urllib.parse.urlparse(href)
                         qs = urllib.parse.parse_qs(parsed_href.query)
                         href = qs.get('uddg', [href])[0]
@@ -168,25 +157,20 @@ class RecipeCrawler:
         
         for url in search_results:
             try:
-                # 1. Fetch metadata for AI validation
                 metadata = self.get_url_metadata(url)
                 if not metadata:
                     continue
                 
-                # 2. Use AI to validate if it's a good single recipe link
                 is_valid = self.validate_recipe_link_with_ai(metadata['url'], metadata['title'], metadata['description'])
                 if not is_valid:
                     print(f"[Crawler] AI rejected link: {url}")
                     continue
                 
-                # 3. Import into Mealie
                 print(f"[Crawler] Importing valid recipe: {url}")
                 import_url = f"{self.client.api_url}/api/recipes/create/url"
                 payload = {"url": url}
-                # Use internal _request helper if possible, or just standard requests for this one-off
                 r = requests.post(import_url, json=payload, headers=self.client.headers)
                 r.raise_for_status()
-                # Clear detailed recipes cache on successful import
                 self._detailed_recipes_cache = None
                 print(f"[Crawler] Successfully imported: {ingredient_name}")
                 return True
@@ -198,7 +182,7 @@ class RecipeCrawler:
         return False
 
 def check_blackstone_compatibility(recipe_details):
-    """Standalone utility to check Blackstone compatibility without needing a crawler instance."""
+    """Standalone utility to check Blackstone compatibility using a quick keyword check."""
     if not recipe_details:
         return False
     name_lower = recipe_details.get('name', '').lower()
@@ -206,4 +190,3 @@ def check_blackstone_compatibility(recipe_details):
     instructions_text = " ".join([i.get('text', '').lower() for i in instructions if i.get('text')]).lower()
     
     return 'blackstone' in name_lower or 'griddle' in name_lower or 'blackstone' in instructions_text or 'griddle' in instructions_text
-

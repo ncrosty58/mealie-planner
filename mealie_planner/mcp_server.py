@@ -300,5 +300,51 @@ def update_shopping_list_item(
     except Exception as e:
         raise ToolError(f"Error updating shopping list item: {str(e)}")
 
+@mcp.tool()
+def sync_shopping_list(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+) -> str:
+    """Trigger a sync of the active shopping list based on the scheduled meals.
+    Call this whenever you make changes to the meal plan (e.g. creating, updating, or deleting meals)
+    to automatically rebuild the active shopping list with organic tags, staples, and exclusions in sync.
+
+    Args:
+        start_date: Optional start date (YYYY-MM-DD). Defaults to the active planning week Saturday.
+        end_date: Optional end date (YYYY-MM-DD). Defaults to the active planning week Friday.
+
+    Returns:
+        str: Status message of the sync.
+    """
+    try:
+        from mealie_planner.utils import get_active_week_strings
+        from mealie_planner.shopping_sync import sync_shopping_list as run_sync
+        
+        # Load state for low staples
+        import json
+        low_staples = []
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        state_path = os.path.join(base_dir, "data", "planner_state.json")
+        if os.path.exists(state_path):
+            try:
+                with open(state_path, "r") as f:
+                    state = json.load(f)
+                    low_staples = state.get("low_staples", [])
+            except Exception:
+                pass
+
+        if not start_date or not end_date:
+            active_start, active_end = get_active_week_strings()
+            start_date = start_date or active_start
+            end_date = end_date or active_end
+
+        success = run_sync(start_date, end_date, low_staples_ids=low_staples)
+        if success:
+            return f"Successfully synchronized shopping list for the week of {start_date} to {end_date}."
+        else:
+            return "Failed to synchronize the shopping list. Check the server logs."
+    except Exception as e:
+        raise ToolError(f"Error during shopping list sync: {str(e)}")
+
 if __name__ == "__main__":
     mcp.run()

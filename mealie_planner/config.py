@@ -5,14 +5,19 @@ ACTIVE_LIST_ID = os.getenv('MEALIE_ACTIVE_LIST_ID', '9a1e2d1e33f24f27a01fef55c89
 STAPLES_LIST_ID = os.getenv('MEALIE_STAPLES_LIST_ID', '1196f23a527b42a9a75b1c3850251948')
 
 # Skill parsing logic
-def load_skill_md(skill_name, skill_path="SKILL.md"):
+def load_skill_md(skill_name, skill_path="SKILL.md", strip_front=True):
     """Load the content of a SKILL.md file."""
     # Find the parent of mealie_planner dir
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     full_path = os.path.join(base_dir, '.agents', 'skills', skill_name, skill_path)
     if os.path.exists(full_path):
         with open(full_path, 'r', encoding='utf-8') as f:
-            return f.read()
+            content = f.read()
+            if strip_front and content.startswith('---'):
+                parts = content.split('---', 2)
+                if len(parts) >= 3:
+                    return parts[2].strip()
+            return content.strip()
     return ""
 
 def extract_section(content, section_name):
@@ -51,7 +56,7 @@ def parse_frontmatter(content):
     return metadata
 
 # Read config dynamically from SKILL.md
-_SKILL_MD_CONTENT = load_skill_md('meal-planner')
+_SKILL_MD_CONTENT = load_skill_md('meal-planner', strip_front=False)
 _METADATA = parse_frontmatter(_SKILL_MD_CONTENT)
 
 FAMILY_NAMES = _METADATA.get('family_names', 'Nathan & Kristin')

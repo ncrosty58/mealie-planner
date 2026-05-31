@@ -3,7 +3,6 @@ import sys
 import json
 import logging
 from typing import List, Dict, Any, Optional
-from concurrent.futures import ThreadPoolExecutor
 
 # Add mealie-mcp-server/src to the python path to import MealieFetcher
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -14,6 +13,8 @@ if mcp_src_dir not in sys.path:
 from mealie import MealieFetcher
 
 logger = logging.getLogger("mealie-planner-unified")
+
+_recipe_details_cache = {}
 
 class UnifiedMealieClient(MealieFetcher):
     """
@@ -29,7 +30,7 @@ class UnifiedMealieClient(MealieFetcher):
             raise ValueError("Mealie API Key (MEALIE_TOKEN or MEALIE_API_KEY) is missing.")
             
         super().__init__(base_url=base_url, api_key=api_key)
-        self._recipe_details_cache = {}
+        self._recipe_details_cache = _recipe_details_cache
 
     # --- Legacy Compatibility Aliases ---
     
@@ -100,17 +101,9 @@ class UnifiedMealieClient(MealieFetcher):
         return self._handle_request("POST", "/api/households/mealplans", json=payload)
 
     def clear_shopping_list(self, list_id: str):
-        """Missing method to clear all items from a shopping list. Dash-insensitive comparison."""
-        items_res = self.get_shopping_list_items(per_page=500)
-        items = items_res.get('items', []) if isinstance(items_res, dict) else []
-        
-        target_id_clean = list_id.replace('-', '')
-        item_ids_to_delete = []
-        for item in items:
-            list_id_raw = item.get('shoppingListId')
-            if list_id_raw and list_id_raw.replace('-', '') == target_id_clean:
-                item_ids_to_delete.append(item['id'])
-        
+        """Clear all items from a shopping list using targeted fetch."""
+        items = self.get_shopping_list_items_legacy(list_id)
+        item_ids_to_delete = [item['id'] for item in items if 'id' in item]
         if item_ids_to_delete:
             return self.delete_shopping_list_items_bulk(item_ids_to_delete)
         return {"message": "List already empty"}
@@ -128,15 +121,8 @@ class UnifiedMealieClient(MealieFetcher):
         return super().get_shopping_list_items(*args, **kwargs)
 
     def get_shopping_list_items_for_list(self, list_id: str) -> List[Dict[str, Any]]:
-        """Helper to get items specifically for one list. Dash-insensitive."""
-        res = self.get_shopping_list_items(per_page=500)
-        items = res.get('items', []) if isinstance(res, dict) else []
-        
-        target_id_clean = list_id.replace('-', '')
-        return [
-            item for item in items 
-            if item.get('shoppingListId') and item.get('shoppingListId').replace('-', '') == target_id_clean
-        ]
+        """Helper to get items specifically for one list."""
+        return self.get_shopping_list_items_legacy(list_id)
 
     def get_shopping_list_items_legacy(self, list_id: str) -> List[Dict[str, Any]]:
         """Fetch all items currently on a shopping list (legacy compatibility)."""
@@ -205,45 +191,21 @@ class UnifiedMealieClient(MealieFetcher):
             return [{"note": i} for i in ingredients]
 
     def parse_ingredients_with_ai(self, raw_text: str) -> List[Dict[str, Any]]:
-        """Parse free-text ingredients using Gemini and the ingredient-parsing skill."""
-        import httpx
-        try:
-            logger.info({"message": "Parsing ingredients via Gemini AI", "text": raw_text[:50] + "..."})
-            
-            # Load skill file
-            skill_path = os.path.join(base_dir, ".agents", "skills", "ingredient-parsing", "SKILL.md")
-            with open(skill_path, "r", encoding="utf-8") as f:
-                skill_def = f.read()
-
-            prompt = f"You are an expert in the 'Ingredient Parsing Skill'.\n\n{skill_def}\n\n### INPUT DATA:\n{raw_text}\n\nReturn ONLY the JSON array of objects."
-            
-            api_key = os.getenv("GOOGLE_API_KEY")
-            model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-
-            payload = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {
-                    "temperature": 0.1,
-                    "responseMimeType": "application/json"
-                }
-            }
-
-            resp = httpx.post(url, json=payload, timeout=30.0)
-            resp.raise_for_status()
-            data = resp.json()
-            text = data["candidates"][0]["content"]["parts"][0]["text"]
-            return json.loads(text)
-        except Exception as e:
-            logger.error(f"Error parsing ingredients with AI: {e}")
-            raise
+        """Parse free-text ingredients using the unified GeminiClient and config definitions."""
+        from .gemini_client import GeminiClient
+        from .parsers import parse_freezer_items
+        
+        gemini = GeminiClient()
+        return parse_freezer_items(gemini, raw_text)
 
     def standardize_ingredients_with_ai(self, ingredients: List[str]) -> List[str]:
         """
-        Use Gemini to clean and standardize a list of ingredient strings.
+        Use GeminiClient to clean and standardize a list of ingredient strings.
         Removes brand names, extraneous instructions, and formatting noise.
         """
-        import httpx
+        from .gemini_client import GeminiClient
+        gemini = GeminiClient()
+        
         try:
             raw_text = "\n".join(ingredients)
             logger.info({"message": "Standardizing ingredients via Gemini AI", "count": len(ingredients)})
@@ -260,23 +222,8 @@ For each ingredient:
 
 Return ONLY a JSON array of strings."""
 
-            api_key = os.getenv("GOOGLE_API_KEY")
-            model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-
-            payload = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {
-                    "temperature": 0.1,
-                    "responseMimeType": "application/json"
-                }
-            }
-
-            resp = httpx.post(url, json=payload, timeout=30.0)
-            resp.raise_for_status()
-            data = resp.json()
-            text = data["candidates"][0]["content"]["parts"][0]["text"]
-            return json.loads(text)
+            ai_response = gemini.call(prompt, expect_json=True)
+            return json.loads(ai_response)
         except Exception as e:
             logger.error(f"Error standardizing ingredients with AI: {e}")
             return ingredients

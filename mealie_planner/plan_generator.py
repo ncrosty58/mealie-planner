@@ -79,10 +79,6 @@ class PlanGenerator:
                 elif isinstance(t, str):
                     tags.append(t.lower())
             
-            all_text = f"{name_lower} {slug_lower} {desc_lower} " + " ".join(tags)
-            
-            r['_all_text'] = all_text
-            
             # Check against specific banned recipe names
             is_banned = False
             for banned_name in banned_recipes:

@@ -366,6 +366,15 @@ def chat():
         
         reply, new_history, plan_changed = asyncio.run(run_mcp_chat(history, message))
         
+        if plan_changed:
+            try:
+                start_date_str, end_date_str = get_active_week_strings()
+                state = load_state()
+                low_staples = state.get('low_staples', [])
+                sync_shopping_list(start_date_str, end_date_str, low_staples)
+            except Exception as sync_err:
+                print(f"[Chat Auto-Sync] Error during auto-sync: {sync_err}")
+        
         return json.dumps({
             "success": True,
             "reply": reply,

@@ -728,6 +728,9 @@
                         addMsg('bot', res.reply);
                         history = res.history;
                         localStorage.setItem('mealie_chat_history', JSON.stringify(history));
+                        if (res.plan_changed) {
+                            setTimeout(() => { window.location.reload(); }, 1500);
+                        }
                     } else {
                         addMsg('bot', 'Chef is having some technical difficulties. Please try again.');
                     }
