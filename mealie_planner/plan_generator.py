@@ -70,7 +70,14 @@ class PlanGenerator:
             name_lower = r['name'].lower()
             slug_lower = r.get('slug', '').lower()
             desc_lower = r.get('description', '').lower() if r.get('description') else ''
-            tags = [t.lower() for t in r.get('tags', [])]
+            
+            # Tags are often dictionaries in newer Mealie versions
+            tags = []
+            for t in r.get('tags', []):
+                if isinstance(t, dict):
+                    tags.append(t.get('name', '').lower())
+                elif isinstance(t, str):
+                    tags.append(t.lower())
             
             all_text = f"{name_lower} {slug_lower} {desc_lower} " + " ".join(tags)
             
@@ -125,7 +132,7 @@ class PlanGenerator:
                 "id": r["id"],
                 "name": r["name"],
                 "description": (r.get("description") or "")[:120],
-                "tags": r.get("tags", []),
+                "tags": [t.get('name', t) if isinstance(t, dict) else t for t in r.get('tags', [])],
                 "fiber_g": r.get("fiber_content"),
                 "ingredients": r.get("ingredients", []),
                 "instructions_preview": " ".join(r.get("instructions", []))[:120]

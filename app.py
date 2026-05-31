@@ -164,6 +164,14 @@ def index():
             active_list_id=formatted_list_id
         )
 
+@app.route('/plan', methods=['POST'])
+def plan():
+    """
+    Placeholder for the plan submission. 
+    The actual generation is handled by the plan-stream SSE endpoint via JavaScript.
+    """
+    return redirect(url_for('index'))
+
 @app.route('/plan-stream')
 def plan_stream():
     """Server-Sent Events endpoint for real-time plan generation progress."""
