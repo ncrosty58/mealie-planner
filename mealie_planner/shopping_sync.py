@@ -198,10 +198,18 @@ class ShoppingListSync:
                 current_items = self.client.get_shopping_list_items_for_list(ACTIVE_LIST_ID)
                 for item in current_items:
                     if item.get('checked'):
-                        # Store both raw note and normalized version for better matching
-                        note = item.get('note', '').strip().lower()
-                        if note:
-                            checked_items_cache[note] = True
+                        # Mealie moves text between note, display, and originalText. 
+                        # We cache all of them to be safe.
+                        possible_texts = [
+                            item.get('note'),
+                            item.get('display'),
+                            item.get('originalText')
+                        ]
+                        for txt in possible_texts:
+                            if txt:
+                                clean_txt = txt.strip().lower()
+                                checked_items_cache[clean_txt] = True
+                print(f"[Sync] Cached {len(checked_items_cache)} unique checked item strings for preservation.")
             except Exception as e:
                 print(f"[Sync] Warning: Could not fetch current list for state preservation: {e}")
 
@@ -214,6 +222,7 @@ class ShoppingListSync:
             self.client.clear_shopping_list(ACTIVE_LIST_ID)
             
             ingredients_list = []
+            preserved_count = 0
             for idx, item in enumerate(final_items):
                 name = item.get('name', 'Unknown Item')
                 qty = item.get('quantity', 1.0)
@@ -232,17 +241,19 @@ class ShoppingListSync:
                 note_key = full_note.strip().lower()
                 clean_name = name.strip().lower()
                 
-                # 1. Exact match (fastest)
-                if note_key in checked_items_cache:
+                # 1. Exact match against any previous string
+                if note_key in checked_items_cache or clean_name in checked_items_cache:
                     is_checked = True
                 else:
                     # 2. Fuzzy match: check if clean name is a subset of any old checked note (or vice versa)
-                    # This handles "1 Shallot" vs "Shallot", "Olive Oil" vs "Extra Virgin Olive Oil", etc.
                     for old_note in checked_items_cache.keys():
                         if clean_name in old_note or old_note in clean_name:
                             is_checked = True
                             break
                 
+                if is_checked:
+                    preserved_count += 1
+
                 ingredients_list.append({
                     "shoppingListId": ACTIVE_LIST_ID,
                     "note": full_note,
@@ -251,7 +262,8 @@ class ShoppingListSync:
                     "position": idx,
                     "labelId": label_id
                 })
-                
+            
+            print(f"[Sync] Preserved {preserved_count} checkmarks from previous list.")
             self.client.add_shopping_list_items_bulk(ingredients_list)
             
             if progress_callback:
