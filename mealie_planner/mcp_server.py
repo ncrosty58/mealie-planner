@@ -24,6 +24,30 @@ if base_dir not in sys.path:
 from tools import register_all_tools
 from mealie_planner.unified_client import UnifiedMealieClient
 
+def map_ai_ingredients_to_mealie(ai_ingredients: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Maps structured AI ingredient data to Mealie's recipe ingredient schema."""
+    mealie_ingredients = []
+    for item in ai_ingredients:
+        name = item.get('name', 'Unknown Item')
+        qty = item.get('quantity', 1.0)
+        unit = item.get('unit')
+        
+        # Construct a clean note for fallback
+        note_parts = []
+        if qty: note_parts.append(str(qty))
+        if unit: note_parts.append(unit)
+        note_parts.append(name)
+        note = " ".join(note_parts)
+        
+        mealie_ingredients.append({
+            "note": note,
+            "quantity": qty,
+            "unit": {"name": unit} if unit else None,
+            "food": {"name": name} if name else None,
+            "disableAmount": False
+        })
+    return mealie_ingredients
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -68,7 +92,7 @@ def get_detailed_meal_plan(
 
 @mcp.tool()
 def create_recipe_from_url(url: str) -> Dict[str, Any]:
-    """Create a new recipe by scraping/importing from a URL with automatic ingredient parsing.
+    """Create a new recipe by scraping/importing from a URL with high-fidelity AI ingredient parsing.
 
     Args:
         url: The URL of the recipe to import.
@@ -88,7 +112,7 @@ def create_recipe_from_url(url: str) -> Dict[str, Any]:
         else:
             return res
             
-        # Post-processing: Parse the ingredients using Mealie's NLP parser
+        # Post-processing: Parse the ingredients using Gemini AI "Special Skill"
         try:
             recipe_json = mealie.get_recipe(slug)
             raw_ingredients = []
@@ -98,12 +122,13 @@ def create_recipe_from_url(url: str) -> Dict[str, Any]:
                     raw_ingredients.append(text)
             
             if raw_ingredients:
-                parsed = mealie.parse_raw_ingredients(raw_ingredients)
-                recipe_json["recipeIngredient"] = parsed
+                raw_text = "\n".join(raw_ingredients)
+                ai_parsed = mealie.parse_ingredients_with_ai(raw_text)
+                recipe_json["recipeIngredient"] = map_ai_ingredients_to_mealie(ai_parsed)
                 mealie.update_recipe(slug, recipe_json)
                 res = mealie.get_recipe(slug)
         except Exception as parse_err:
-            logger.warning(f"Failed to post-parse recipe ingredients for {slug}: {parse_err}")
+            logger.warning(f"Failed to AI-parse recipe ingredients for {slug}: {parse_err}")
             
         return res
     except Exception as e:
@@ -128,7 +153,7 @@ def parse_ingredients(raw_text: str) -> List[Dict[str, Any]]:
 def create_recipe(
     name: str, ingredients: List[str], instructions: List[str]
 ) -> Dict[str, Any]:
-    """Create a new recipe with automatic ingredient parsing.
+    """Create a new recipe with high-fidelity AI ingredient parsing.
 
     Args:
         name: The name of the new recipe.
@@ -142,8 +167,9 @@ def create_recipe(
         slug = mealie.create_recipe(name)
         recipe_json = mealie.get_recipe(slug)
         
-        parsed = mealie.parse_raw_ingredients(ingredients)
-        recipe_json["recipeIngredient"] = parsed
+        raw_text = "\n".join(ingredients)
+        ai_parsed = mealie.parse_ingredients_with_ai(raw_text)
+        recipe_json["recipeIngredient"] = map_ai_ingredients_to_mealie(ai_parsed)
         recipe_json["recipeInstructions"] = [{"text": i} for i in instructions]
         return mealie.update_recipe(slug, recipe_json)
     except Exception as e:
@@ -155,7 +181,7 @@ def update_recipe(
     ingredients: List[str],
     instructions: List[str],
 ) -> Dict[str, Any]:
-    """Replaces the ingredients and instructions of an existing recipe with automatic parsing.
+    """Replaces the ingredients and instructions of an existing recipe with AI parsing.
 
     Args:
         slug: The unique text identifier for the recipe.
@@ -167,8 +193,9 @@ def update_recipe(
     """
     try:
         recipe_json = mealie.get_recipe(slug)
-        parsed = mealie.parse_raw_ingredients(ingredients)
-        recipe_json["recipeIngredient"] = parsed
+        raw_text = "\n".join(ingredients)
+        ai_parsed = mealie.parse_ingredients_with_ai(raw_text)
+        recipe_json["recipeIngredient"] = map_ai_ingredients_to_mealie(ai_parsed)
         recipe_json["recipeInstructions"] = [{"text": i} for i in instructions]
         return mealie.update_recipe(slug, recipe_json)
     except Exception as e:
