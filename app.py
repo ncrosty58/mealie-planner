@@ -61,6 +61,10 @@ def favicon():
 def sw():
     return send_from_directory('static', 'sw.js', mimetype='application/javascript')
 
+@app.route('/manifest.json')
+def manifest():
+    return send_from_directory('static', 'manifest.json', mimetype='application/manifest+json')
+
 @app.route('/')
 def index():
     success_msg = request.args.get('success_msg')
