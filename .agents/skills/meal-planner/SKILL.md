@@ -4,7 +4,7 @@ description: Handle meal planning, diet rules, griddle batch cooking, organic ta
 family_names: Nathan & Kristin
 timezone: America/New_York
 app_url: https://mealie-planner.cosmoslab.dev
-recipient_emails: nathan@example.com,kristin@example.com
+recipient_emails: khingst@gmail.com,nathancrosty@gmail.com
 ---
 
 # Mealie Meal Planner Skill
