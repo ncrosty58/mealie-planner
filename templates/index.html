@@ -8,6 +8,11 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0B0F19">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon.svg') }}">
+    <!-- Mobile App Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mealie Planner">
+    <meta name="mobile-web-app-capable" content="yes">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,11 +1087,14 @@
         });
     </script>
     <script>
-        // PWA Installation Logic
+        // PWA Installation & Diagnostic Logic
         let deferredPrompt;
         const installBtn = document.getElementById('pwa-install-btn');
 
+        console.log('🚀 PWA: Initializing diagnostics...');
+
         window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('✅ PWA: beforeinstallprompt event fired!');
             // Prevent the mini-infobar from appearing on mobile
             e.preventDefault();
             // Stash the event so it can be triggered later.
@@ -1094,32 +1102,25 @@
             // Update UI notify the user they can install the PWA
             if (installBtn) {
                 installBtn.style.display = 'block';
+                console.log('✅ PWA: Install button shown.');
             }
         });
 
         if (installBtn) {
             installBtn.addEventListener('click', async () => {
                 if (!deferredPrompt) return;
-                // Show the install prompt
                 deferredPrompt.prompt();
-                // Wait for the user to respond to the prompt
                 const { outcome } = await deferredPrompt.userChoice;
-                console.log(`User response to the install prompt: ${outcome}`);
-                // We've used the prompt, and can't use it again, throw it away
+                console.log(`ℹ️ PWA: User response to prompt: ${outcome}`);
                 deferredPrompt = null;
-                // Hide the button
                 installBtn.style.display = 'none';
             });
         }
 
         window.addEventListener('appinstalled', (event) => {
-            console.log('👍', 'appinstalled', event);
-            // Clear the deferredPrompt so it can be garbage collected
+            console.log('🎉 PWA: Successfully installed!');
             deferredPrompt = null;
-            // Hide the button
-            if (installBtn) {
-                installBtn.style.display = 'none';
-            }
+            if (installBtn) installBtn.style.display = 'none';
         });
 
         // PWA Service Worker Registration
@@ -1127,12 +1128,21 @@
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
                     .then(registration => {
-                        console.log('SW registered: ', registration);
+                        console.log('✅ PWA: SW registered with scope:', registration.scope);
                     })
-                    .catch(registrationError => {
-                        console.log('SW registration failed: ', registrationError);
+                    .catch(error => {
+                        console.log('❌ PWA: SW registration failed:', error);
                     });
             });
+
+            // Check if already controlled
+            if (navigator.serviceWorker.controller) {
+                console.log('✅ PWA: Page is currently controlled by a Service Worker.');
+            } else {
+                console.log('ℹ️ PWA: Page is not yet controlled by a Service Worker (refresh might be needed).');
+            }
+        } else {
+            console.log('❌ PWA: Service Workers are not supported in this browser.');
         }
     </script>
 </body>
