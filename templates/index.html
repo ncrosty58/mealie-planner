@@ -65,20 +65,115 @@
 
         /* Header Style */
         header {
-            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 3rem;
             animation: fadeInDown 0.8s ease-out;
+            position: relative;
         }
 
         header h1 {
             font-family: var(--font-display);
-            font-size: 2.8rem;
+            font-size: clamp(1.5rem, 5vw, 2.5rem);
             font-weight: 800;
             background: linear-gradient(135deg, #FFF 30%, var(--color-primary) 70%, var(--color-success) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 0.5rem;
             letter-spacing: -0.03em;
+        }
+
+        .hamburger-btn {
+            display: none;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glow);
+            color: var(--text-main);
+            font-size: 1.5rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 1001;
+            transition: all 0.2s;
+        }
+
+        @media (max-width: 968px) {
+            header {
+                text-align: left;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            .hamburger-btn {
+                display: block;
+                position: absolute;
+                top: 0;
+                right: 0;
+            }
+        }
+
+        /* Drawer Overlay */
+        .drawer-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .drawer-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Side Drawer Wrapper */
+        .side-drawer {
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @media (max-width: 968px) {
+            .side-drawer {
+                position: fixed;
+                top: 0;
+                right: -100%;
+                width: 85%;
+                max-width: 400px;
+                height: 100vh;
+                background: #0B0F19; /* Solid background for mobile menu */
+                z-index: 1000;
+                overflow-y: auto;
+                padding: 5rem 1.5rem 2rem 1.5rem;
+                box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+                border-left: 1px solid var(--border-glow);
+            }
+
+            .side-drawer.active {
+                right: 0;
+            }
+        }
+
+        .drawer-close {
+            display: none;
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            font-size: 2rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        @media (max-width: 968px) {
+            .drawer-close {
+                display: block;
+            }
         }
 
         header p {
@@ -250,8 +345,9 @@
         /* Grid Layouts */
         .dashboard-grid {
             display: grid;
-            grid-template-columns: 1.6fr 1fr;
+            grid-template-columns: 1.5fr 1fr;
             gap: 2rem;
+            align-items: start;
         }
 
         @media (max-width: 968px) {
@@ -674,12 +770,18 @@
 </head>
 <body>
     <div class="container">
+        <div id="drawer-overlay" class="drawer-overlay"></div>
         
         <!-- Header -->
         <header>
-            <h1>MEALIE PLANNER COMPANION</h1>
+            <div>
+                <h1>MEALIE PLANNER COMPANION</h1>
+                {% if is_submitted %}
+                    <span class="badge">Active Planning Week ({% if start_date %}{{ start_date }}{% endif %} to {% if end_date %}{{ end_date }}{% endif %})</span>
+                {% endif %}
+            </div>
             {% if is_submitted %}
-                <span class="badge">Active Planning Week ({% if start_date %}{{ start_date }}{% endif %} to {% if end_date %}{{ end_date }}{% endif %})</span>
+                <button type="button" class="hamburger-btn" id="drawer-toggle">☰</button>
             {% endif %}
         </header>
 
@@ -732,20 +834,21 @@
         <!-- STATE B: ACTIVE WEEK DASHBOARD -->
         
         <div class="dashboard-grid">
-            
-            <!-- Column 1: Weekly Calendar & Controls -->
+
+            <!-- Column 1: Primary Content (Calendar & Shopping List) -->
             <div>
+                <!-- Weekly Calendar Card -->
                 <div class="card">
                     <div class="card-title">
                         📅 Weekly Menu Calendar
                     </div>
-                    
+
                     <div class="calendar-list">
                         {% for d_str in planning_dates %}
                             {% set day = d_str | select_day_name %}
                             {% set meals = {'breakfast': 'Staples', 'lunch': 'Leftovers', 'dinner': 'Eating Out'} %}
                             {% set dinner_entry = [] %}
-                            
+
                             {% for item in meal_plans %}
                                 {% if item.date == d_str %}
                                     {% if item.entryType == 'breakfast' %}
@@ -762,7 +865,7 @@
                                     {% endif %}
                                 {% endif %}
                             {% endfor %}
-                            
+
                             <div class="calendar-day-card">
                                 <div>
                                     <div class="day-name">{{ day }}</div>
@@ -805,6 +908,44 @@
                     </div>
                 </div>
 
+                <!-- Shopping List Card (Moved to Column 1) -->
+                <div class="card">
+                    <div class="card-title">
+                        🛒 Active Shopping List (Preview)
+                    </div>
+                    <div class="shopping-list-container">
+                        {% if shopping_list %}
+                            {% for item in shopping_list %}
+                            <div class="shopping-item">
+                                <span>
+                                    {% if item.checked %}
+                                        <del style="color: var(--text-muted);">
+                                            {% if item.quantity > 0 %}{{ item.quantity | float | round(2) | string | replace('.0', '') }} {% endif %}{{ item.note }}
+                                        </del>
+                                    {% else %}
+                                        <strong>{% if item.quantity > 0 %}{{ item.quantity | float | round(2) | string | replace('.0', '') }} {% endif %}</strong>{{ item.note }}
+                                    {% endif %}
+                                </span>
+                                {% if "buy organic" in item.note.lower() %}
+                                    <span class="organic-pill">Organic</span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p style="color: var(--text-muted); font-size: 0.9rem; font-style: italic;">No items currently in active shopping list.</p>
+                        {% endif %}
+                    </div>
+                    <div style="margin-top: 1.5rem; text-align: center;">
+                        <a href="{{ mealie_url }}/shopping-lists/{{ active_list_id }}" class="btn btn-secondary" style="font-size: 0.8rem;">View Full List in Mealie</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Column 2: Secondary Content / Mobile Drawer (Controls & Nutrition) -->
+            <aside id="side-drawer" class="side-drawer">
+                <span class="drawer-close" id="drawer-close">&times;</span>
+
+                <!-- Planner Controls Card -->
                 <div class="card">
                     <div class="card-title">
                         ⚙️ Planner Controls
@@ -836,17 +977,14 @@
                             <form action="{{ url_for('sync') }}" method="POST" id="sync-list-form">
                                 <button type="submit" class="btn btn-secondary" style="border-color: rgba(239, 68, 68, 0.2);">🔄 Update Shopping List</button>
                             </form>
-                            
+
                             <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('ARE YOU SURE? This will delete all current and next week meal plans and clear the active shopping list.');">
                                 <button type="submit" class="btn btn-danger">🗑️ Clear & Reset Plan</button>
                             </form>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Column 2: Shopping List & Nutrition -->
-            <div>
                 <!-- Nutrition Analysis Card -->
                 <div class="card">
                     <div class="card-title">
@@ -855,13 +993,13 @@
                     <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: -1rem; margin-bottom: 1.5rem;">
                         Family daily averages compared to Recommended Daily Allowances (RDAs)
                     </p>
-                    
+
                     {% for key, rda_val in rda.items() %}
                         {% set avg = averages.get(key, 0.0) %}
                         {% set pct = ((avg / rda_val) * 100) | round | int if rda_val > 0 else 0 %}
                         {% set unit = 'g' %}
                         {% if key == 'calories' %}{% set unit = 'kcal' %}{% elif key in ['sodium', 'cholesterol'] %}{% set unit = 'mg' %}{% endif %}
-                        
+
                         <div class="nutrition-row">
                             <div class="nutrition-header">
                                 <span class="nutrient-name" style="text-transform: capitalize;">{{ key }}</span>
@@ -875,37 +1013,7 @@
                         </div>
                     {% endfor %}
                 </div>
-
-                <!-- Shopping List Card -->
-                <div class="card">
-                    <div class="card-title">
-                        🛒 Active Shopping List (Preview)
-                    </div>
-                    <div class="shopping-list-container">
-                        {% if shopping_list %}
-                            {% for item in shopping_list %}
-                            <div class="shopping-item">
-                                <span>
-                                    {% if item.checked %}
-                                        <del style="color: var(--text-muted);">
-                                            {% if item.quantity > 0 %}{{ item.quantity | float | round(2) | string | replace('.0', '') }} {% endif %}{{ item.note }}
-                                        </del>
-                                    {% else %}
-                                        <strong>{% if item.quantity > 0 %}{{ item.quantity | float | round(2) | string | replace('.0', '') }} {% endif %}</strong>{{ item.note }}
-                                    {% endif %}
-                                </span>
-                                {% if "buy organic" in item.note.lower() %}
-                                    <span class="organic-pill">Organic</span>
-                                {% endif %}
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <p style="color: var(--text-muted); font-size: 0.9rem; font-style: italic;">No items currently in active shopping list.</p>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
+            </aside>
         </div>
         {% endif %}
 
@@ -959,10 +1067,30 @@
     </div>
 
     <script>
+        // Drawer Toggle Logic
+        document.addEventListener('DOMContentLoaded', function() {
+            const drawerToggle = document.getElementById('drawer-toggle');
+            const drawerClose = document.getElementById('drawer-close');
+            const sideDrawer = document.getElementById('side-drawer');
+            const drawerOverlay = document.getElementById('drawer-overlay');
+
+            if (drawerToggle && sideDrawer && drawerOverlay) {
+                const toggleDrawer = () => {
+                    sideDrawer.classList.toggle('active');
+                    drawerOverlay.classList.toggle('active');
+                    document.body.style.overflow = sideDrawer.classList.contains('active') ? 'hidden' : '';
+                };
+
+                drawerToggle.addEventListener('click', toggleDrawer);
+                if (drawerClose) drawerClose.addEventListener('click', toggleDrawer);
+                drawerOverlay.addEventListener('click', toggleDrawer);
+            }
+        });
+
         function openStaplesModal() {
             document.getElementById('staples-modal').style.display = 'flex';
         }
-
+    ...
         function closeStaplesModal() {
             document.getElementById('staples-modal').style.display = 'none';
         }
