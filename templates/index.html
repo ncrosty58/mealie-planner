@@ -1214,7 +1214,7 @@
                     <div class="calendar-list">
                         {% for d_str in planning_dates %}
                             {% set day = d_str | select_day_name %}
-                            {% set meals = {'breakfast': 'Staples', 'lunch': 'Leftovers', 'dinner': 'Eating Out'} %}
+                            {% set meals = {'breakfast': 'Skipped', 'lunch': 'Skipped', 'dinner': 'Skipped'} %}
                             {% set dinner_entry = [] %}
                             
                             {% for item in meal_plans %}
