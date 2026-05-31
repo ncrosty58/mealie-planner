@@ -417,3 +417,43 @@ def send_daily_reminder_email(date_str=None):
     gemini = GeminiClient()
     notifier = EmailNotifier(client, gemini)
     return notifier.send_daily_reminder_email(date_str)
+
+def send_saturday_qa_email():
+    from .unified_client import UnifiedMealieClient
+    from .gemini_client import GeminiClient
+    client = UnifiedMealieClient()
+    gemini = GeminiClient()
+    notifier = EmailNotifier(client, gemini)
+    
+    subject = "📋 Weekly Meal Plan Questionnaire"
+    body = f"""
+    <h2>Good morning!</h2>
+    <p>It's Saturday morning. Please take a moment to fill out the weekly meal plan questionnaire:</p>
+    <p><a href="{APP_URL}" style="display: inline-block; padding: 10px 20px; background-color: #E58325; color: white; text-decoration: none; border-radius: 5px;">Fill out Questionnaire</a></p>
+    <p>Thank you!</p>
+    """
+    return notifier.send_email(subject, body)
+
+def setup_scheduler(mealie_client, gemini_client):
+    """Initialize and start the background scheduler for email notifications."""
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from apscheduler.triggers.cron import CronTrigger
+    
+    scheduler = BackgroundScheduler(timezone=TIMEZONE)
+    
+    # 1. Saturday Q/A email at 8:00 AM
+    scheduler.add_job(
+        send_saturday_qa_email,
+        CronTrigger(day_of_week='sat', hour=8, minute=0),
+        id='saturday_qa_email'
+    )
+    
+    # 2. Daily Reminder email Monday-Friday and Sunday at 7:00 AM
+    scheduler.add_job(
+        send_daily_reminder_email,
+        CronTrigger(day_of_week='mon-fri,sun', hour=7, minute=0),
+        id='daily_reminder_email'
+    )
+    
+    scheduler.start()
+    return scheduler
