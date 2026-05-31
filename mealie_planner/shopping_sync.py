@@ -92,15 +92,31 @@ class ShoppingListSync:
             # This ensures Mealie saves the data using the "clean" labels.
             PREFERENCE_MAP = {
                 "Vegetables & Greens": ["1. Produce", "Produce"],
+                "Fruits": ["1. Produce", "Produce"],
+                "Mushrooms": ["1. Produce", "Produce"],
+                "Herbs & Spices": ["1. Produce", "Produce", "6. Baking, Spices & Condiments", "6. Baking, Spices, Oils & Condiments"],
                 "Bakery": ["2. Bakery"],
+                "Bread & Salty Snacks": ["2. Bakery"],
                 "Meats": ["3. Meat, Seafood & Vegetarian Alternatives", "Meat", "3. Meat & Seafood"],
                 "Poultry": ["3. Meat, Seafood & Vegetarian Alternatives", "Meat", "3. Meat & Seafood"],
                 "Fish": ["3. Meat, Seafood & Vegetarian Alternatives", "Meat", "3. Meat & Seafood"],
+                "Seafood & Seaweed": ["3. Meat, Seafood & Vegetarian Alternatives", "Meat", "3. Meat & Seafood"],
                 "Dairy & Eggs": ["4. Dairy, Cheese & Eggs", "Dairy"],
+                "Cheese": ["4. Dairy, Cheese & Eggs", "Dairy"],
                 "Pantry": ["5. Pantry / Center Aisle Grains & Canned Goods"],
+                "Grains & Cereals": ["5. Pantry / Center Aisle Grains & Canned Goods"],
+                "Pasta": ["5. Pantry / Center Aisle Grains & Canned Goods"],
+                "Canned Food": ["5. Pantry / Center Aisle Grains & Canned Goods"],
+                "Soups, Stews & stock": ["5. Pantry / Center Aisle Grains & Canned Goods"],
+                "Legumes": ["5. Pantry / Center Aisle Grains & Canned Goods"],
                 "Baking": ["6. Baking, Spices, Oils & Condiments", "6. Baking, Spices & Condiments"],
+                "Oils & Fats": ["6. Baking, Spices, Oils & Condiments", "6. Baking, Spices & Condiments"],
+                "Seasonings & Spice Blends": ["6. Baking, Spices, Oils & Condiments", "6. Baking, Spices & Condiments"],
+                "Sugar & Sweeteners": ["6. Baking, Spices, Oils & Condiments", "6. Baking, Spices & Condiments"],
+                "Condiments": ["6. Baking, Spices, Oils & Condiments", "6. Baking, Spices & Condiments"],
                 "Frozen Foods": ["7. Frozen Foods"],
-                "Beverages": ["8. Beverages"]
+                "Beverages": ["8. Beverages"],
+                "Wine, Beer & Spirits": ["8. Beverages"]
             }
 
             label_names = {l['name'] for l in all_labels}

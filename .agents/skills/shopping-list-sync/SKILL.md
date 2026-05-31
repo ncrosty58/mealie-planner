@@ -45,10 +45,20 @@ This skill takes the raw ingredient strings from dinner recipes, a list of house
 5.  **Include Manually Added Low Staples:**
     - Ensure any item from `low_staples` that was marked as low is included in the output list with `unit: null`.
 
-6.  **Categorize Using Available Labels:**
-    - For each final item, select the most semantically relevant category from the provided `available_labels` list.
-    - **Physical Layout Logic:** Use the names of the labels (which may include numbers or store aisle names) to determine the best fit. 
-    - If a label matches exactly or is a very strong semantic fit (e.g. "Chicken" -> "Poultry"), use that label.
+6.  **Categorize Using Available Labels (Grocery Store Path Logic):**
+    - You must categorize items to reflect the **physical path** of a standard grocery store to make shopping as efficient as possible.
+    - **Department Mapping:** Map ingredients to the most descriptive label provided in `available_labels` based on these standard store "zones":
+        1. **Produce / Fresh Greens**: (e.g. "Vegetables & Greens", "Fruits", "Mushrooms", "Herbs") - This is always the first stop.
+        2. **Bakery / Bread**: Freshly baked goods.
+        3. **Meat & Seafood**: Butchery and fish counters.
+        4. **Dairy & Eggs**: Refrigerated milk, cheese, and egg cases.
+        5. **Center Aisles (Pantry/Canned)**: Dry goods, pasta, canned beans, stocks.
+        6. **Baking & Spices**: Flour, sugars, oils, dried seasonings.
+        7. **Beverages**: Bottled water, soda, wine/beer.
+        8. **Frozen**: Ice cream, frozen veggies, frozen meals.
+        9. **Household**: Paper towels, cleaning supplies, miscellaneous.
+    - If multiple labels could fit, prioritize the most descriptive one (e.g. prefer "Vegetables & Greens" over a generic "Produce").
+    - If a label matches exactly or is a very strong semantic fit for a store zone, use it.
     - If no provided label is a good fit, set `category` to `null`.
 
 7.  **Construct Output:**
