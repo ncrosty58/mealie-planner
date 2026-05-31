@@ -113,6 +113,7 @@ class PlanGenerator:
             if 'dinner' not in exclusions.get((start_date + timedelta(days=i)).strftime("%A"), [])
         ]
         num_dinners = len(dinner_days)
+        target_date_strings = [(start_date + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(num_days)]
 
         # Fetch recently planned recipes (preceding 7 days) to avoid repeating them
         recent_recipe_names = []
@@ -141,6 +142,25 @@ class PlanGenerator:
         ]
         random.shuffle(recipe_catalogue)
 
+        # Classify early vs late days relative to the planning range
+        if num_days <= 1:
+            early_target_dates = target_date_strings
+            late_target_dates = target_date_strings
+        elif num_days == 2:
+            early_target_dates = target_date_strings[:1]
+            late_target_dates = target_date_strings[1:]
+        elif num_days == 3:
+            early_target_dates = target_date_strings[:2]  # Wed, Thu
+            late_target_dates = target_date_strings[2:]   # Fri
+        else:
+            # 4 to 7 days
+            split_idx = num_days - 3 if num_days >= 6 else num_days // 2
+            early_target_dates = target_date_strings[:split_idx]
+            late_target_dates = target_date_strings[split_idx:]
+            
+        early_days_display = ", ".join([datetime.strptime(d, "%Y-%m-%d").strftime("%A (%Y-%m-%d)") for d in early_target_dates])
+        late_days_display = ", ".join([datetime.strptime(d, "%Y-%m-%d").strftime("%A (%Y-%m-%d)") for d in late_target_dates])
+
         selection_prompt = (
             """You are an expert in the 'Mealie Weekly Meal Selection Skill'.
 
@@ -157,7 +177,12 @@ class PlanGenerator:
 """ +
             f"- **Family Dietary Rules & Preferences**: {FAMILY_DIETARY_RULES_PROMPT}\n" +
             f"- **Banned Recipes (NEVER select these)**: {', '.join(get_banned_recipes())}\n" +
-            f"- **Plan Start Date (Saturday)**: {start_date_str}\n" +
+            f"- **Target Planning Dates (You MUST generate exactly these {num_days} dates in this exact order, even if some or all meals on a day are excluded)**: {json.dumps(target_date_strings)}\n" +
+            f"- **REDEFINED PERISHABILITY RULES FOR THIS PLANNED RANGE (STRICT RULE OVERRIDE)**:\n" +
+            f"  * **EARLY DAYS (Reserve for fresh/highly-perishable ingredients)**: {early_days_display}\n" +
+            f"  * **LATE DAYS (Reserve for frozen, canned, or shelf-stable ingredients)**: {late_days_display}\n" +
+            f"  * **Strict Sequencing constraint**: You MUST schedule recipes using frozen/shelf-stable items strictly on the LATE DAYS listed above. If there are multiple late days, prioritize the latest ones (e.g. towards the end of the late days list) to ensure they are eaten last. You MUST NOT schedule frozen/shelf-stable ingredients on the EARLY DAYS.\n" +
+            (f"- **Note on Weekdays**: Since the target planning range ({start_date_str} to {end_date_str}) is shorter than a full 7-day week, if any prioritized items are described as fresh, schedule them on the earliest available target dates (e.g. Wednesday or Thursday) rather than requiring Sat-Tue.\n" if num_days < 7 else "") +
             f"- **Meal Exclusions (Skipped/Eating Out)**: {json.dumps(exclusions)}\n" +
             f"- **Freezer/Pantry/Fridge items to prioritize**: {freezer_items or 'none'}\n" +
             (f"- **MANDATORY Priority Recipes (MUST include ALL of these in the plan)**: {json.dumps(item_to_recipe_map)}\n" if item_to_recipe_map else "") +
@@ -169,7 +194,7 @@ class PlanGenerator:
         )
 
         if progress_callback:
-            progress_callback("Querying Gemini AI for optimized 7-day plan...", 50)
+            progress_callback(f"Querying Gemini AI for optimized {num_days}-day plan...", 50)
         
         meals = []
         try:
@@ -178,6 +203,9 @@ class PlanGenerator:
             
             for day_entry in ai_result.get("days", []):
                 d_str = day_entry['date']
+                if d_str not in target_date_strings:
+                    print(f"[Plan Generation] WARNING: AI generated out-of-range date {d_str}. Skipping.")
+                    continue
                 m = day_entry['meals']
                 prep_note = m.get('prep_note') or ""
                 

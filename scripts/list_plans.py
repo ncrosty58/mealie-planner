@@ -9,10 +9,10 @@ load_dotenv()
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from mealie_planner.mealie_client import MealieClient
+from mealie_planner.unified_client import UnifiedMealieClient
 
 def list_upcoming_meals():
-    client = MealieClient()
+    client = UnifiedMealieClient()
     today = datetime.now()
     # Let's check 7 days in the past and 7 days in the future to see what plans exist
     start_date = (today - timedelta(days=7)).strftime("%Y-%m-%d")

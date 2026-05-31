@@ -7,8 +7,6 @@ import json
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-import meal_planner
-
 def test_speed():
     api_key = os.getenv('GOOGLE_API_KEY')
     model = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')

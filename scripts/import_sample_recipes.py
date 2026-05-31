@@ -5,12 +5,12 @@ import requests
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-import meal_planner
+from mealie_planner.unified_client import UnifiedMealieClient
 
 def import_samples():
-    print("Initializing MealieClient...")
+    print("Initializing UnifiedMealieClient...")
     try:
-        client = meal_planner.MealieClient()
+        client = UnifiedMealieClient()
     except Exception as e:
         print(f"Error: {e}")
         return

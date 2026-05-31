@@ -8,20 +8,25 @@ import requests
 # Add project root to path
 sys.path.insert(0, '/app')
 
-import meal_planner
+from mealie_planner.unified_client import UnifiedMealieClient
+from mealie_planner.gemini_client import GeminiClient, call_gemini
+from mealie_planner.parsers import parse_exclusions
+from mealie_planner.email_notifier import send_email
 from mealie_planner import config
+import json
 
 def run_substep_profile():
     print("====================================================")
     print("      PROFILING DETAILED PLAN GENERATION STEPS       ")
     print("====================================================\n")
 
-    client = meal_planner.MealieClient()
+    client = UnifiedMealieClient()
+    gemini = GeminiClient()
     
     # 1. Exclusion Parsing AI Call
     print("[1] Profiling Exclusion Parsing AI Call...")
     t0 = time.perf_counter()
-    exclusions = meal_planner.parse_exclusions("No dinners on Wednesday")
+    exclusions = parse_exclusions("No dinners on Wednesday")
     t_excl = time.perf_counter() - t0
     print(f"    Exclusions parsed: {exclusions}")
     print(f"    Duration: {t_excl:.3f}s\n")
@@ -29,7 +34,7 @@ def run_substep_profile():
     # 2. Recipe Catalog Retrieval
     print("[2] Profiling Recipe Catalog Retrieval (API fallback)...")
     t0 = time.perf_counter()
-    all_recipes = meal_planner.get_recipes_from_db()
+    all_recipes = client.get_all_recipes()
     t_catalog = time.perf_counter() - t0
     print(f"    Recipes retrieved: {len(all_recipes)}")
     print(f"    Duration: {t_catalog:.3f}s\n")
@@ -69,12 +74,12 @@ def run_substep_profile():
         """You are an expert in the 'Mealie Weekly Meal Selection Skill'.
 
 """ +
-        meal_planner._WEEKLY_MEAL_SELECTION_SKILL_DEFINITION +
+        config._WEEKLY_MEAL_SELECTION_SKILL_DEFINITION +
         """
 
 ### BANNED RECIPES SKILL RULES:
 """ +
-        meal_planner._BANNED_RECIPES_SKILL_DEFINITION +
+        config._BANNED_RECIPES_SKILL_DEFINITION +
         """
 
 ### CONTEXT FOR THIS INVOCATION:
@@ -91,8 +96,8 @@ def run_substep_profile():
     )
     
     t0 = time.perf_counter()
-    raw = meal_planner.call_gemini(selection_prompt, expect_json=True, temperature=0.7)
-    selected = json_res = meal_planner.json.loads(raw)
+    raw = call_gemini(selection_prompt, expect_json=True, temperature=0.7)
+    selected = json.loads(raw)
     t_select = time.perf_counter() - t0
     print(f"    Selected IDs: {selected.get('dinner_ids')}")
     print(f"    Duration: {t_select:.3f}s\n")
@@ -187,16 +192,16 @@ def run_substep_profile():
         """You are an expert in the 'Shopping List Sync Skill'.
 
 """ +
-        meal_planner._SHOPPING_LIST_SYNC_SKILL_DEFINITION +
+        config._SHOPPING_LIST_SYNC_SKILL_DEFINITION +
         """
 
 ### CONTEXT FOR THIS INVOCATION:
 """ +
-        f"Input Data: {meal_planner.json.dumps(payload)}\n\n" +
+        f"Input Data: {json.dumps(payload)}\n\n" +
         "Return ONLY the JSON array of objects as specified in the skill definition."
     )
-    ai_response = meal_planner.call_gemini(prompt, expect_json=True)
-    ai_output = meal_planner.json.loads(ai_response)
+    ai_response = call_gemini(prompt, expect_json=True)
+    ai_output = json.loads(ai_response)
     t_sync_llm = time.perf_counter() - t_llm_start
     
     # Write to Mealie list
@@ -226,7 +231,7 @@ def run_substep_profile():
     print("[8] Profiling SMTP Email Delivery...")
     t0 = time.perf_counter()
     try:
-        meal_planner.send_email("Profiling test", "This is a profiling test body.")
+        send_email("Profiling test", "This is a profiling test body.")
         email_result = "Success"
     except Exception as e:
         email_result = f"Failed ({e})"

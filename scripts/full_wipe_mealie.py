@@ -3,12 +3,12 @@ import sys
 # Add the project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-import meal_planner
+from mealie_planner.unified_client import UnifiedMealieClient
 from mealie_planner import config
 
 def full_wipe():
     print("🚀 Starting FULL Mealie wipe...")
-    client = meal_planner.MealieClient()
+    client = UnifiedMealieClient()
 
     # 1. Delete all recipes
     print("\n--- Deleting all recipes ---")

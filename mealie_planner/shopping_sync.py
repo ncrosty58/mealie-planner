@@ -61,7 +61,12 @@ class ShoppingListSync:
                 
                 # If it's a text-based entry (like lunch "Sandwich"), try to find a matching recipe
                 if not rid and title:
-                    rid = self.crawler.find_recipe_for_ingredient(title, all_recipes=all_recipes_overview)
+                    STANDARD_NON_RECIPE_MEALS = {
+                        "leftovers", "pb&j sandwich", "eating out", "skipped", "planned meal", "planned dinner",
+                        "cereal & milk", "yogurt with granola", "bagels & cream cheese", "english muffins with jam", "oats", "toast with jam"
+                    }
+                    if title.lower().strip() not in STANDARD_NON_RECIPE_MEALS:
+                        rid = self.crawler.find_recipe_for_ingredient(title, all_recipes=all_recipes_overview)
                 
                 if rid:
                     try:
@@ -164,9 +169,9 @@ class ShoppingListSync:
 
 def sync_shopping_list(start_date_str, end_date_str, low_staples_ids=[], progress_callback=None, freezer_items=""):
     """Standalone helper to run sync with fresh clients."""
-    from .mealie_client import MealieClient
+    from .unified_client import UnifiedMealieClient
     from .gemini_client import GeminiClient
-    client = MealieClient()
+    client = UnifiedMealieClient()
     gemini = GeminiClient()
     syncer = ShoppingListSync(client, gemini)
     return syncer.sync_shopping_list(start_date_str, end_date_str, low_staples_ids, progress_callback, freezer_items)

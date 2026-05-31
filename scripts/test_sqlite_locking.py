@@ -7,10 +7,10 @@ from concurrent.futures import ThreadPoolExecutor
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-import meal_planner
+from mealie_planner.unified_client import UnifiedMealieClient
 
 def test_concurrency(max_workers):
-    client = meal_planner.MealieClient()
+    client = UnifiedMealieClient()
     recipes = client.get_all_recipes()
     print(f"\nTesting with max_workers={max_workers} (Total recipes to fetch: {len(recipes)})...")
     

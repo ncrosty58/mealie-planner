@@ -335,16 +335,19 @@ Guidelines:
     def send_saturday_report_email(self, start_date_str, end_date_str, exclude_text, freezer_items, low_staples_ids, special_requests=""):
         """Send summary of generated meal plan, prefixed with Saturday's daily briefing."""
         try:
-            print(f"[Email] Generating Saturday report for {start_date_str}...")
-            meal_plans = self.client.get_meal_plan(start_date_str, end_date_str)
-            daily_nutrients, averages = self.nutrition.calculate_nutrition_for_range(start_date_str, end_date_str)
+            from .utils import get_active_week_strings
+            active_start_str, active_end_str = get_active_week_strings()
+            
+            print(f"[Email] Generating Saturday report for active week: {active_start_str} to {active_end_str} (triggered by plan generation from {start_date_str} to {end_date_str})...")
+            meal_plans = self.client.get_meal_plan(active_start_str, active_end_str)
+            daily_nutrients, averages = self.nutrition.calculate_nutrition_for_range(active_start_str, active_end_str)
             
             staples = self.client.get_shopping_list_items(STAPLES_LIST_ID)
             staple_id_map = {item['id'].replace('-', ''): item['note'] for item in staples}
             low_staples_names = [staple_id_map.get(s_id.replace('-', '')) for s_id in low_staples_ids if staple_id_map.get(s_id.replace('-', ''))]
 
             meal_rows = ""
-            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+            start_date = datetime.strptime(active_start_str, "%Y-%m-%d")
             for i in range(7):
                 curr = start_date + timedelta(days=i)
                 d_str = curr.strftime("%Y-%m-%d")
@@ -373,7 +376,7 @@ Guidelines:
                 pct = round((avg_val / rda_val) * 100) if rda_val > 0 else 0
                 nut_rows += f"<tr><td>{k}</td><td>{avg_val}</td><td>{rda_val}</td><td>{pct}%</td></tr>"
 
-            weekly_themes = self.generate_weekly_themes_summary(meal_plans, start_date_str, end_date_str)
+            weekly_themes = self.generate_weekly_themes_summary(meal_plans, active_start_str, active_end_str)
 
             weekly_content_html = f"""
             <div style="margin-top: 30px; border-top: 1px solid #DDD;">
@@ -392,7 +395,7 @@ Guidelines:
             </div>
             """
 
-            # Prefix with Saturday's daily briefing
+            # Prefix with today's daily briefing (first day of the newly planned subset)
             self.send_daily_reminder_email(start_date_str)
             # (In a real implementation we might combine them, but for brevity here we trigger daily)
             
@@ -400,17 +403,17 @@ Guidelines:
             print(f"[Email] Failed Saturday report: {e}")
 
 def send_email(subject, html_content):
-    from .mealie_client import MealieClient
+    from .unified_client import UnifiedMealieClient
     from .gemini_client import GeminiClient
-    client = MealieClient()
+    client = UnifiedMealieClient()
     gemini = GeminiClient()
     notifier = EmailNotifier(client, gemini)
     return notifier.send_email(subject, html_content)
 
 def send_daily_reminder_email(date_str=None):
-    from .mealie_client import MealieClient
+    from .unified_client import UnifiedMealieClient
     from .gemini_client import GeminiClient
-    client = MealieClient()
+    client = UnifiedMealieClient()
     gemini = GeminiClient()
     notifier = EmailNotifier(client, gemini)
     return notifier.send_daily_reminder_email(date_str)

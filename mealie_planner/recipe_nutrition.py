@@ -148,9 +148,9 @@ class RecipeNutrition:
 
 def calculate_nutrition_for_range(start_date_str, end_date_str):
     """Standalone helper to run nutrition calculation with fresh clients."""
-    from .mealie_client import MealieClient
+    from .unified_client import UnifiedMealieClient
     from .gemini_client import GeminiClient
-    client = MealieClient()
+    client = UnifiedMealieClient()
     gemini = GeminiClient()
     nutrition = RecipeNutrition(client, gemini)
     return nutrition.calculate_nutrition_for_range(start_date_str, end_date_str)

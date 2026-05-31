@@ -8,11 +8,11 @@ load_dotenv()
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from mealie_planner.mealie_client import MealieClient
+from mealie_planner.unified_client import UnifiedMealieClient
 from mealie_planner.config import STAPLES_LIST_ID
 
 def check_and_add_honey():
-    client = MealieClient()
+    client = UnifiedMealieClient()
     print(f"Fetching current items from staples shopping list (ID: {STAPLES_LIST_ID})...")
     items = client.get_shopping_list_items(STAPLES_LIST_ID)
     

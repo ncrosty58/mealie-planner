@@ -12,6 +12,7 @@ class RecipeCrawler:
     def __init__(self, mealie_client, gemini_client):
         self.client = mealie_client
         self.gemini = gemini_client
+        self._detailed_recipes_cache = None
 
     def check_blackstone_compatibility(self, recipe_details):
         """Analyze recipe name and instructions to see if it's compatible with a Blackstone griddle."""
@@ -47,27 +48,85 @@ class RecipeCrawler:
         for r in all_recipes:
             if search_term.replace(' ', '-') in r.get('slug', '').lower():
                 return r['id']
+
+        # 4. Look inside recipe ingredients (fetch details in parallel)
+        # Check singular/plural and key noun variants to handle e.g. "chicken thighs" -> "chicken thigh" or "thigh"
+        variants = [search_term]
+        if search_term.endswith('s'):
+            variants.append(search_term[:-1])
+        if search_term.endswith('es'):
+            variants.append(search_term[:-2])
+            
+        words = search_term.split()
+        if len(words) > 1:
+            last_word = words[-1]
+            variants.append(last_word)
+            if last_word.endswith('s'):
+                variants.append(last_word[:-1])
+            if last_word.endswith('es'):
+                variants.append(last_word[:-2])
+                
+        # Remove empty strings or duplicates, sorted by length descending
+        variants = sorted(list(set(v for v in variants if v)), key=len, reverse=True)
+
+        if self._detailed_recipes_cache is None:
+            def fetch_details(r):
+                try:
+                    return self.client.get_recipe_details(r['id'])
+                except Exception:
+                    return None
+
+            with ThreadPoolExecutor(max_workers=15) as executor:
+                self._detailed_recipes_cache = list(executor.map(fetch_details, all_recipes))
+
+        for r_details in self._detailed_recipes_cache:
+            if not r_details:
+                continue
+            
+            for ing in r_details.get('recipeIngredient', []):
+                texts = []
+                if isinstance(ing, dict):
+                    if ing.get('ingredient') and isinstance(ing['ingredient'], dict):
+                        texts.append(ing['ingredient'].get('name') or '')
+                    texts.append(ing.get('display') or '')
+                    texts.append(ing.get('note') or '')
+                    texts.append(ing.get('originalText') or '')
+                else:
+                    texts.append(str(ing))
+                    
+                full_ing_text = " ".join(texts).lower()
+                for variant in variants:
+                    if variant in full_ing_text:
+                        print(f"[Crawler] Found ingredient match for variant '{variant}' of '{search_term}' in recipe: {r_details['name']}")
+                        return r_details['id']
                 
         return None
 
     def search_recipes(self, query):
         """Perform a web search for recipe URLs."""
         search_query = f"{query} recipe"
-        url = f"https://duckduckgo.com/html/?q={urllib.parse.quote(search_query)}"
-        headers = {'User-Agent': 'Mozilla/5.0'}
+        url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(search_query)}"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
         
         try:
-            req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req) as response:
-                html = response.read()
+            r = requests.get(url, headers=headers, timeout=15)
+            r.raise_for_status()
             
-            soup = BeautifulSoup(html, 'html.parser')
+            soup = BeautifulSoup(r.text, 'html.parser')
             links = []
             for a in soup.find_all('a', class_='result__a', href=True):
                 href = a['href']
                 # Clean DuckDuckGo redirect URLs
                 if 'uddg=' in href:
-                    href = urllib.parse.unquote(href.split('uddg=')[1].split('&')[0])
+                    try:
+                        # Extract uddg query param
+                        parsed_href = urllib.parse.urlparse(href)
+                        qs = urllib.parse.parse_qs(parsed_href.query)
+                        href = qs.get('uddg', [href])[0]
+                    except Exception:
+                        href = urllib.parse.unquote(href.split('uddg=')[1].split('&')[0])
                 if 'youtube.com' not in href and 'pinterest.com' not in href:
                     links.append(href)
             return links[:5]
@@ -126,11 +185,13 @@ class RecipeCrawler:
                 
                 # 3. Import into Mealie
                 print(f"[Crawler] Importing valid recipe: {url}")
-                import_url = f"{self.client.api_url}/api/recipes/create-url"
+                import_url = f"{self.client.api_url}/api/recipes/create/url"
                 payload = {"url": url}
                 # Use internal _request helper if possible, or just standard requests for this one-off
                 r = requests.post(import_url, json=payload, headers=self.client.headers)
                 r.raise_for_status()
+                # Clear detailed recipes cache on successful import
+                self._detailed_recipes_cache = None
                 print(f"[Crawler] Successfully imported: {ingredient_name}")
                 return True
                 

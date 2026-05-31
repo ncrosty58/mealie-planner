@@ -7,7 +7,10 @@ import pytz
 # Add project root to path
 sys.path.insert(0, '/app')
 
-import meal_planner
+from mealie_planner.unified_client import UnifiedMealieClient
+from mealie_planner.gemini_client import GeminiClient
+from mealie_planner.recipe_crawler import RecipeCrawler
+from mealie_planner.plan_generator import PlanGenerator
 from mealie_planner import config
 
 def run_profile():
@@ -30,7 +33,10 @@ def run_profile():
 
     # 1. Mealie Client Init / Auth
     t_start = time.perf_counter()
-    client = meal_planner.MealieClient()
+    client = UnifiedMealieClient()
+    gemini = GeminiClient()
+    crawler = RecipeCrawler(client, gemini)
+    generator = PlanGenerator(client, gemini)
     timers['Client Init & Token Validation'] = time.perf_counter() - t_start
     print(f"[Phase 1] Client Init & Auth: {timers['Client Init & Token Validation']:.3f}s")
 
@@ -42,9 +48,9 @@ def run_profile():
     t_start = time.perf_counter()
     
     # We will track finding & importing manually to measure detailed scraper steps
-    recipe_id = meal_planner.find_recipe_for_ingredient(freezer_item)
+    recipe_id = crawler.find_recipe_for_ingredient(freezer_item)
     if not recipe_id:
-        success = meal_planner.find_and_import_recipe(freezer_item)
+        success = crawler.find_and_import_recipe(freezer_item)
         timers['Freezer Item Scrape & Import'] = time.perf_counter() - t_start
         print(f"  Scrape and Import Result: {'Success' if success else 'Failed'}")
     else:
@@ -55,7 +61,7 @@ def run_profile():
     # 3. Retrieve all recipes details via REST API
     print("\n[Phase 3] Retrieving all detailed recipes via Mealie REST API (concurrent details)...")
     t_start = time.perf_counter()
-    all_recipes = meal_planner.get_recipes_from_db()  # Now routed to REST API only
+    all_recipes = crawler.get_recipes_from_db()  # Now routed to REST API only
     timers['Fetch Recipe Details via API'] = time.perf_counter() - t_start
     print(f"  Recipes found: {len(all_recipes)}")
     print(f"  Duration: {timers['Fetch Recipe Details via API']:.3f}s")
@@ -66,7 +72,7 @@ def run_profile():
     
     # Run the full generate_weekly_plan function
     # Note: we pass freezer_items="salmon" (which now exists) to see how it resolves it
-    success = meal_planner.generate_weekly_plan(
+    success = generator.generate_weekly_plan(
         start_date_str=start_str,
         end_date_str=end_str,
         exclude_text="No dinners on Wednesday",

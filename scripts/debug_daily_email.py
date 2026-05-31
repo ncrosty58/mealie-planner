@@ -9,12 +9,12 @@ load_dotenv()
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from mealie_planner.mealie_client import MealieClient
+from mealie_planner.unified_client import UnifiedMealieClient
 from mealie_planner.gemini_client import GeminiClient
 from mealie_planner.email_notifier import EmailNotifier
 
 def generate_debug_email(date_str):
-    client = MealieClient()
+    client = UnifiedMealieClient()
     gemini = GeminiClient()
     notifier = EmailNotifier(client, gemini)
     

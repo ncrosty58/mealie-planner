@@ -5,8 +5,9 @@ from datetime import datetime, timedelta
 # Add the project root to sys.path to ensure module discovery
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Manually import meal_planner
-import meal_planner
+from mealie_planner.unified_client import UnifiedMealieClient
+from mealie_planner.gemini_client import GeminiClient
+from mealie_planner.plan_generator import PlanGenerator
 
 if __name__ == "__main__":
     print("--- Debugging generate_weekly_plan ---")
@@ -19,8 +20,13 @@ if __name__ == "__main__":
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
         
-        # Call generate_weekly_plan directly
-        meal_planner.generate_weekly_plan(
+        # Instantiate clients and generator directly
+        client = UnifiedMealieClient()
+        gemini = GeminiClient()
+        generator = PlanGenerator(client, gemini)
+        
+        # Call generate_weekly_plan
+        generator.generate_weekly_plan(
             start_date_str=start_date_str,
             end_date_str=end_date_str,
             exclude_text="",

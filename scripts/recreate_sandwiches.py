@@ -5,10 +5,10 @@ import uuid
 import json
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from meal_planner import MealieClient
+from mealie_planner.unified_client import UnifiedMealieClient
 
 def create_basic_sandwiches():
-    client = MealieClient()
+    client = UnifiedMealieClient()
     api_url = client.api_url
     headers = client.headers
     

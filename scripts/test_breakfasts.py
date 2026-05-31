@@ -9,12 +9,12 @@ load_dotenv()
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from mealie_planner.mealie_client import MealieClient
+from mealie_planner.unified_client import UnifiedMealieClient
 from mealie_planner.plan_generator import PlanGenerator
 from mealie_planner.gemini_client import GeminiClient
 
 def test_plan_breakfasts():
-    client = MealieClient()
+    client = UnifiedMealieClient()
     gemini = GeminiClient()
     generator = PlanGenerator(client, gemini)
     
@@ -29,8 +29,7 @@ def test_plan_breakfasts():
     print(f"Generating plan from {start_date_str} to {end_date_str} to verify breakfast options...")
     
     # We call generate_weekly_plan directly
-    from meal_planner import generate_weekly_plan
-    generate_weekly_plan(
+    generator.generate_weekly_plan(
         start_date_str=start_date_str,
         end_date_str=end_date_str,
         exclude_text="",

@@ -3,3 +3,6 @@ requests==2.32.5
 python-dotenv==1.2.1
 apscheduler==3.10.4
 beautifulsoup4==4.12.3
+mcp==1.27.2
+httpx==0.28.1
+pydantic==2.12.5

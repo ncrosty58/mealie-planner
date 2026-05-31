@@ -8,6 +8,9 @@ services:
     volumes:
       - mealie_mealie-data:/mealie-data:ro
       - ./data:/app/data
+      - ./mealie_planner:/app/mealie_planner:ro
+      - ./mealie-mcp-server:/app/mealie-mcp-server:ro
+      - ./scripts:/app/scripts:ro
     env_file:
       - .env
     networks:
