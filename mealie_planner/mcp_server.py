@@ -24,30 +24,6 @@ if base_dir not in sys.path:
 from tools import register_all_tools
 from mealie_planner.unified_client import UnifiedMealieClient
 
-def map_ai_ingredients_to_mealie(ai_ingredients: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Maps structured AI ingredient data to Mealie's recipe ingredient schema."""
-    mealie_ingredients = []
-    for item in ai_ingredients:
-        name = item.get('name', 'Unknown Item')
-        qty = item.get('quantity', 1.0)
-        unit = item.get('unit')
-        
-        # Construct a clean note for fallback
-        note_parts = []
-        if qty: note_parts.append(str(qty))
-        if unit: note_parts.append(unit)
-        note_parts.append(name)
-        note = " ".join(note_parts)
-        
-        mealie_ingredients.append({
-            "note": note,
-            "quantity": qty,
-            "unit": {"name": unit} if unit else None,
-            "food": {"name": name} if name else None,
-            "disableAmount": False
-        })
-    return mealie_ingredients
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -112,7 +88,7 @@ def create_recipe_from_url(url: str) -> Dict[str, Any]:
         else:
             return res
             
-        # Post-processing: Parse the ingredients using Gemini AI "Special Skill"
+        # High-Fidelity Parsing: Clean with AI, then structure with Mealie NLP
         try:
             recipe_json = mealie.get_recipe(slug)
             raw_ingredients = []
@@ -122,13 +98,34 @@ def create_recipe_from_url(url: str) -> Dict[str, Any]:
                     raw_ingredients.append(text)
             
             if raw_ingredients:
-                raw_text = "\n".join(raw_ingredients)
-                ai_parsed = mealie.parse_ingredients_with_ai(raw_text)
-                recipe_json["recipeIngredient"] = map_ai_ingredients_to_mealie(ai_parsed)
+                # Use Gemini to clean and standardize the lines
+                clean_lines = mealie.standardize_ingredients_with_ai(raw_ingredients)
+                
+                # Use Mealie's NLP parser to structure the clean lines
+                parsed_results = mealie.parse_raw_ingredients(clean_lines)
+                
+                # Map to Mealie's reliable flat ID schema for PUT
+                update_ingredients = []
+                for item in parsed_results:
+                    update_ingredients.append({
+                        "note": item.get('note') or item.get('display') or "",
+                        "quantity": item.get('quantity', 0.0),
+                        "unitId": item.get('unit', {}).get('id') if item.get('unit') else None,
+                        "foodId": item.get('food', {}).get('id') if item.get('food') else None,
+                        "disableAmount": item.get('disableAmount', False)
+                    })
+                
+                recipe_json["recipeIngredient"] = update_ingredients
+                
+                # Clean up metadata
+                for field in ["createdAt", "updatedAt", "dateAdded", "dateUpdated"]:
+                    if field in recipe_json:
+                        del recipe_json[field]
+
                 mealie.update_recipe(slug, recipe_json)
                 res = mealie.get_recipe(slug)
         except Exception as parse_err:
-            logger.warning(f"Failed to AI-parse recipe ingredients for {slug}: {parse_err}")
+            logger.warning(f"Failed to high-fidelity parse ingredients for {slug}: {parse_err}")
             
         return res
     except Exception as e:
@@ -167,10 +164,28 @@ def create_recipe(
         slug = mealie.create_recipe(name)
         recipe_json = mealie.get_recipe(slug)
         
-        raw_text = "\n".join(ingredients)
-        ai_parsed = mealie.parse_ingredients_with_ai(raw_text)
-        recipe_json["recipeIngredient"] = map_ai_ingredients_to_mealie(ai_parsed)
+        # High-Fidelity Parsing: Clean with AI, then structure with Mealie NLP
+        clean_lines = mealie.standardize_ingredients_with_ai(ingredients)
+        parsed_results = mealie.parse_raw_ingredients(clean_lines)
+        
+        update_ingredients = []
+        for item in parsed_results:
+            update_ingredients.append({
+                "note": item.get('note') or item.get('display') or "",
+                "quantity": item.get('quantity', 0.0),
+                "unitId": item.get('unit', {}).get('id') if item.get('unit') else None,
+                "foodId": item.get('food', {}).get('id') if item.get('food') else None,
+                "disableAmount": item.get('disableAmount', False)
+            })
+        
+        recipe_json["recipeIngredient"] = update_ingredients
         recipe_json["recipeInstructions"] = [{"text": i} for i in instructions]
+        
+        # Clean up metadata
+        for field in ["id", "createdAt", "updatedAt", "dateAdded", "dateUpdated"]:
+            if field in recipe_json:
+                del recipe_json[field]
+
         return mealie.update_recipe(slug, recipe_json)
     except Exception as e:
         raise ToolError(f"Error creating recipe '{name}': {str(e)}")
@@ -193,10 +208,29 @@ def update_recipe(
     """
     try:
         recipe_json = mealie.get_recipe(slug)
-        raw_text = "\n".join(ingredients)
-        ai_parsed = mealie.parse_ingredients_with_ai(raw_text)
-        recipe_json["recipeIngredient"] = map_ai_ingredients_to_mealie(ai_parsed)
+        
+        # High-Fidelity Parsing: Clean with AI, then structure with Mealie NLP
+        clean_lines = mealie.standardize_ingredients_with_ai(ingredients)
+        parsed_results = mealie.parse_raw_ingredients(clean_lines)
+        
+        update_ingredients = []
+        for item in parsed_results:
+            update_ingredients.append({
+                "note": item.get('note') or item.get('display') or "",
+                "quantity": item.get('quantity', 0.0),
+                "unitId": item.get('unit', {}).get('id') if item.get('unit') else None,
+                "foodId": item.get('food', {}).get('id') if item.get('food') else None,
+                "disableAmount": item.get('disableAmount', False)
+            })
+        
+        recipe_json["recipeIngredient"] = update_ingredients
         recipe_json["recipeInstructions"] = [{"text": i} for i in instructions]
+        
+        # Clean up metadata
+        for field in ["id", "createdAt", "updatedAt", "dateAdded", "dateUpdated"]:
+            if field in recipe_json:
+                del recipe_json[field]
+
         return mealie.update_recipe(slug, recipe_json)
     except Exception as e:
         raise ToolError(f"Error updating recipe '{slug}': {str(e)}")
