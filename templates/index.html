@@ -6,7 +6,7 @@
     <title>Mealie Planner Companion</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
-    <meta name="theme-color" content="#0B0F19">
+    <meta name="theme-color" content="#F4F0EB">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon.svg') }}">
     <!-- Mobile App Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,1159 +16,441 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;0,800;1,400&display=swap" rel="stylesheet">
     
     <style>
         :root {
-            --bg-base: #0B0F19;
-            --bg-surface: rgba(22, 30, 49, 0.75);
-            --bg-surface-glow: rgba(30, 41, 69, 0.9);
-            --border-glow: rgba(255, 255, 255, 0.08);
+            /* Palette: Restaurant/Culinary Premium */
+            --bg-base: #F4F0EB;
+            --bg-card: #FFFFFF;
+            --color-primary: #3C5A54; /* Deep Sage */
+            --color-accent: #C66B3D;  /* Terracotta */
+            --color-muted: #8C8273;   /* Stone */
+            --color-divider: #D5CEB8; /* Antique Gold/Sand */
+            --color-border: #E6DFD5;
             
-            --color-primary: #E58325; /* Amber Blackstone */
-            --color-success: #10B981; /* Emerald Healthy Veg */
-            --color-info: #3B82F6;
-            --color-danger: #EF4444;
-            --color-purple: #8B5CF6; /* Fiber */
+            --color-success: #3C5A54;
+            --color-info: #5B7B7A;
+            --color-danger: #EF5350;
             
-            --text-main: #F3F4F6;
-            --text-muted: #9CA3AF;
-            --text-glow: #ffffff;
+            --text-main: #2C2C2C;
+            --text-muted: #5C5247;
             
-            --font-display: 'Outfit', sans-serif;
-            --font-body: 'Inter', sans-serif;
+            --font-display: 'Playfair Display', serif;
+            --font-body: 'Plus Jakarta Sans', sans-serif;
+            
+            --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.05);
+            --shadow-bold: 0 10px 40px rgba(60, 90, 84, 0.1);
         }
 
-        /* Chat Widget Styles */
-        .chat-widget-container {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            z-index: 1000;
-            font-family: var(--font-body);
-        }
-
-        .chat-trigger-btn {
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
-            border: none;
-            color: #fff;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(229, 131, 37, 0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            outline: none;
-        }
-
-        .chat-trigger-btn:hover {
-            transform: scale(1.1) rotate(5deg);
-            box-shadow: 0 6px 24px rgba(229, 131, 37, 0.6);
-        }
-
-        .chat-trigger-btn svg {
-            width: 24px;
-            height: 24px;
-            fill: currentColor;
-            transition: transform 0.3s ease;
-        }
-
-        .chat-trigger-btn.open svg {
-            transform: rotate(90deg);
-        }
-
-        .chat-box-panel {
-            position: fixed;
-            bottom: 6.5rem;
-            right: 2rem;
-            width: 380px;
-            height: 500px;
-            max-width: calc(100vw - 4rem);
-            max-height: calc(100vh - 10rem);
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--border-glow);
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            opacity: 0;
-            transform: translateY(20px) scale(0.95);
-            pointer-events: none;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            z-index: 1000;
-        }
-
-        .chat-box-panel.open {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-            pointer-events: auto;
-            border-color: rgba(229, 131, 37, 0.3);
-            box-shadow: 0 10px 40px rgba(229, 131, 37, 0.15), 0 10px 30px rgba(0, 0, 0, 0.5);
-        }
-
-        .chat-header {
-            padding: 1rem 1.25rem;
-            background: rgba(30, 41, 59, 0.5);
-            border-bottom: 1px solid var(--border-glow);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .chat-header-info {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .chat-header-status {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: var(--color-success);
-            box-shadow: 0 0 8px var(--color-success);
-        }
-
-        .chat-header-title {
-            font-family: var(--font-display);
-            font-weight: 600;
-            font-size: 1rem;
-            color: var(--text-glow);
-        }
-
-        .chat-header-subtitle {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            margin-top: 0.1rem;
-        }
-
-        .chat-close-btn {
-            background: transparent;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            padding: 0.25rem;
-            transition: color 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .chat-close-btn:hover {
-            color: var(--text-glow);
-        }
-
-        .chat-messages {
-            flex: 1;
-            padding: 1.25rem;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            scroll-behavior: smooth;
-        }
-
-        .chat-message {
-            max-width: 80%;
-            padding: 0.75rem 1rem;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            line-height: 1.4;
-            word-wrap: break-word;
-        }
-
-        .chat-message.user {
-            align-self: flex-end;
-            background: linear-gradient(135deg, var(--color-info), var(--color-purple));
-            color: #fff;
-            border-bottom-right-radius: 4px;
-        }
-
-        .chat-message.assistant {
-            align-self: flex-start;
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text-main);
-            border-bottom-left-radius: 4px;
-            border: 1px solid var(--border-glow);
-        }
-
-        .chat-message.error {
-            align-self: center;
-            background: rgba(239, 68, 68, 0.1);
-            color: var(--color-danger);
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            text-align: center;
-            max-width: 90%;
-        }
-
-        .chat-message-loader {
-            display: flex;
-            align-items: center;
-            gap: 0.35rem;
-            padding: 0.5rem 0.75rem;
-        }
-
-        .chat-message-loader span {
-            width: 6px;
-            height: 6px;
-            background-color: var(--text-muted);
-            border-radius: 50%;
-            display: inline-block;
-            animation: bounce 1.4s infinite ease-in-out both;
-        }
-
-        .chat-message-loader span:nth-child(1) { animation-delay: -0.32s; }
-        .chat-message-loader span:nth-child(2) { animation-delay: -0.16s; }
-
-        @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1.0); }
-        }
-
-        .chat-input-area {
-            padding: 1rem 1.25rem;
-            background: rgba(15, 23, 42, 0.6);
-            border-top: 1px solid var(--border-glow);
-            display: flex;
-            gap: 0.75rem;
-        }
-
-        .chat-input {
-            flex: 1;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--border-glow);
-            border-radius: 8px;
-            padding: 0.75rem 1rem;
-            color: var(--text-main);
-            font-family: var(--font-body);
-            font-size: 0.9rem;
-            outline: none;
-            transition: all 0.2s;
-        }
-
-        .chat-input:focus {
-            border-color: var(--color-primary);
-            box-shadow: 0 0 0 2px rgba(229, 131, 37, 0.2);
-        }
-
-        .chat-send-btn {
-            background: var(--color-primary);
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            flex-shrink: 0;
-        }
-
-        .chat-send-btn:hover {
-            background: #f99c3e;
-            transform: translateY(-1px);
-        }
-
-        .chat-send-btn:disabled {
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text-muted);
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        /* Markdown lists and line breaks in chat messages */
-        .chat-message ul, .chat-message ol {
-            padding-left: 1.25rem;
-            margin-top: 0.25rem;
-            margin-bottom: 0.25rem;
-        }
-        .chat-message li {
-            margin-bottom: 0.15rem;
-        }
-        .chat-message p {
-            margin-bottom: 0.5rem;
-        }
-        .chat-message p:last-child {
-            margin-bottom: 0;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
+        /* --- GLOBAL RESET --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             background-color: var(--bg-base);
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(229, 131, 37, 0.05) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
-                radial-gradient(at 50% 100%, rgba(59, 130, 246, 0.03) 0px, transparent 50%);
-            background-attachment: fixed;
             font-family: var(--font-body);
             color: var(--text-main);
             min-height: 100vh;
-            padding: 2rem 1rem;
+            padding: 3rem 1.5rem;
+            line-height: 1.6;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        /* --- TYPOGRAPHY --- */
+        h1, h2, h3, .brand-font {
+            font-family: var(--font-display);
+            font-weight: 800;
+            letter-spacing: -0.01em;
         }
 
-        /* Header Style */
+        /* --- HEADER --- */
         header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 3rem;
-            animation: fadeInDown 0.8s ease-out;
+            text-align: center;
+            margin-bottom: 4rem;
             position: relative;
+        }
+
+        header .brand-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--color-accent);
+            text-transform: uppercase;
+            letter-spacing: 2.5px;
+            display: block;
+            margin-bottom: 0.5rem;
         }
 
         header h1 {
-            font-family: var(--font-display);
-            font-size: clamp(1.5rem, 5vw, 2.5rem);
-            font-weight: 800;
-            background: linear-gradient(135deg, #FFF 30%, var(--color-primary) 70%, var(--color-success) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 0.5rem;
-            letter-spacing: -0.03em;
-        }
-
-        /* Tabs Navigation */
-        .tabs-container {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 2rem;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 0.5rem;
-            border-radius: 8px;
-            border: 1px solid var(--border-glow);
-        }
-
-        .tab-btn {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: var(--text-muted);
-            padding: 0.75rem 1rem;
-            font-family: var(--font-display);
-            font-weight: 600;
-            font-size: 0.95rem;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: all 0.25s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-        }
-
-        .tab-btn.active {
-            background: var(--bg-surface);
+            font-size: clamp(2rem, 6vw, 3.5rem);
             color: var(--color-primary);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .tab-btn:hover:not(.active) {
-            background: rgba(255, 255, 255, 0.03);
-            color: var(--text-main);
-        }
-
-        /* Layout Structure */
-        .content-wrapper {
-            max-width: 900px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        .hamburger-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--border-glow);
-            color: var(--text-main);
-            font-size: 1.5rem;
-            width: 44px;
-            height: 44px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 4px;
-            cursor: pointer;
-            z-index: 1010;
-            transition: all 0.2s;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .hamburger-btn.active {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 3rem;
-            animation: fadeInDown 0.8s ease-out;
-            position: relative;
-        }
-
-        @media (max-width: 600px) {
-            header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 0.5rem;
-                padding-right: 60px;
-            }
-            .hamburger-btn {
-                position: absolute;
-                top: 0;
-                right: 0;
-            }
-        }
-
-        /* Drawer Overlay */
-        .drawer-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .drawer-overlay.active {
-            display: block;
-            opacity: 1;
-        }
-
-        /* Side Drawer Wrapper */
-        .side-drawer {
-            position: fixed;
-            top: 0;
-            right: -100%;
-            width: 88%;
-            max-width: 450px;
-            height: 100vh;
-            background: #0B0F19;
-            z-index: 1005;
-            overflow-y: auto;
-            padding: 5rem 1.5rem 2rem 1.5rem;
-            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
-            border-left: 1px solid var(--border-glow);
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .side-drawer.active {
-            right: 0;
-        }
-
-        .drawer-close {
-            position: absolute;
-            top: 1.5rem;
-            right: 1.5rem;
-            font-size: 2.2rem;
-            color: var(--text-muted);
-            cursor: pointer;
-            line-height: 1;
-        }
-
-        header p {
-            font-size: 1.1rem;
-            color: var(--text-muted);
-            font-weight: 300;
-        }
-
-        header .badge {
-            display: inline-block;
-            background: rgba(229, 131, 37, 0.15);
-            border: 1px solid rgba(229, 131, 37, 0.3);
-            color: var(--color-primary);
-            padding: 0.3rem 0.8rem;
-            border-radius: 99px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            margin-top: 1rem;
-        }
-
-        /* Loading Overlay with Glassmorphism blur */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(11, 15, 25, 0.85);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: fadeIn 0.3s ease-out;
-        }
-
-        .loading-spinner-container {
-            text-align: center;
-            padding: 2.5rem;
-            background: rgba(22, 30, 49, 0.9);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-            max-width: 450px;
-            width: 90%;
-            animation: scaleUp 0.3s ease-out;
-        }
-
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(229, 131, 37, 0.1);
-            border-top: 4px solid var(--color-primary);
-            border-radius: 50%;
-            margin: 0 auto 1.5rem auto;
-            animation: spin 1s linear infinite;
-        }
-
-        .loading-text {
-            font-family: var(--font-display);
-            font-size: 1.4rem;
-            font-weight: 700;
-            color: var(--text-glow);
             margin-bottom: 0.75rem;
         }
 
-        .loading-subtext {
+        header p {
+            font-size: 1rem;
+            color: var(--color-muted);
+            font-weight: 400;
+            font-style: italic;
+        }
+
+        /* --- TABS --- */
+        .tabs-container {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 3rem;
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: 0.5rem;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--color-muted);
+            padding: 1rem 0;
+            font-family: var(--font-body);
+            font-weight: 600;
             font-size: 0.9rem;
-            color: var(--text-muted);
-            line-height: 1.5;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
         }
 
-        .progress-bar-container {
+        .tab-btn.active {
+            color: var(--color-primary);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -0.6rem;
+            left: 0;
             width: 100%;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
-            margin: 1.2rem 0;
-            overflow: hidden;
+            height: 2px;
+            background: var(--color-primary);
         }
 
-        .progress-bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--color-primary) 0%, #F59E0B 100%);
-            width: 0%;
-            transition: width 0.4s ease;
+        .tab-btn:hover:not(.active) {
+            color: var(--text-main);
         }
 
-        .loading-log {
-            width: 100%;
-            height: 140px;
-            overflow-y: auto;
-            background: rgba(10, 15, 25, 0.8);
-            border: 1px solid var(--border-glow);
-            border-radius: 8px;
-            padding: 0.75rem;
-            font-family: monospace;
-            font-size: 0.75rem;
-            color: #34D399;
-            text-align: left;
-            margin-top: 1rem;
-            white-space: pre-wrap;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.7);
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        @keyframes scaleUp {
-            from { transform: scale(0.9); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-
-        /* Glass Cards */
+        /* --- CARDS --- */
         .card {
-            background: var(--bg-surface);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--border-glow);
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            background: var(--bg-card);
+            border-radius: 4px; /* Classic sharp-ish edges */
+            padding: 3rem;
+            border: 1px solid var(--color-border);
+            box-shadow: var(--shadow-soft);
             margin-bottom: 2rem;
-            animation: fadeInUp 0.6s ease-out;
+            position: relative;
+        }
+
+        .card-header {
+            text-align: center;
+            padding-bottom: 2rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px double var(--color-divider);
         }
 
         .card-title {
             font-family: var(--font-display);
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            color: var(--text-glow);
-        }
-
-        /* Alert notifications */
-        .alert {
-            padding: 1rem;
-            border-radius: 12px;
-            margin-bottom: 2rem;
-            font-size: 0.95rem;
-            line-height: 1.5;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            animation: fadeIn 0.5s ease;
-        }
-        .alert-success {
-            background: rgba(16, 185, 129, 0.15);
-            border: 1px solid rgba(16, 185, 129, 0.25);
-            color: #A7F3D0;
-        }
-        .alert-info {
-            background: rgba(59, 130, 246, 0.15);
-            border: 1px solid rgba(59, 130, 246, 0.25);
-            color: #BFDBFE;
-        }
-        .alert-warning {
-            background: rgba(245, 158, 11, 0.15);
-            border: 1px solid rgba(245, 158, 11, 0.25);
-            color: #FDE68A;
-        }
-
-        /* Grid Layouts */
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1.5fr 1fr;
-            gap: 2rem;
-            align-items: start;
-        }
-
-        @media (max-width: 968px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* Interactive Form Elements */
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-label {
-            display: block;
-            font-family: var(--font-display);
-            font-size: 1rem;
-            font-weight: 500;
-            margin-bottom: 0.75rem;
-            color: var(--text-glow);
-        }
-
-        .exclude-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 0.75rem;
-        }
-
-        .checkbox-btn {
-            position: relative;
-        }
-
-        .checkbox-btn input {
-            position: absolute;
-            opacity: 0;
-            cursor: pointer;
-            height: 0;
-            width: 0;
-        }
-
-        .checkbox-label {
-            display: block;
-            text-align: center;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border-glow);
-            padding: 0.75rem;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: all 0.25s ease;
-            user-select: none;
-        }
-
-        .checkbox-btn input:checked + .checkbox-label {
-            background: rgba(229, 131, 37, 0.15);
-            border-color: var(--color-primary);
+            font-size: 1.75rem;
             color: var(--color-primary);
-            box-shadow: 0 0 15px rgba(229, 131, 37, 0.1);
+            margin-bottom: 0.25rem;
         }
 
-        .checkbox-btn input:checked + .checkbox-label.success {
-            background: rgba(16, 185, 129, 0.15);
-            border-color: var(--color-success);
-            color: var(--color-success);
-            box-shadow: 0 0 15px rgba(16, 185, 129, 0.1);
+        .card-subtitle {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--color-accent);
+            font-weight: 700;
         }
 
-        .textarea-input {
-            width: 100%;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--border-glow);
-            border-radius: 10px;
-            color: var(--text-main);
-            padding: 1rem;
-            font-family: var(--font-body);
-            font-size: 0.95rem;
-            resize: vertical;
-            min-height: 100px;
-            transition: border-color 0.25s ease;
-        }
-
-        .textarea-input:focus {
-            outline: none;
-            border-color: var(--color-primary);
-        }
-
-        /* Staples Checklist styling */
-        .staples-checklist {
-            max-height: 250px;
-            overflow-y: auto;
-            border: 1px solid var(--border-glow);
-            border-radius: 10px;
-            padding: 1rem;
-            background: rgba(0, 0, 0, 0.15);
-        }
-
-        .staple-row {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-        }
-        .staple-row:last-child {
-            border-bottom: none;
-        }
-
-        .custom-checkbox {
-            cursor: pointer;
-            width: 18px;
-            height: 18px;
-            accent-color: var(--color-primary);
-        }
-
-        /* Buttons */
-        .btn {
-            display: inline-block;
-            font-family: var(--font-display);
-            font-weight: 600;
-            font-size: 0.9rem;
-            padding: 0.5rem 1.25rem;
-            border-radius: 10px;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            text-align: center;
-            text-decoration: none;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--color-primary) 0%, #F59E0B 100%);
-            color: white;
-            box-shadow: 0 4px 15px rgba(229, 131, 37, 0.3);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(229, 131, 37, 0.4);
-            filter: brightness(1.1);
-        }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--border-glow);
-            color: var(--text-main);
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
-            color: white;
-            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
-        }
-
-        .btn-danger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
-            filter: brightness(1.1);
-        }
-
-        /* Modal Backdrop */
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(11, 15, 25, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            z-index: 2000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        /* Modal Dialog Box */
-        .modal-content {
-            background: rgba(22, 30, 49, 0.95);
-            border: 1px solid var(--border-glow);
-            border-radius: 8px;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
-            width: 90%;
-            max-width: 550px;
-            padding: 2.5rem;
-            position: relative;
-            animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        /* Close Button */
-        .close-btn {
-            position: absolute;
-            top: 1.5rem;
-            right: 1.5rem;
-            font-size: 2rem;
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: color 0.2s;
-            line-height: 1;
-        }
-
-        .close-btn:hover {
-            color: var(--text-main);
-        }
-
-        /* Checklist container inside Modal */
-        .staples-checklist-container {
-            max-height: 350px;
-            overflow-y: auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 0.75rem;
-            padding: 1rem;
-            background: rgba(10, 15, 25, 0.4);
-            border: 1px dashed rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-            margin-top: 0.5rem;
-        }
-        
-        .staple-row {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.5rem;
-            border-radius: 8px;
-            transition: background 0.2s;
-        }
-        
-        .staple-row:hover {
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        /* Calendar View styling */
+        /* --- CALENDAR --- */
         .calendar-list {
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 0; /* Stacked look */
         }
 
         .calendar-day-card {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            padding: 1.25rem;
             display: grid;
-            grid-template-columns: 120px 1fr 250px;
-            gap: 1.5rem;
-            align-items: center;
+            grid-template-columns: 140px 1fr 200px;
+            gap: 2rem;
+            padding: 2rem 0;
+            border-bottom: 1px solid var(--color-border);
+            align-items: flex-start;
         }
 
-        @media (max-width: 968px) {
-            .calendar-day-card {
-                grid-template-columns: 1fr;
-                gap: 1rem;
-                padding: 1rem;
-            }
-        }
+        .calendar-day-card:last-child { border-bottom: none; }
 
-        .day-name {
+        .day-info .day-name {
             font-family: var(--font-display);
+            font-size: 1.4rem;
+            color: var(--color-primary);
             font-weight: 700;
-            color: var(--text-glow);
-            font-size: 1.1rem;
+        }
+
+        .day-info .day-date {
+            font-size: 0.8rem;
+            color: var(--color-muted);
+            margin-top: 0.2rem;
         }
 
         .meal-desc {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-        }
-
-        /* Styling for meal updates */
-        .select-recipe {
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--border-glow);
-            border-radius: 8px;
-            color: var(--text-main);
-            padding: 0.4rem;
-            font-size: 0.85rem;
-            width: 100%;
-            cursor: pointer;
-        }
-
-        .select-recipe option {
-            background-color: var(--bg-base);
-            color: var(--text-main);
-        }
-
-        /* Planner Controls */
-        .controls-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-        }
-
-        .control-group-label {
-            color: var(--text-muted);
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            font-weight: 700;
-            letter-spacing: 0.05em;
+            font-size: 0.95rem;
             margin-bottom: 0.5rem;
         }
 
-        .control-group-buttons {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 0.75rem;
-        }
-
-        .control-group-buttons > *, 
-        .control-group-buttons form, 
-        .control-group-buttons .btn {
-            width: 100%;
-        }
-
-        /* Shopping List View */
-        .shopping-list-container {
-            max-height: 400px;
-            overflow-y: auto;
-            padding-right: 0.5rem;
-        }
-
-        .shopping-item {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--border-glow);
-            border-radius: 4px;
-            padding: 0.75rem 1rem;
-            margin-bottom: 0.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.9rem;
-        }
-
-        /* Past Day Styling */
-        .past-day {
-            opacity: 0.5;
-            filter: grayscale(0.6);
-            pointer-events: none;
-            background: rgba(255, 255, 255, 0.01) !important;
-            border: 1px dashed rgba(255, 255, 255, 0.05) !important;
-        }
-
-        .past-day .day-name {
-            color: var(--text-muted);
-        }
-
-        .past-day .meal-desc {
-            opacity: 0.7;
-        }
-
-        .past-day select, .past-day .select-recipe {
-            display: none !important;
-        }
-
-        .organic-pill {
-            background: rgba(16, 185, 129, 0.15);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            color: var(--color-success);
-            padding: 0.15rem 0.5rem;
-            border-radius: 2px;
-            font-size: 0.75rem;
+        .meal-desc strong {
             font-weight: 600;
+            color: var(--color-muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-right: 0.5rem;
+        }
+
+        .dinner-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .dinner-link {
+            color: var(--color-accent);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: border 0.2s;
+        }
+        .dinner-link:hover { border-bottom-color: var(--color-accent); }
+
+        .griddle-badge {
+            font-size: 10px;
+            font-weight: 700;
+            background: #FAF9F6;
+            color: var(--color-accent);
+            padding: 2px 8px;
+            border: 1px solid #F2EEE8;
+            border-radius: 2px;
+            margin-left: 8px;
+            text-transform: uppercase;
+        }
+
+        /* --- FORMS & INPUTS --- */
+        .select-recipe {
+            width: 100%;
+            padding: 0.6rem;
+            border: 1px solid var(--color-border);
+            background: #FAF9F6;
+            font-family: var(--font-body);
+            font-size: 0.85rem;
+            color: var(--text-main);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .select-recipe:focus { outline: none; border-color: var(--color-muted); }
+
+        .textarea-input {
+            width: 100%;
+            background: #FAF9F6;
+            border: 1px solid var(--color-border);
+            padding: 1.25rem;
+            font-family: var(--font-body);
+            font-size: 1rem;
+            min-height: 120px;
+            border-radius: 4px;
+            transition: border-color 0.3s;
+        }
+        .textarea-input:focus { outline: none; border-color: var(--color-muted); }
+
+        /* --- BUTTONS --- */
+        .btn {
+            font-family: var(--font-body);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-size: 0.8rem;
+            padding: 0.8rem 1.5rem;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: white;
+        }
+        .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.1); box-shadow: 0 4px 15px rgba(60, 90, 84, 0.2); }
+
+        .btn-secondary {
+            background: white;
+            border: 1px solid var(--color-divider);
+            color: var(--color-muted);
+        }
+        .btn-secondary:hover { background: #FAF9F6; color: var(--text-main); }
+
+        .btn-danger {
+            background: transparent;
+            color: var(--color-danger);
+            border: 1px solid var(--color-danger);
+        }
+        .btn-danger:hover { background: var(--color-danger); color: white; }
+
+        /* --- SHOPPING LIST --- */
+        .shopping-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 0;
+            border-bottom: 1px solid #FAF9F6;
+        }
+        .shopping-item:last-child { border-bottom: none; }
+
+        .shopping-item-text {
+            flex: 1;
+            font-size: 0.95rem;
         }
 
         .checked-item {
+            color: var(--color-muted);
             text-decoration: line-through;
-            color: var(--text-muted);
-            opacity: 0.6;
+            opacity: 0.5;
         }
 
-        /* Nutrition Analysis styling */
-        .nutrition-row {
-            margin-bottom: 1.25rem;
+        .custom-checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--color-primary);
+            cursor: pointer;
         }
 
-        .nutrition-header {
-            display: flex;
-            justify-content: space-between;
+        /* --- NUTRITION --- */
+        .nutrition-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1rem;
+            text-align: center;
+        }
+
+        .nut-badge {
+            background: #FAF9F6;
+            padding: 1.25rem;
+            border: 1px solid #EFECE6;
+            border-radius: 4px;
+        }
+
+        .nut-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--color-primary);
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .nut-val {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        .nut-pct {
             font-size: 0.9rem;
-            margin-bottom: 0.4rem;
+            font-weight: 700;
+            margin-left: 0.25rem;
         }
 
-        .nutrient-name {
-            font-weight: 500;
+        /* --- UTILITIES --- */
+        .past-day {
+            opacity: 0.4;
+            filter: grayscale(1);
+            pointer-events: none;
         }
 
-        .nutrient-value {
-            color: var(--text-muted);
-        }
-
-        .progress-bar-bg {
-            background: rgba(255, 255, 255, 0.05);
-            height: 8px;
-            border-radius: 99px;
-            overflow: hidden;
-        }
-
-        .progress-bar-fill {
-            height: 100%;
-            border-radius: 99px;
-            transition: width 0.8s ease-out;
-        }
-
-        .bg-calories { background: var(--color-info); }
-        .bg-protein { background: var(--color-primary); }
-        .bg-carbs { background: #F59E0B; }
-        .bg-fat { background: #14B8A6; }
-        .bg-fiber { background: var(--color-purple); }
-        .bg-sodium { background: var(--color-danger); }
-        .bg-sugar { background: #EC4899; }
-        .bg-cholesterol { background: #64748B; }
-
-        /* Animation frames */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        /* Week Selector Styles */
-        .week-selector {
-            display: flex;
-            gap: 0.5rem;
+        .ornament {
+            color: var(--color-divider);
             margin: 1.5rem 0;
-            background: rgba(22, 30, 49, 0.4);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            padding: 0.35rem;
-            border-radius: 12px;
-            border: 1px solid var(--border-glow);
-            max-width: fit-content;
-            animation: fadeIn 0.4s ease;
+            font-size: 1.2rem;
+            text-align: center;
         }
-        .week-tab {
-            padding: 0.6rem 1.2rem;
-            border-radius: 8px;
-            color: var(--text-muted);
-            text-decoration: none;
-            font-family: var(--font-display);
-            font-size: 0.85rem;
-            font-weight: 500;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+        /* --- CHAT WIDGET --- */
+        .chat-widget-container { position: fixed; bottom: 2rem; right: 2rem; z-index: 1000; }
+        .chat-trigger-btn {
+            width: 60px; height: 60px; border-radius: 50%;
+            background: var(--color-primary); border: none; color: #fff;
+            cursor: pointer; box-shadow: var(--shadow-bold);
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        .week-tab:hover {
-            color: var(--text-main);
-            background: rgba(255, 255, 255, 0.04);
+        .chat-box-panel {
+            position: fixed; bottom: 7rem; right: 2rem; width: 400px; height: 550px;
+            background: white; border: 1px solid var(--color-border); border-radius: 8px;
+            box-shadow: var(--shadow-bold); display: flex; flex-direction: column;
+            overflow: hidden; opacity: 0; transform: translateY(20px); pointer-events: none;
+            transition: all 0.3s ease;
         }
-        .week-tab.active {
-            color: var(--text-glow);
-            background: var(--color-primary);
-            box-shadow: 0 4px 12px rgba(229, 131, 37, 0.3);
+        .chat-box-panel.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+        
+        /* --- MOBILE ADAPTATIONS --- */
+        @media (max-width: 768px) {
+            .calendar-day-card { grid-template-columns: 1fr; gap: 1rem; }
+            .card { padding: 1.5rem; }
+            .tabs-container { gap: 1rem; }
+            .tab-btn { font-size: 0.75rem; }
         }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(244, 240, 235, 0.95); z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .loading-spinner-container { text-align: center; padding: 2rem; }
+        .loading-spinner {
+            width: 40px; height: 40px; border: 3px solid #E6DFD5;
+            border-top: 3px solid var(--color-primary); border-radius: 50%;
+            margin: 0 auto 1.5rem auto; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
     </style>
 </head>
 <body>
-    <div class="container">
-        <div id="drawer-overlay" class="drawer-overlay" onclick="toggleDrawer(event)"></div>
-        
-        <!-- Header -->
-        <header>
-            <div>
-                <h1>MEALIE PLANNER COMPANION</h1>
-                {% if is_submitted %}
-                    <span class="badge">Active Planning Week ({% if start_date %}{{ start_date }}{% endif %} to {% if end_date %}{{ end_date }}{% endif %})</span>
-                {% endif %}
+    <!-- LOADING OVERLAY -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner-container">
+            <div class="loading-spinner"></div>
+            <div id="loading-text" class="card-subtitle" style="margin-bottom: 1rem;">Preparing Your Menu</div>
+            
+            <div id="progress-bar-container" class="progress-bar-container" style="background: #E6DFD5; height: 2px; width: 200px; margin: 0 auto 1.5rem auto;">
+                <div id="progress-bar-fill" style="background: var(--color-primary); height: 100%; width: 0%; transition: width 0.4s;"></div>
             </div>
-            {% if is_submitted %}
-                <button type="button" class="hamburger-btn" id="drawer-toggle" onclick="toggleDrawer(event)">☰</button>
-            {% endif %}
+            
+            <div id="loading-log" style="font-family: monospace; font-size: 10px; color: var(--color-muted); max-width: 300px; margin: 0 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <span class="brand-label">Culinary Companion</span>
+            <h1>The Crosty Kitchen</h1>
+            <p>Nathan & Kristin's Private Menu & Planning Dashboard</p>
+            <div class="ornament">❖ ❖ ❖</div>
         </header>
 
-
-
-        <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="alert alert-{{ category }}">
-                  <span>{{ message }}</span>
+              <div class="card" style="padding: 1.5rem; text-align: center; margin-bottom: 2rem; border-color: var(--color-{{ 'success' if category == 'success' else 'danger' }});">
+                  <span style="font-weight: 600; color: var(--color-{{ 'success' if category == 'success' else 'danger' }});">{{ message }}</span>
               </div>
             {% endfor %}
           {% endif %}
@@ -1177,32 +459,33 @@
         {% if not is_submitted %}
         <!-- STATE A: QUESTIONNAIRE FORM -->
         <div class="card" style="max-width: 800px; margin: 0 auto;">
-            <div class="card-title">
-                📋 Saturday Meal Questionnaire ({{ start_date }} to {{ end_date }})
+            <div class="card-header">
+                <span class="card-subtitle">Weekly Consultation</span>
+                <h2 class="card-title">Menu Preferences</h2>
+                <p style="font-size: 0.9rem; color: var(--color-muted);">{{ start_date }} to {{ end_date }}</p>
             </div>
             
             <form action="{{ url_for('plan') }}" method="POST">
-                
                 <!-- Opt Out of Meals -->
-                <div class="form-group">
-                    <label class="form-label" for="exclude_text">Opt Out of Meals (Breakfast, Lunch, or Dinner)</label>
-                    <textarea class="textarea-input" id="exclude_text" name="exclude_text" placeholder="e.g. Skip dinner on Monday and Tuesday, no breakfast on Friday, out for Saturday lunch..."></textarea>
+                <div style="margin-bottom: 2.5rem;">
+                    <label class="brand-label" style="text-align: left; margin-bottom: 1rem;">Meal Exclusions</label>
+                    <textarea class="textarea-input" id="exclude_text" name="exclude_text" placeholder="e.g. Skip dinner on Monday, no breakfast on Friday..."></textarea>
                 </div>
 
                 <!-- Freezer/Pantry/Fridge Items -->
-                <div class="form-group" style="margin-top: 2rem;">
-                    <label class="form-label" for="freezer_items">Freezer, pantry, or refrigerated items to use up this week</label>
-                    <textarea class="textarea-input" id="freezer_items" name="freezer_items" placeholder="e.g. frozen peas, pantry pasta, refrigerated chicken..."></textarea>
+                <div style="margin-bottom: 2.5rem;">
+                    <label class="brand-label" style="text-align: left; margin-bottom: 1rem;">Inventory to Utilize</label>
+                    <textarea class="textarea-input" id="freezer_items" name="freezer_items" placeholder="e.g. frozen peas, pantry pasta, salmon..."></textarea>
                 </div>
 
                 <!-- Special Requests -->
-                <div class="form-group" style="margin-top: 2rem;">
-                    <label class="form-label" for="special_requests">Special Requests / Themes for the week</label>
-                    <textarea class="textarea-input" id="special_requests" name="special_requests" placeholder="e.g. Mexican night, pasta, soup, want burgers..."></textarea>
+                <div style="margin-bottom: 2.5rem;">
+                    <label class="brand-label" style="text-align: left; margin-bottom: 1rem;">Thematic Direction</label>
+                    <textarea class="textarea-input" id="special_requests" name="special_requests" placeholder="e.g. Mexican night, high fiber priority, want burgers..."></textarea>
                 </div>
 
-                <div style="text-align: right; margin-top: 2.5rem;">
-                    <button type="submit" class="btn btn-primary">Generate Weekly Plan</button>
+                <div style="text-align: center; margin-top: 3rem;">
+                    <button type="submit" class="btn btn-primary" style="padding: 1rem 3rem;">Curate Weekly Plan</button>
                 </div>
             </form>
         </div>
@@ -1211,910 +494,408 @@
         
         <!-- STATE B: ACTIVE WEEK DASHBOARD -->
         
-        <div class="content-wrapper">
-            <!-- Tabs Navigation -->
-            <div class="tabs-container">
-                <button type="button" id="btn-menu" class="tab-btn active" onclick="switchTab('menu')">
-                    📅 Weekly Menu
-                </button>
-                <button type="button" id="btn-shopping" class="tab-btn" onclick="switchTab('shopping')">
-                    🛒 Shopping List
-                </button>
-                <button type="button" id="btn-prep" class="tab-btn" onclick="switchTab('prep')">
-                    🍳 Prep Guide
-                </button>
-            </div>
+        <!-- Tabs Navigation -->
+        <div class="tabs-container">
+            <button type="button" id="btn-menu" class="tab-btn active" onclick="switchTab('menu')">Menu</button>
+            <button type="button" id="btn-shopping" class="tab-btn" onclick="switchTab('shopping')">Larder</button>
+            <button type="button" id="btn-prep" class="tab-btn" onclick="switchTab('prep')">Briefing</button>
+        </div>
 
-            <!-- Tab 1: Weekly Menu -->
-            <div id="tab-menu" class="tab-content">
-                <div class="card">
-                    <div class="card-title">
-                        📅 Weekly Menu Calendar
-                    </div>
-                    
-                    <div class="calendar-list">
-                        {% for d_str in planning_dates %}
-                            {% set day = d_str | select_day_name %}
-                            {% set meals = {'breakfast': 'Skipped', 'lunch': 'Skipped', 'dinner': 'Skipped'} %}
-                            {% set dinner_entry = [] %}
-                            
-                            {% for item in meal_plans %}
-                                {# Robust date comparison (handles both YYYY-MM-DD and ISO timestamps) #}
-                                {% if item.date[:10] == d_str %}
-                                    {% if item.entryType == 'breakfast' %}
-                                        {% set _ = meals.update({'breakfast': item.title or 'Planned Breakfast'}) %}
-                                    {% elif item.entryType == 'lunch' %}
-                                        {% set _ = meals.update({'lunch': item.title or 'Planned Lunch'}) %}
-                                    {% elif item.entryType == 'dinner' %}
-                                        {% set _ = dinner_entry.append(item) %}
-                                        {% if item.recipeId %}
-                                            {% set _ = meals.update({'dinner': item.recipe.name}) %}
-                                        {% elif item.title %}
-                                            {% set _ = meals.update({'dinner': item.title}) %}
-                                        {% endif %}
-                                    {% endif %}
-                                {% endif %}
-                            {% endfor %}
-                            
-                            <div class="calendar-day-card {% if d_str < today_str %}past-day{% endif %}">
-                                <div>
-                                    <div class="day-name">{{ day }}</div>
-                                    <div style="font-size: 0.75rem; color: var(--text-muted);">
-                                        {{ d_str }}
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="meal-desc">☕ <strong>B:</strong> {{ meals.breakfast }}</div>
-                                    <div class="meal-desc">🥗 <strong>L:</strong> {{ meals.lunch }}</div>
-                                    <div class="meal-desc" style="color: var(--color-primary); font-weight: 500; font-size: 0.95rem; margin-top: 0.25rem;">
-                                        🥘 <strong>D:</strong> 
-                                        {% if dinner_entry and dinner_entry[0].recipeId %}
-                                            {% if d_str < today_str %}
-                                                {{ meals.dinner }}
-                                            {% else %}
-                                                <a href="{{ mealie_url }}/g/home/r/{{ dinner_entry[0].recipe.slug }}" style="color: inherit; text-decoration: none; border-bottom: 1px dotted var(--color-primary);">{{ meals.dinner }}</a>
-                                            {% endif %}
-                                            {% if dinner_entry[0].is_blackstone %}
-                                                <span style="font-size: 0.75rem; background: rgba(229, 131, 37, 0.2); color: var(--color-primary); padding: 1px 6px; border-radius: 4px; margin-left: 5px; font-weight: bold;">🍳 GRIDDLE</span>
-                                            {% endif %}
-                                        {% else %}
-                                            {{ meals.dinner }}
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div>
-                                    {% if d_str >= today_str %}
-                                    <form action="{{ url_for('change_meal') }}" method="POST">
-                                        <input type="hidden" name="date" value="{{ d_str }}">
-                                        <input type="hidden" name="entry_id" value="{{ dinner_entry[0].id if dinner_entry else '' }}">
-                                        <select name="recipe_id" class="select-recipe" onchange="this.form.submit()">
-                                            <option value="">-- Choose Dinner --</option>
-                                            <option value="SKIP" {% if dinner_entry and not dinner_entry[0].recipeId %}selected{% endif %}>🚫 No Dinner / Eating Out</option>
-                                            {% for rec in all_recipes %}
-                                                <option value="{{ rec.id }}" {% if dinner_entry and rec.id == dinner_entry[0].recipeId %}selected{% endif %}>
-                                                    {{ rec.name }}
-                                                </option>
-                                            {% endfor %}
-                                        </select>
-                                    </form>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
+        <!-- Tab 1: Weekly Menu -->
+        <div id="tab-menu" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-subtitle">Week at a Glance</span>
+                    <h2 class="card-title">Seasonal Menu</h2>
                 </div>
-            </div>
-
-            <!-- Tab 2: Live Shopping List -->
-            <div id="tab-shopping" class="tab-content" style="display: none;">
-                <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                        <div class="card-title" style="margin-bottom: 0;">🛒 Live Shopping List</div>
-                        <button type="button" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.4rem 0.8rem; display: flex; align-items: center; gap: 0.4rem;" onclick="copyShoppingList(this)">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            Copy List
-                        </button>
-                    </div>
-                    
-                    <!-- Quick Add Form -->
-                    <div style="margin-bottom: 1.5rem; display: flex; gap: 0.5rem;">
-                        <input type="text" id="quick-add-input" class="textarea-input" style="min-height: auto; padding: 0.75rem;" 
-                               placeholder="Quick add (e.g. Milk, Bread)..." 
-                               onkeypress="if(event.key === 'Enter') quickAddShoppingItem()">
-                        <button type="button" class="btn btn-primary" onclick="quickAddShoppingItem()">Add</button>
-                    </div>
-
-                    <div class="shopping-list-container">
-                        {% if shopping_list %}
-                            {% for item in shopping_list %}
-                            <div class="shopping-item">
-                                <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; width: 100%;">
-                                    <input type="checkbox" class="custom-checkbox shopping-list-checkbox" 
-                                           data-id="{{ item.id }}" {% if item.checked %}checked{% endif %}>
-                                    <span class="shopping-item-text {% if item.checked %}checked-item{% endif %}">
-                                        {% if item.quantity > 0 %}<strong>{{ item.quantity | float | round(2) | string | replace('.0', '') }}</strong> {% endif %}{{ item.note }}
-                                    </span>
-                                </label>
-                                {% if "buy organic" in item.note.lower() %}
-                                    <span class="organic-pill">Organic</span>
-                                {% endif %}
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <p style="color: var(--text-muted); font-size: 0.9rem; font-style: italic;">No items currently in active shopping list.</p>
-                        {% endif %}
-                    </div>
-                    <div style="margin-top: 1.5rem; text-align: center;">
-                        <a href="{{ mealie_url }}/shopping-lists/{{ active_list_id }}" class="btn btn-secondary" style="font-size: 0.8rem;">View Full List in Mealie</a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tab 3: Weekly Prep Guide -->
-            <div id="tab-prep" class="tab-content" style="display: none;">
-                <div class="card">
-                    <div class="card-title">
-                        🍳 Weekly Prep & Blackstone Guide
-                    </div>
-                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 2rem; margin-top: -1rem;">
-                        Grouped checklist of all meal-prep tasks and griddle tips for the week.
-                    </p>
-                    
-                    <div class="calendar-list">
-                        {% set ns = namespace(prep_found=false) %}
-                        {% for d_str in planning_dates %}
-                            {% set day_prep_entries = [] %}
-                            {% for item in meal_plans %}
-                                {% if item.date[:10] == d_str %}
-                                    {% if item.text or item.is_blackstone %}
-                                        {% set _ = day_prep_entries.append(item) %}
+                
+                <div class="calendar-list">
+                    {% for d_str in planning_dates %}
+                        {% set day = d_str | select_day_name %}
+                        {% set meals = {'breakfast': 'Skipped', 'lunch': 'Skipped', 'dinner': 'Skipped'} %}
+                        {% set dinner_entry = [] %}
+                        
+                        {% for item in meal_plans %}
+                            {% if item.date[:10] == d_str %}
+                                {% if item.entryType == 'breakfast' %}
+                                    {% set _ = meals.update({'breakfast': item.title or 'Planned Breakfast'}) %}
+                                {% elif item.entryType == 'lunch' %}
+                                    {% set _ = meals.update({'lunch': item.title or 'Planned Lunch'}) %}
+                                {% elif item.entryType == 'dinner' %}
+                                    {% set _ = dinner_entry.append(item) %}
+                                    {% if item.recipeId %}
+                                        {% set _ = meals.update({'dinner': item.recipe.name}) %}
+                                    {% elif item.title %}
+                                        {% set _ = meals.update({'dinner': item.title}) %}
                                     {% endif %}
                                 {% endif %}
-                            {% endfor %}
-                            
-                            {% if day_prep_entries %}
-                                {% set ns.prep_found = true %}
-                                <div style="margin-bottom: 1.5rem;" class="{% if d_str < today_str %}past-day{% endif %}">
-                                    <div class="control-group-label" style="margin-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.25rem;">
-                                        {{ d_str | select_day_name }} ({{ d_str }})
-                                    </div>
-                                    {% for entry in day_prep_entries %}
-                                        <div class="shopping-item" style="align-items: flex-start; flex-direction: column; gap: 0.5rem; padding: 1.25rem;">
-                                            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
-                                                <strong style="color: var(--color-primary);">{{ entry.entryType | capitalize }}: {{ entry.recipe.name if entry.recipeId else entry.title }}</strong>
-                                                {% if entry.is_blackstone %}
-                                                    <span style="font-size: 0.7rem; background: rgba(229, 131, 37, 0.2); color: var(--color-primary); padding: 2px 8px; border-radius: 4px; font-weight: bold;">🍳 Blackstone</span>
-                                                {% endif %}
-                                            </div>
-                                            {% if entry.text %}
-                                                <div style="font-size: 0.95rem; line-height: 1.5; color: var(--text-main); font-weight: 300;">
-                                                    {{ entry.text }}
-                                                </div>
-                                            {% endif %}
-                                        </div>
-                                    {% endfor %}
-                                </div>
                             {% endif %}
                         {% endfor %}
                         
-                        {% if not ns.prep_found %}
-                            <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
-                                <div style="font-size: 2.5rem; margin-bottom: 1rem;">🔪</div>
-                                <p>No specific prep notes or griddle tasks for this week.</p>
+                        <div class="calendar-day-card {% if d_str < today_str %}past-day{% endif %}">
+                            <div class="day-info">
+                                <div class="day-name">{{ day }}</div>
+                                <div class="day-date">{{ d_str }}</div>
                             </div>
-                        {% endif %}
-                    </div>
+                            <div class="meal-info">
+                                <div class="meal-desc"><strong>B:</strong> {{ meals.breakfast }}</div>
+                                <div class="meal-desc"><strong>L:</strong> {{ meals.lunch }}</div>
+                                <div class="dinner-title">
+                                    <strong>D:</strong> 
+                                    {% if dinner_entry and dinner_entry[0].recipeId %}
+                                        {% if d_str < today_str %}
+                                            {{ meals.dinner }}
+                                        {% else %}
+                                            <a href="{{ mealie_url }}/g/home/r/{{ dinner_entry[0].recipe.slug }}" class="dinner-link">{{ meals.dinner }}</a>
+                                        {% endif %}
+                                        {% if dinner_entry[0].is_blackstone %}
+                                            <span class="griddle-badge">🍳 Griddle</span>
+                                        {% endif %}
+                                    {% else %}
+                                        {{ meals.dinner }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="meal-action">
+                                {% if d_str >= today_str %}
+                                <form action="{{ url_for('change_meal') }}" method="POST">
+                                    <input type="hidden" name="date" value="{{ d_str }}">
+                                    <input type="hidden" name="entry_id" value="{{ dinner_entry[0].id if dinner_entry else '' }}">
+                                    <select name="recipe_id" class="select-recipe" onchange="this.form.submit()">
+                                        <option value="">Edit Selection</option>
+                                        <option value="SKIP" {% if dinner_entry and not dinner_entry[0].recipeId %}selected{% endif %}>🚫 Eating Out</option>
+                                        {% for rec in all_recipes %}
+                                            <option value="{{ rec.id }}" {% if dinner_entry and rec.id == dinner_entry[0].recipeId %}selected{% endif %}>
+                                                {{ rec.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Nutrition Summary Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-subtitle">Analysis</span>
+                    <h2 class="card-title">Nutritional Baseline</h2>
+                </div>
+                <div class="nutrition-grid">
+                    {% for k, rda_val in rda.items() %}
+                        {% set avg_val = averages.get(k, 0.0) %}
+                        {% set pct = ((avg_val / rda_val) * 100) | round | int if rda_val > 0 else 0 %}
+                        {% set status_color = 'var(--text-main)' %}
+                        {% if k == 'sodium' and pct > 100 %}{% set status_color = 'var(--color-danger)' %}{% endif %}
+                        {% if k == 'fiber' and pct < 100 %}{% set status_color = 'var(--color-accent)' %}{% endif %}
+                        
+                        <div class="nut-badge">
+                            <span class="nut-label">{{ k }}</span>
+                            <span class="nut-val">{{ avg_val }}{{ 'kcal' if k == 'calories' else ('mg' if k in ['sodium', 'cholesterol'] else 'g') }}</span>
+                            <span class="nut-pct" style="color: {{ status_color }};">{{ pct }}%</span>
+                        </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
 
-        <!-- Universal Side Drawer (Controls & Nutrition) -->
-        <aside id="side-drawer" class="side-drawer">
-            <span class="drawer-close" id="drawer-close" onclick="toggleDrawer(event)">&times;</span>
-
-            <!-- Planner Controls Card -->
+        <!-- Tab 2: Live Shopping List -->
+        <div id="tab-shopping" class="tab-content" style="display: none;">
             <div class="card">
-                <div class="card-title">
-                    ⚙️ Tools & Settings
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom-style: solid;">
+                    <div style="text-align: left;">
+                        <span class="card-subtitle">Inventory Management</span>
+                        <h2 class="card-title">The Larder</h2>
+                    </div>
+                    <button type="button" class="btn btn-secondary" style="padding: 0.6rem 1rem;" onclick="copyShoppingList(this)">
+                        Copy List
+                    </button>
                 </div>
-                <div class="controls-grid">
-                    <!-- Group 1: Shopping & Inventory -->
-                    <div>
-                        <div class="control-group-label">Shopping & Inventory</div>
-                        <div class="control-group-buttons">
-                            <a href="{{ mealie_url }}/shopping-lists/{{ active_list_id }}" class="btn btn-primary" style="background: linear-gradient(135deg, var(--color-success) 0%, #059669 100%); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">🛒 Open Shopping List</a>
-
-                            <button type="button" class="btn btn-secondary" onclick="openStaplesModal()">📋 Manage Staples</button>
-                        </div>
-                    </div>
-
-                    <!-- Group 2: System -->
-                    <div>
-                        <div class="control-group-label">System</div>
-                        <div class="control-group-buttons">
-                            <a href="{{ mealie_url }}" class="btn btn-secondary">🌐 Open Mealie UI</a>
-                        </div>
-                    </div>
+                
+                <!-- Quick Add Form -->
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 2rem; background: #FAF9F6; padding: 1rem; border-radius: 4px;">
+                    <input type="text" id="quick-add-input" class="textarea-input" style="min-height: auto; padding: 0.75rem; border-color: #E6DFD5;" 
+                           placeholder="Provision an item (e.g. Milk, Bread)..." 
+                           onkeypress="if(event.key === 'Enter') quickAddShoppingItem()">
+                    <button type="button" class="btn btn-primary" onclick="quickAddShoppingItem()">Add</button>
                 </div>
 
-                <!-- Group 3: Maintenance & Destructive Actions -->
-                <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(239, 68, 68, 0.1);">
-                    <div class="control-group-label" style="color: var(--color-danger);">Maintenance & Destructive Actions</div>
-                    <div class="control-group-buttons" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-                        <form action="{{ url_for('sync') }}" method="POST" id="sync-list-form">
-                            <button type="submit" class="btn btn-secondary" style="border-color: rgba(239, 68, 68, 0.2);">🔄 Update Shopping List</button>
-                        </form>
-
-                        <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('ARE YOU SURE? This will delete all current and next week meal plans and clear the active shopping list.');">
-                            <button type="submit" class="btn btn-danger">🗑️ Clear & Reset Plan</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Nutrition Analysis Card -->
-            <div class="card">
-                <div class="card-title">
-                    📊 Nutrition Forecast
-                </div>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: -1rem; margin-bottom: 1.5rem;">
-                    Family daily averages compared to RDAs
-                </p>
-
-                {% for key, rda_val in rda.items() %}
-                    {% set avg = averages.get(key, 0.0) %}
-                    {% set pct = ((avg / rda_val) * 100) | round | int if rda_val > 0 else 0 %}
-                    {% set unit = 'g' %}
-                    {% if key == 'calories' %}{% set unit = 'kcal' %}{% elif key in ['sodium', 'cholesterol'] %}{% set unit = 'mg' %}{% endif %}
-
-                    <div class="nutrition-row">
-                        <div class="nutrition-header">
-                            <span class="nutrient-name" style="text-transform: capitalize;">{{ key }}</span>
-                            <span class="nutrient-value">
-                                <strong>{{ avg }}</strong> / {{ rda_val }} {{ unit }} ({{ pct }}%)
-                            </span>
+                <div class="shopping-list-container">
+                    {% if not shopping_list %}
+                        <div style="text-align: center; padding: 3rem; color: var(--color-muted); font-style: italic;">
+                            Your larder is currently fully provisioned.
                         </div>
-                        <div class="progress-bar-bg">
-                            <div class="progress-bar-fill bg-{{ key }}" style="width: {% if pct > 100 %}100{% else %}{{ pct }}{% endif %}%;"></div>
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-        </aside>
-        {% endif %}
-
-    <!-- Loading Overlay HTML -->
-    <div id="loading-overlay" class="loading-overlay" style="display: none;">
-        <div class="loading-spinner-container">
-            <div class="loading-spinner"></div>
-            <div class="loading-text" id="loading-text">Generating Weekly Plan...</div>
-            
-            <div class="progress-bar-container" id="progress-bar-container" style="display: none;">
-                <div class="progress-bar-fill" id="progress-bar-fill" style="width: 0%;"></div>
-            </div>
-            
-            <div class="loading-subtext" id="loading-subtext">Please do not close or leave this page. Your shopping list is being updated.</div>
-            
-            <div class="loading-log" id="loading-log" style="display: none;"></div>
-        </div>
-    </div>
-
-    <!-- Staples Modal HTML -->
-    <div id="staples-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <span class="close-btn" onclick="closeStaplesModal()">&times;</span>
-            <h2 style="font-family: var(--font-display); color: var(--text-glow); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                📋 Manage Staples Running Low
-            </h2>
-            <form action="{{ url_for('sync') }}" method="POST" id="staples-form">
-                <input type="hidden" name="staples_submitted" value="1">
-                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">
-                    Select the staple items that are currently running low. They will be automatically cleaned and appended to your active shopping list.
-                </p>
-                <div class="staples-checklist-container">
-                    {% if staples %}
-                        {% for item in staples %}
-                        <div class="staple-row">
-                            <input type="checkbox" name="low_staples" value="{{ item.id }}" class="custom-checkbox" id="modal_staple_{{ item.id }}"
-                                   {% if low_staples and item.id in low_staples %}checked{% endif %}>
-                            <label style="cursor: pointer; font-size: 0.95rem; color: var(--text-main);" for="modal_staple_{{ item.id }}">{{ item.note }}</label>
-                        </div>
-                        {% endfor %}
                     {% else %}
-                        <p style="color: var(--text-muted); font-size: 0.9rem; font-style: italic;">No staples found in Mealie Staples list.</p>
+                        {% set last_label = [None] %}
+                        {% for item in shopping_list %}
+                            {% if item.label and item.label.name != last_label[0] %}
+                                <div class="brand-label" style="text-align: left; padding: 1.5rem 0 0.5rem 0; border-bottom: 1px solid var(--color-border); margin-bottom: 0.5rem; color: var(--color-primary);">
+                                    {{ item.label.name }}
+                                </div>
+                                {% if last_label.append(item.label.name) %}{% endif %}
+                            {% elif not item.label and last_label[0] != 'Uncategorized' %}
+                                <div class="brand-label" style="text-align: left; padding: 1.5rem 0 0.5rem 0; border-bottom: 1px solid var(--color-border); margin-bottom: 0.5rem; color: var(--color-muted);">
+                                    General Provisions
+                                </div>
+                                {% if last_label.append('Uncategorized') %}{% endif %}
+                            {% endif %}
+                            
+                            <div class="shopping-item">
+                                <input type="checkbox" class="custom-checkbox shopping-list-checkbox" 
+                                       data-id="{{ item.id }}" {% if item.checked %}checked{% endif %}>
+                                <div class="shopping-item-text {% if item.checked %}checked-item{% endif %}">
+                                    {{ item.note }}
+                                    {% if '(Buy Organic)' in item.note %}
+                                        <span class="griddle-badge" style="color: var(--color-success); border-color: #DDE8E4; background: #EEF3F1;">Organic</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
                     {% endif %}
                 </div>
-                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
-                    <button type="button" class="btn btn-secondary" onclick="closeStaplesModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">💾 Add to Shopping List</button>
+            </div>
+        </div>
+
+        <!-- Tab 3: Prep Guide -->
+        <div id="tab-prep" class="tab-content" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-subtitle">Briefing</span>
+                    <h2 class="card-title">Chef's Notes</h2>
+                </div>
+                
+                {% set ns = namespace(prep_found=false) %}
+                {% for d_str in planning_dates %}
+                    {% set day_prep_entries = [] %}
+                    {% for item in meal_plans %}
+                        {% if item.date[:10] == d_str and item.text %}
+                            {% set _ = day_prep_entries.append(item) %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if day_prep_entries %}
+                        {% set ns.prep_found = true %}
+                        <div style="margin-bottom: 2.5rem;" class="{% if d_str < today_str %}past-day{% endif %}">
+                            <div class="brand-label" style="text-align: left; padding-bottom: 0.5rem; border-bottom: 1px solid var(--color-divider); margin-bottom: 1rem;">
+                                {{ d_str | select_day_name }} &bull; {{ d_str }}
+                            </div>
+                            {% for entry in day_prep_entries %}
+                                <div style="padding: 1.5rem; background: #FAF9F6; border-radius: 4px; border-left: 3px solid var(--color-accent); margin-bottom: 1rem;">
+                                    <div style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--color-muted); margin-bottom: 0.5rem;">
+                                        {{ entry.title or (entry.recipe.name if entry.recipeId else 'Prep Note') }}
+                                    </div>
+                                    <div style="font-size: 1rem; color: var(--text-main); line-height: 1.7;">{{ entry.text }}</div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if not ns.prep_found %}
+                    <div style="text-align: center; padding: 3rem; color: var(--color-muted); font-style: italic;">
+                        No specialized preparation notes for this collection.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- SYSTEM CONTROLS -->
+        <div style="margin-top: 4rem; padding: 2rem; border-top: 1px double var(--color-divider); display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn-secondary" onclick="openStaplesModal()">📋 Manage Staples</button>
+            <form action="{{ url_for('sync') }}" method="POST">
+                <button type="submit" class="btn btn-secondary">🔄 Refresh Larder</button>
+            </form>
+            <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Archive current menu and clear the larder?')">
+                <button type="submit" class="btn btn-danger">Archive Current Week</button>
+            </form>
+        </div>
+        
+        {% endif %}
+    </div>
+
+    <!-- STAPLES MODAL -->
+    <div id="staples-modal" class="modal" style="display: none;">
+        <div class="modal-content" style="background: white; border-radius: 4px; padding: 3rem; max-width: 700px;">
+            <span class="close-btn" onclick="closeStaplesModal()">&times;</span>
+            <div class="card-header" style="text-align: left;">
+                <span class="card-subtitle">Inventory Control</span>
+                <h2 class="card-title">Household Staples</h2>
+                <p style="font-size: 0.9rem; color: var(--color-muted);">Select items that are currently running low.</p>
+            </div>
+            
+            <form id="staples-form" action="{{ url_for('sync') }}" method="POST">
+                <input type="hidden" name="staples_submitted" value="1">
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; max-height: 400px; overflow-y: auto; padding: 1rem; background: #FAF9F6; border: 1px solid var(--color-border); margin-bottom: 2rem;">
+                    {% for item in staples %}
+                        <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" name="low_staples" value="{{ item.id }}" class="custom-checkbox"
+                                   {% if item.id in low_staples or item.id.replace('-', '') in low_staples %}checked{% endif %}>
+                            <span style="font-size: 0.9rem;">{{ item.note }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+                <div style="text-align: right;">
+                    <button type="submit" class="btn btn-primary">Update Provisions</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Chat Widget -->
+    <!-- CHAT WIDGET -->
     <div class="chat-widget-container">
-        <!-- Floating Action Button -->
-        <button class="chat-trigger-btn" id="chat-trigger" aria-label="Open Chat">
-            <svg id="chat-icon-svg" viewBox="0 0 24 24">
+        <div id="chat-panel" class="chat-box-panel">
+            <div style="padding: 1.5rem; background: var(--color-primary); color: white; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-family: var(--font-display); font-weight: 700; font-size: 1.2rem;">Kitchen Assistant</div>
+                    <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8;">Expert Culinary Guidance</div>
+                </div>
+                <button id="chat-close" style="background: transparent; border: none; color: white; cursor: pointer; font-size: 1.5rem;">&times;</button>
+            </div>
+            <div id="chat-messages" style="flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; background: #FAF9F6;">
+                <!-- Messages populate here -->
+            </div>
+            <div style="padding: 1.25rem; border-top: 1px solid var(--color-border); display: flex; gap: 0.75rem;">
+                <input type="text" id="chat-input" class="textarea-input" style="min-height: auto; padding: 0.75rem;" placeholder="Ask your chef...">
+                <button id="chat-send" class="btn btn-primary" style="padding: 0.5rem 1rem;" disabled>Send</button>
+            </div>
+        </div>
+        <button id="chat-trigger" class="chat-trigger-btn">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
                 <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/>
             </svg>
         </button>
-
-        <!-- Chat Panel -->
-        <div class="chat-box-panel" id="chat-panel">
-            <div class="chat-header">
-                <div class="chat-header-info">
-                    <div class="chat-header-status"></div>
-                    <div>
-                        <div class="chat-header-title">Mealie Assistant</div>
-                        <div class="chat-header-subtitle">Powered by Mealie MCP</div>
-                    </div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <button class="chat-close-btn" id="chat-clear" title="Clear Conversation" aria-label="Clear Conversation" style="margin-right: 0.25rem;">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                        </svg>
-                    </button>
-                    <button class="chat-close-btn" id="chat-close" aria-label="Close Chat">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            
-            <div class="chat-messages" id="chat-messages">
-                <div class="chat-message assistant">
-                    Hi! I'm your Mealie companion assistant. You can ask me about your weekly meal plan, recipes, and shopping list, or tell me to update them!
-                </div>
-            </div>
-
-            <div class="chat-input-area">
-                <input type="text" class="chat-input" id="chat-input" placeholder="Type a message..." autocomplete="off">
-                <button class="chat-send-btn" id="chat-send" aria-label="Send Message" disabled>
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
     </div>
 
     <script>
         // --- GLOBAL UTILITIES ---
         
-        // 13. Copy Shopping List to Clipboard
+        // Copy Shopping List
         function copyShoppingList(btn) {
-            console.log("Copy Shopping List clicked");
             const items = document.querySelectorAll('.shopping-item');
             const lines = [];
-            
             items.forEach(item => {
                 const checkbox = item.querySelector('.shopping-list-checkbox');
-                // Use checkboxes if they exist (dashboard view)
                 if (checkbox && !checkbox.checked) {
                     const textSpan = item.querySelector('.shopping-item-text');
-                    if (textSpan) {
-                        const text = textSpan.innerText.trim();
-                        lines.push(`- ${text}`);
-                    }
+                    if (textSpan) lines.push(`- ${textSpan.innerText.trim()}`);
                 }
             });
 
-            if (lines.length === 0) {
-                console.log("No unchecked items found");
-                alert("No active items on the shopping list to copy!");
-                return;
-            }
-
+            if (lines.length === 0) { alert("No items to copy."); return; }
             const fullText = lines.join('\n');
-            console.log("Copying text:", fullText);
             
-            // Modern Clipboard API with fallback
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(fullText).then(() => {
-                    handleCopySuccess(btn);
-                }).catch(err => {
-                    console.error('Clipboard API failed:', err);
-                    fallbackCopy(fullText, btn);
-                });
-            } else {
-                fallbackCopy(fullText, btn);
-            }
+            navigator.clipboard.writeText(fullText).then(() => {
+                const original = btn.innerText;
+                btn.innerText = "Copied!";
+                btn.style.background = "var(--color-accent)";
+                btn.style.color = "white";
+                setTimeout(() => { 
+                    btn.innerText = original; 
+                    btn.style.background = ""; 
+                    btn.style.color = "";
+                }, 2000);
+            });
         }
 
-        function fallbackCopy(text, btn) {
-            console.log("Using fallback copy method");
-            try {
-                const textArea = document.createElement("textarea");
-                textArea.value = text;
-                textArea.style.position = "fixed";
-                textArea.style.left = "-9999px";
-                textArea.style.top = "0";
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                const successful = document.execCommand('copy');
-                document.body.removeChild(textArea);
-                if (successful) {
-                    handleCopySuccess(btn);
-                } else {
-                    alert("Unable to copy to clipboard.");
-                }
-            } catch (err) {
-                console.error('Fallback copy failed:', err);
-                alert("Failed to copy list.");
-            }
-        }
-
-        function handleCopySuccess(btn) {
-            const originalText = btn.innerHTML;
-            btn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                Copied!
-            `;
-            btn.classList.remove('btn-secondary');
-            btn.classList.add('btn-primary');
-            
-            setTimeout(() => {
-                btn.innerHTML = originalText;
-                btn.classList.remove('btn-primary');
-                btn.classList.add('btn-secondary');
-            }, 2000);
-        }
-
-        // --- UI NAVIGATION ---
-        
+        // Tab Switching
         function switchTab(tabId) {
-            console.log('🔄 Switching tab to:', tabId);
-            
-            const btnMenu = document.getElementById('btn-menu');
-            const btnShopping = document.getElementById('btn-shopping');
-            const btnPrep = document.getElementById('btn-prep');
-            
-            const tabMenu = document.getElementById('tab-menu');
-            const tabShopping = document.getElementById('tab-shopping');
-            const tabPrep = document.getElementById('tab-prep');
-            
-            if (!btnMenu || !btnShopping || !btnPrep || !tabMenu || !tabShopping || !tabPrep) return;
-
-            // Toggle Buttons
-            btnMenu.classList.toggle('active', tabId === 'menu');
-            btnShopping.classList.toggle('active', tabId === 'shopping');
-            btnPrep.classList.toggle('active', tabId === 'prep');
-            
-            // Toggle Content
-            tabMenu.style.display = (tabId === 'menu') ? 'block' : 'none';
-            tabShopping.style.display = (tabId === 'shopping') ? 'block' : 'none';
-            tabPrep.style.display = (tabId === 'prep') ? 'block' : 'none';
-            
-            // Save state
+            document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + tabId).style.display = 'block';
+            document.getElementById('btn-' + tabId).classList.add('active');
             localStorage.setItem('activeTab', tabId);
         }
 
-        // --- GLOBAL UTILITIES ---
-        
-        function toggleDrawer(e) {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            const sideDrawer = document.getElementById('side-drawer');
-            const drawerOverlay = document.getElementById('drawer-overlay');
-            const drawerToggle = document.getElementById('drawer-toggle');
-            
-            if (sideDrawer && drawerOverlay) {
-                console.log('☰ Toggling Drawer');
-                sideDrawer.classList.toggle('active');
-                drawerOverlay.classList.toggle('active');
-                if (drawerToggle) drawerToggle.classList.toggle('active');
-                document.body.style.overflow = sideDrawer.classList.contains('active') ? 'hidden' : '';
-            }
-        }
+        // Modals
+        function openStaplesModal() { document.getElementById('staples-modal').style.display = 'flex'; }
+        function closeStaplesModal() { document.getElementById('staples-modal').style.display = 'none'; }
 
-        function openStaplesModal() {
-            // Close drawer first for smoother transition
-            const sideDrawer = document.getElementById('side-drawer');
-            const drawerOverlay = document.getElementById('drawer-overlay');
-            const drawerToggle = document.getElementById('drawer-toggle');
-            
-            if (sideDrawer && sideDrawer.classList.contains('active')) {
-                sideDrawer.classList.remove('active');
-                if (drawerOverlay) drawerOverlay.classList.remove('active');
-                if (drawerToggle) drawerToggle.classList.remove('active');
-                document.body.style.overflow = '';
-            }
-
-            const modal = document.getElementById('staples-modal');
-            if (modal) modal.style.display = 'flex';
-        }
-
-        function closeStaplesModal() {
-            const modal = document.getElementById('staples-modal');
-            if (modal) modal.style.display = 'none';
-        }
-
-        function showLoading(text) {
-            const textEl = document.getElementById('loading-text');
-            if (textEl) textEl.innerText = text;
-            const overlay = document.getElementById('loading-overlay');
-            if (overlay) overlay.style.display = 'flex';
-            // Hide progress details for simple actions
-            const pb = document.getElementById('progress-bar-container');
-            const log = document.getElementById('loading-log');
-            if (pb) pb.style.display = 'none';
-            if (log) log.style.display = 'none';
-        }
-
-        async function quickAddShoppingItem() {
-            const input = document.getElementById('quick-add-input');
-            const note = input.value.trim();
-            if (!note) return;
-
-            showLoading('Adding ' + note + '...');
-            
-            try {
-                const response = await fetch('/add-shopping-item', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ note: note })
-                });
-                const result = await response.json();
-                if (result.success) {
-                    window.location.reload();
-                } else {
-                    throw new Error(result.error);
-                }
-            } catch (error) {
-                console.error('Error adding item:', error);
-                document.getElementById('loading-overlay').style.display = 'none';
-                alert('Failed to add item: ' + error.message);
-            }
-        }
-
-        // --- INTERACTIVITY ---
-
+        // Interaction
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Mealie Planner UI Initializing...');
-
-            // 1. Restore Tab State
             const lastTab = localStorage.getItem('activeTab') || 'menu';
             switchTab(lastTab);
 
-            // 2. Live Shopping List Toggle
-            document.querySelectorAll('.shopping-list-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', async function() {
-                    const itemId = this.getAttribute('data-id');
-                    const isChecked = this.checked;
+            // Checkbox sync
+            document.querySelectorAll('.shopping-list-checkbox').forEach(cb => {
+                cb.addEventListener('change', async function() {
                     const textSpan = this.parentElement.querySelector('.shopping-item-text');
-
-                    // Visual Feedback
-                    if (isChecked) textSpan.classList.add('checked-item');
+                    if (this.checked) textSpan.classList.add('checked-item');
                     else textSpan.classList.remove('checked-item');
-
-                    try {
-                        const response = await fetch('/toggle-shopping-item', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ item_id: itemId, checked: isChecked })
-                        });
-                        const result = await response.json();
-                        if (!result.success) throw new Error(result.error);
-                    } catch (error) {
-                        console.error('Sync error:', error);
-                        // Revert on error
-                        this.checked = !isChecked;
-                        if (this.checked) textSpan.classList.add('checked-item');
-                        else textSpan.classList.remove('checked-item');
-                        alert('Error syncing with Mealie. Please refresh.');
-                    }
+                    
+                    await fetch('/toggle-shopping-item', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ item_id: this.dataset.id, checked: this.checked })
+                    });
                 });
             });
 
-            // 3. Meal Update Spinners
-            document.querySelectorAll('.select-recipe').forEach(select => {
-                select.addEventListener('change', function() {
-                    if (this.value) showLoading('Updating Meal Plan...');
-                });
-            });
-
-            // 4. Form Submission Spinners
-            const syncForm = document.getElementById('sync-list-form');
-            if (syncForm) syncForm.addEventListener('submit', () => showLoading('Syncing Shopping List...'));
-            
-            const staplesForm = document.getElementById('staples-form');
-            if (staplesForm) staplesForm.addEventListener('submit', () => showLoading('Saving Staples...'));
-
-            // 5. Modal Click-away
-            window.addEventListener('click', (e) => {
-                const modal = document.getElementById('staples-modal');
-                if (e.target === modal) closeStaplesModal();
-            });
-
-            // 6. PWA Generation SSE
-            const planForms = document.querySelectorAll('form[action*="/plan"]');
-            planForms.forEach(form => {
-                form.addEventListener('submit', function(e) {
-                    if (form.method.toLowerCase() !== 'post' || form.id === 'staples-form') return;
-                    e.preventDefault();
-                    
-                    const formData = new FormData(form);
-                    const params = new URLSearchParams(formData);
-                    
-                    const logEl = document.getElementById('loading-log');
-                    const barEl = document.getElementById('progress-bar-fill');
-                    const textEl = document.getElementById('loading-text');
-                    const subtextEl = document.getElementById('loading-subtext');
-                    const barContainer = document.getElementById('progress-bar-container');
-                    
-                    if (textEl) textEl.innerText = 'Generating Weekly Plan...';
-                    if (logEl) { logEl.innerHTML = ''; logEl.style.display = 'block'; }
-                    if (barContainer) barContainer.style.display = 'block';
-                    if (barEl) barEl.style.width = '0%';
-                    
-                    document.getElementById('loading-overlay').style.display = 'flex';
-                    
-                    const eventSource = new EventSource('/plan-stream?' + params.toString());
-                    eventSource.onmessage = (event) => {
-                        const data = JSON.parse(event.data);
-                        if (data.status === 'complete') {
-                            eventSource.close();
-                            window.location.href = '/?week={{ week_view }}&success_msg=Success!';
-                        } else if (data.status.startsWith('Error')) {
-                            eventSource.close();
-                            document.getElementById('loading-overlay').style.display = 'none';
-                            alert(data.status);
-                        } else {
-                            if (subtextEl) subtextEl.innerText = data.status;
-                            if (barEl) barEl.style.width = data.progress + '%';
-                            if (logEl) {
-                                logEl.innerHTML += `[${new Date().toLocaleTimeString()}] ${data.status}\n`;
-                                logEl.scrollTop = logEl.scrollHeight;
-                            }
-                        }
-                    };
-                });
-            });
-
-            // 7. Service Worker
-            if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('/sw.js');
-                });
-            }
-
-            // 8. Mealie MCP Chat Widget
-            let chatHistory = [];
-            let displayedMessages = [];
-
+            // --- CHAT LOGIC ---
             const chatTrigger = document.getElementById('chat-trigger');
             const chatPanel = document.getElementById('chat-panel');
             const chatClose = document.getElementById('chat-close');
-            const chatClear = document.getElementById('chat-clear');
             const chatInput = document.getElementById('chat-input');
             const chatSend = document.getElementById('chat-send');
             const chatMessages = document.getElementById('chat-messages');
 
-            // Load persistent chat state & history from localStorage
-            function loadChatFromStorage() {
-                const storedHistory = localStorage.getItem('mealie_chat_history');
-                const storedMessages = localStorage.getItem('mealie_chat_messages');
-                const isPanelOpen = localStorage.getItem('mealie_chat_panel_open') === 'true';
+            let chatHistory = JSON.parse(localStorage.getItem('mealie_chat_history') || '[]');
+            let displayedMessages = JSON.parse(localStorage.getItem('mealie_chat_messages') || '[]');
 
-                if (storedHistory) {
-                    chatHistory = JSON.parse(storedHistory);
-                }
-
-                if (storedMessages) {
-                    displayedMessages = JSON.parse(storedMessages);
-                    if (displayedMessages.length > 0) {
-                        chatMessages.innerHTML = '';
-                        displayedMessages.forEach(msg => {
-                            appendMessage(msg.sender, msg.text, false);
-                        });
-                    }
-                }
-
-                if (isPanelOpen) {
-                    chatPanel.classList.add('open');
-                    chatTrigger.classList.add('open');
-                    chatTrigger.innerHTML = `
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                        </svg>
-                    `;
-                }
-            }
-
-            function saveChatMessages() {
-                localStorage.setItem('mealie_chat_messages', JSON.stringify(displayedMessages));
-                localStorage.setItem('mealie_chat_history', JSON.stringify(chatHistory));
-            }
-
-            chatInput.addEventListener('input', () => {
-                chatSend.disabled = !chatInput.value.trim();
-            });
-
-            chatTrigger.addEventListener('click', () => {
-                const isOpen = chatPanel.classList.toggle('open');
-                chatTrigger.classList.toggle('open', isOpen);
-                localStorage.setItem('mealie_chat_panel_open', isOpen);
-                if (isOpen) {
-                    chatInput.focus();
-                    chatTrigger.innerHTML = `
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                        </svg>
-                    `;
-                } else {
-                    chatTrigger.innerHTML = `
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                            <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/>
-                        </svg>
-                    `;
-                }
-            });
-
-            chatClose.addEventListener('click', () => {
-                chatPanel.classList.remove('open');
-                chatTrigger.classList.remove('open');
-                localStorage.setItem('mealie_chat_panel_open', 'false');
-                chatTrigger.innerHTML = `
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                        <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/>
-                    </svg>
-                `;
-            });
-
-            chatClear.addEventListener('click', () => {
-                if (confirm('Clear chat history?')) {
-                    chatHistory = [];
-                    displayedMessages = [];
-                    localStorage.removeItem('mealie_chat_history');
-                    localStorage.removeItem('mealie_chat_messages');
-                    chatMessages.innerHTML = `
-                        <div class="chat-message assistant">
-                            Hi! I'm your Mealie companion assistant. You can ask me about your weekly meal plan, recipes, and shopping list, or tell me to update them!
-                        </div>
-                    `;
-                }
-            });
-
-            async function sendMessage() {
-                const messageText = chatInput.value.trim();
-                if (!messageText) return;
-
-                chatInput.value = '';
-                chatInput.disabled = true;
-                chatSend.disabled = true;
-
-                appendMessage('user', messageText, true);
-                const loaderId = appendLoader();
-
-                try {
-                    const response = await fetch('/chat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: messageText, history: chatHistory })
-                    });
-
-                    const data = await response.json();
-                    removeLoader(loaderId);
-
-                    if (data.success) {
-                        appendMessage('assistant', data.reply, true);
-                        chatHistory = data.history;
-                        saveChatMessages();
-                        if (data.plan_changed) {
-                            console.log('🔄 Plan/shopping list changed by assistant, reloading page in 1000ms...');
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 1000);
-                        }
-                    } else {
-                        appendMessage('error', data.error || 'Something went wrong.', true);
-                    }
-                } catch (err) {
-                    removeLoader(loaderId);
-                    appendMessage('error', 'Unable to connect to the server. Please try again.', true);
-                    console.error(err);
-                } finally {
-                    chatInput.disabled = false;
-                    chatSend.disabled = !chatInput.value.trim();
-                    chatInput.focus();
-                }
-            }
-
-            chatSend.addEventListener('click', sendMessage);
-            chatInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    sendMessage();
-                }
-            });
-
-            function appendMessage(sender, text, save = true) {
+            function appendMessage(sender, text, save=true) {
                 const msgDiv = document.createElement('div');
-                msgDiv.classList.add('chat-message', sender);
-                if (sender === 'assistant') {
-                    msgDiv.innerHTML = formatMessage(text);
+                msgDiv.style.padding = '1rem';
+                msgDiv.style.borderRadius = '4px';
+                msgDiv.style.fontSize = '0.9rem';
+                msgDiv.style.maxWidth = '85%';
+                
+                if (sender === 'user') {
+                    msgDiv.style.alignSelf = 'flex-end';
+                    msgDiv.style.background = 'var(--color-divider)';
+                    msgDiv.style.color = 'var(--text-main)';
                 } else {
-                    msgDiv.innerText = text;
+                    msgDiv.style.alignSelf = 'flex-start';
+                    msgDiv.style.background = 'white';
+                    msgDiv.style.border = '1px solid var(--color-border)';
                 }
+                
+                msgDiv.innerHTML = text;
                 chatMessages.appendChild(msgDiv);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
-
+                
                 if (save) {
-                    displayedMessages.push({ sender: sender, text: text });
-                    saveChatMessages();
+                    displayedMessages.push({sender, text});
+                    localStorage.setItem('mealie_chat_messages', JSON.stringify(displayedMessages));
                 }
             }
 
-            function appendLoader() {
-                const loaderDiv = document.createElement('div');
-                loaderDiv.classList.add('chat-message', 'assistant');
-                const id = 'loader-' + Date.now();
-                loaderDiv.id = id;
-                loaderDiv.innerHTML = `
-                    <div class="chat-message-loader">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                `;
-                chatMessages.appendChild(loaderDiv);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-                return id;
-            }
+            // Simple load
+            displayedMessages.forEach(m => appendMessage(m.sender, m.text, false));
 
-            function removeLoader(id) {
-                const loader = document.getElementById(id);
-                if (loader) {
-                    loader.remove();
-                }
-            }
+            chatTrigger.addEventListener('click', () => chatPanel.classList.add('open'));
+            chatClose.addEventListener('click', () => chatPanel.classList.remove('open'));
+            chatInput.addEventListener('input', () => chatSend.disabled = !chatInput.value.trim());
 
-            function formatMessage(text) {
-                let escaped = text
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
-                    .replace(/>/g, "&gt;")
-                    .replace(/"/g, "&quot;")
-                    .replace(/'/g, "&#039;");
-                
-                escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                
-                const lines = escaped.split('\n');
-                let inList = false;
-                const processedLines = [];
-                
-                for (let i = 0; i < lines.length; i++) {
-                    let line = lines[i].trim();
-                    if (line.startsWith('- ') || line.startsWith('* ')) {
-                        if (!inList) {
-                            processedLines.push('<ul style="margin: 0.25rem 0 0.25rem 1rem; padding-left: 0.5rem;">');
-                            inList = true;
-                        }
-                        processedLines.push(`<li style="margin-bottom: 0.2rem;">${line.substring(2)}</li>`);
-                    } else {
-                        if (inList) {
-                            processedLines.push('</ul>');
-                            inList = false;
-                        }
-                        if (line) {
-                            processedLines.push(`<p style="margin-bottom: 0.4rem;">${line}</p>`);
-                        }
-                    }
-                }
-                if (inList) {
-                    processedLines.push('</ul>');
-                }
-                return processedLines.join('');
-            }
+            chatSend.addEventListener('click', async () => {
+                const text = chatInput.value.trim();
+                appendMessage('user', text);
+                chatInput.value = '';
+                chatSend.disabled = true;
 
-        // Trigger load from storage
-        loadChatFromStorage();
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text, history: chatHistory })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    appendMessage('assistant', result.reply);
+                    chatHistory = result.history;
+                    localStorage.setItem('mealie_chat_history', JSON.stringify(chatHistory));
+                }
+            });
         });
     </script>
 </body>
