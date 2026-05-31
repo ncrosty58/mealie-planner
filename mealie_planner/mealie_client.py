@@ -92,6 +92,15 @@ class MealieClient:
             return
         self._request("POST", "/api/households/shopping/items/create-bulk", json=items)
 
+    def add_shopping_list_item(self, list_id, note):
+        """Add a single item to the shopping list."""
+        payload = {
+            "shoppingListId": list_id,
+            "note": note,
+            "checked": False
+        }
+        self._request("POST", "/api/households/shopping/items", json=payload)
+
     def update_shopping_list_item(self, item_id, payload):
         """Update a specific shopping list item."""
         self._request("PUT", f"/api/households/shopping/items/{item_id}", json=payload)

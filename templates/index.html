@@ -902,6 +902,9 @@
                 <button type="button" id="btn-shopping" class="tab-btn" onclick="switchTab('shopping')">
                     🛒 Shopping List
                 </button>
+                <button type="button" id="btn-prep" class="tab-btn" onclick="switchTab('prep')">
+                    🍳 Prep Guide
+                </button>
             </div>
 
             <!-- Tab 1: Weekly Menu -->
@@ -984,6 +987,15 @@
                     <div class="card-title">
                         🛒 Live Shopping List
                     </div>
+                    
+                    <!-- Quick Add Form -->
+                    <div style="margin-bottom: 1.5rem; display: flex; gap: 0.5rem;">
+                        <input type="text" id="quick-add-input" class="textarea-input" style="min-height: auto; padding: 0.75rem;" 
+                               placeholder="Quick add (e.g. Milk, Bread)..." 
+                               onkeypress="if(event.key === 'Enter') quickAddShoppingItem()">
+                        <button type="button" class="btn btn-primary" onclick="quickAddShoppingItem()">Add</button>
+                    </div>
+
                     <div class="shopping-list-container">
                         {% if shopping_list %}
                             {% for item in shopping_list %}
@@ -1006,6 +1018,63 @@
                     </div>
                     <div style="margin-top: 1.5rem; text-align: center;">
                         <a href="{{ mealie_url }}/shopping-lists/{{ active_list_id }}" class="btn btn-secondary" style="font-size: 0.8rem;">View Full List in Mealie</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Weekly Prep Guide -->
+            <div id="tab-prep" class="tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-title">
+                        🍳 Weekly Prep & Blackstone Guide
+                    </div>
+                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 2rem; margin-top: -1rem;">
+                        Grouped checklist of all meal-prep tasks and griddle tips for the week.
+                    </p>
+                    
+                    <div class="calendar-list">
+                        {% set ns = namespace(prep_found=false) %}
+                        {% for d_str in planning_dates %}
+                            {% set day_prep_entries = [] %}
+                            {% for item in meal_plans %}
+                                {% if item.date[:10] == d_str %}
+                                    {% if item.text or item.is_blackstone %}
+                                        {% set _ = day_prep_entries.append(item) %}
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if day_prep_entries %}
+                                {% set ns.prep_found = true %}
+                                <div style="margin-bottom: 1.5rem;">
+                                    <div class="control-group-label" style="margin-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.25rem;">
+                                        {{ d_str | select_day_name }} ({{ d_str }})
+                                    </div>
+                                    {% for entry in day_prep_entries %}
+                                        <div class="shopping-item" style="align-items: flex-start; flex-direction: column; gap: 0.5rem; padding: 1.25rem;">
+                                            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                                                <strong style="color: var(--color-primary);">{{ entry.entryType | capitalize }}: {{ entry.recipe.name if entry.recipeId else entry.title }}</strong>
+                                                {% if entry.is_blackstone %}
+                                                    <span style="font-size: 0.7rem; background: rgba(229, 131, 37, 0.2); color: var(--color-primary); padding: 2px 8px; border-radius: 4px; font-weight: bold;">🍳 Blackstone</span>
+                                                {% endif %}
+                                            </div>
+                                            {% if entry.text %}
+                                                <div style="font-size: 0.95rem; line-height: 1.5; color: var(--text-main); font-weight: 300;">
+                                                    {{ entry.text }}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if not ns.prep_found %}
+                            <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                                <div style="font-size: 2.5rem; margin-bottom: 1rem;">🔪</div>
+                                <p>No specific prep notes or griddle tasks for this week.</p>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -1143,18 +1212,23 @@
             
             const btnMenu = document.getElementById('btn-menu');
             const btnShopping = document.getElementById('btn-shopping');
+            const btnPrep = document.getElementById('btn-prep');
+            
             const tabMenu = document.getElementById('tab-menu');
             const tabShopping = document.getElementById('tab-shopping');
+            const tabPrep = document.getElementById('tab-prep');
             
-            if (!btnMenu || !btnShopping || !tabMenu || !tabShopping) return;
+            if (!btnMenu || !btnShopping || !btnPrep || !tabMenu || !tabShopping || !tabPrep) return;
 
             // Toggle Buttons
             btnMenu.classList.toggle('active', tabId === 'menu');
             btnShopping.classList.toggle('active', tabId === 'shopping');
+            btnPrep.classList.toggle('active', tabId === 'prep');
             
             // Toggle Content
             tabMenu.style.display = (tabId === 'menu') ? 'block' : 'none';
             tabShopping.style.display = (tabId === 'shopping') ? 'block' : 'none';
+            tabPrep.style.display = (tabId === 'prep') ? 'block' : 'none';
             
             // Save state
             localStorage.setItem('activeTab', tabId);
@@ -1212,6 +1286,32 @@
             const log = document.getElementById('loading-log');
             if (pb) pb.style.display = 'none';
             if (log) log.style.display = 'none';
+        }
+
+        async function quickAddShoppingItem() {
+            const input = document.getElementById('quick-add-input');
+            const note = input.value.trim();
+            if (!note) return;
+
+            showLoading('Adding ' + note + '...');
+            
+            try {
+                const response = await fetch('/add-shopping-item', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ note: note })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    window.location.reload();
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                console.error('Error adding item:', error);
+                document.getElementById('loading-overlay').style.display = 'none';
+                alert('Failed to add item: ' + error.message);
+            }
         }
 
         // --- INTERACTIVITY ---

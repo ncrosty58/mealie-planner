@@ -238,6 +238,22 @@ def clear_plan_route():
         flash(f"Error clearing data: {str(e)}", "danger")
     return redirect(url_for('index'))
 
+@app.route('/add-shopping-item', methods=['POST'])
+def add_shopping_item():
+    """Add a single manual item to the active shopping list."""
+    try:
+        data = request.get_json()
+        note = sanitize_input(data.get('note', ''))
+        if not note:
+            return json.dumps({"success": False, "error": "Item name is required"}), 400
+            
+        client = MealieClient()
+        client.add_shopping_list_item(ACTIVE_LIST_ID, note)
+        return json.dumps({"success": True})
+    except Exception as e:
+        print(f"Error adding shopping item: {e}")
+        return json.dumps({"success": False, "error": str(e)}), 500
+
 @app.route('/toggle-shopping-item', methods=['POST'])
 def toggle_shopping_item():
     try:
