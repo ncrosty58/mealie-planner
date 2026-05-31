@@ -802,13 +802,16 @@
                             <button type="submit" class="btn btn-secondary">🔄 Update Shopping List</button>
                         </form>
                         
-                        <a href="{{ mealie_url }}/shopping-list/{{ active_list_id }}" target="_blank" class="btn btn-primary" style="background: linear-gradient(135deg, var(--color-success) 0%, #059669 100%); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">🛒 Open Shopping List</a>
-
-                        <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('ARE YOU SURE? This will delete all current and next week meal plans and clear the active shopping list.');">
-                            <button type="submit" class="btn btn-danger">🗑️ Clear & Reset Plan</button>
-                        </form>
+                        <a href="{{ mealie_url }}/shopping-lists/{{ active_list_id }}" target="_blank" class="btn btn-primary" style="background: linear-gradient(135deg, var(--color-success) 0%, #059669 100%); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">🛒 Open Shopping List</a>
 
                         <a href="{{ mealie_url }}" target="_blank" class="btn btn-secondary">🌐 Open Mealie UI</a>
+                    </div>
+
+                    <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(239, 68, 68, 0.1);">
+                        <div style="color: var(--color-danger); font-size: 0.8rem; text-transform: uppercase; font-weight: 700; margin-bottom: 0.75rem; letter-spacing: 0.05em;">Danger Zone</div>
+                        <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('ARE YOU SURE? This will delete all current and next week meal plans and clear the active shopping list.');">
+                            <button type="submit" class="btn btn-danger" style="width: auto;">🗑️ Clear & Reset Plan</button>
+                        </form>
                     </div>
                 </div>
             </div>

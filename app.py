@@ -123,6 +123,11 @@ def index():
         start_date_obj = datetime.strptime(start_date_str, "%Y-%m-%d")
         planning_dates = [(start_date_obj + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(7)]
 
+        # Format the active_list_id as a hyphenated UUID for the frontend link
+        formatted_list_id = active_list_id
+        if len(active_list_id) == 32:
+            formatted_list_id = f"{active_list_id[:8]}-{active_list_id[8:12]}-{active_list_id[12:16]}-{active_list_id[16:20]}-{active_list_id[20:]}"
+
         return render_template(
             'index.html',
             is_submitted=True,
@@ -138,10 +143,15 @@ def index():
             staples=staples,
             low_staples=current_week_low_staples,
             mealie_url=MEALIE_FRONTEND_URL,
-            active_list_id=ACTIVE_LIST_ID
+            active_list_id=formatted_list_id
         )
     else:
         # NO PLAN YET. Render the QUESTIONNAIRE FORM
+        # Also format the active_list_id here just in case
+        formatted_list_id = ACTIVE_LIST_ID
+        if len(ACTIVE_LIST_ID) == 32:
+            formatted_list_id = f"{ACTIVE_LIST_ID[:8]}-{ACTIVE_LIST_ID[8:12]}-{ACTIVE_LIST_ID[12:16]}-{ACTIVE_LIST_ID[16:20]}-{ACTIVE_LIST_ID[20:]}"
+
         return render_template(
             'index.html',
             is_submitted=False,
@@ -150,7 +160,7 @@ def index():
             staples=staples,
             low_staples=current_week_low_staples,
             mealie_url=MEALIE_FRONTEND_URL,
-            active_list_id=ACTIVE_LIST_ID
+            active_list_id=formatted_list_id
         )
 
 
