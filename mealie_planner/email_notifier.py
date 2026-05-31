@@ -85,35 +85,39 @@ class EmailNotifier:
         }
 
     def generate_daily_ai_summary(self, day_name, breakfast, lunch, dinner_title, recipe_details=None, prep_note=None):
-        """Call Gemini to generate a brief, friendly daily summary of meals and dinner prep tasks."""
-        prompt = f"""You are a helpful, friendly AI kitchen assistant for the Crosty family (Nathan & Kristin).
-Generate a brief, warm, and highly actionable daily briefing synopsis for today ({day_name}).
+        """Call Gemini to generate a refined, appetizing culinary briefing of the day's meals."""
+        prompt = f"""You are a refined culinary writer and editor for a high-end gastronomic publication (such as Bon Appétit or NYT Cooking).
+Write an appetizing, mouth-watering daily menu summary and kitchen prep guide for today ({day_name}).
 
-Today's Meals:
+Today's Menu:
 - Breakfast: {breakfast}
 - Lunch: {lunch}
 - Dinner: {dinner_title}
 """
         if recipe_details:
             prompt += f"""
-Dinner Recipe Info:
+Dinner Recipe Details:
 - Name: {recipe_details.get('name')}
 - Description: {recipe_details.get('description', '')}
 - Ingredients: {', '.join(recipe_details.get('ingredients', []))}
 - Instructions: {" ".join(recipe_details.get('instructions', []))[:1000]}
 """
         if prep_note:
-            prompt += f"\nSpecific Prep Note for Today's Dinner: {prep_note}\n"
+            prompt += f"\nSpecific Dinner Prep Note: {prep_note}\n"
 
         prompt += """
-Write a short synopsis (2-4 sentences max) explaining:
-1. A quick, appetizing summary of what they are eating today (breakfast, lunch, dinner).
-2. Exactly what needs to be done to prepare tonight's dinner, highlighting any early prep, marinade time, defrosting, or Blackstone griddle batch-cooking/cleanup opportunities identified in the prep notes.
-
-Keep the tone warm, enthusiastic, and concise. Avoid generic fluff. Do not output markdown formatting like bolding or list bullet points, just write it as a natural, cohesive paragraph of text that can be embedded directly in an email body.
+Guidelines for writing:
+1. **Appetizing Sensory Description**: Describe the flavors, textures, and sensory qualities of today's dinner using specific ingredients from the recipe. Avoid vague praise like "delicious", "tasty", "mouth-watering", "perfect", or "amazing". Instead, use concrete, evocative language (e.g., "velvety cream sauce", "fragrant sautéed garlic", "tender wilted spinach", "spicy kick of crushed red pepper").
+2. **Crisp Kitchen Prep Brief**: Detail the exact tasks required to prepare dinner based on the instructions or prep notes (e.g. boiling pasta, sautéing aromatics, griddle preparation, or marinating). Keep it practical and direct.
+3. **Strict Style Prohibitions (Zero Chatbot Cringe)**:
+   - NEVER start with greetings (e.g., "Good morning", "Happy Sunday").
+   - NEVER address the family or users by name (never write "Nathan", "Kristin", "Crosty family", "you", or "your").
+   - NEVER use corporate/robotic AI transitions or filler phrases (e.g., "Here is today's menu", "Today's plan is", "Get ready for", "culinary journey", "symphony of flavors", "culinary endeavor", "delight your taste buds").
+   - Do NOT use emojis or markdown (no asterisks, bolding, lists, or bullets).
+4. **Format**: Exactly one cohesive paragraph (3-4 sentences total, under 100 words). Keep it text-only and clean.
 """
         try:
-            summary = self.gemini.call(prompt, expect_json=False, temperature=0.5).strip()
+            summary = self.gemini.call(prompt, expect_json=False, temperature=0.4).strip()
             return summary
         except Exception as e:
             print(f"[Email] Failed to generate AI summary: {e}")
@@ -126,19 +130,21 @@ Keep the tone warm, enthusiastic, and concise. Avoid generic fluff. Do not outpu
         
         dn_html = dn_title
         if dn_recipe:
-            dn_html = f'<a href="https://mealie.cosmoslab.dev/g/home/r/{dn_recipe.get("slug")}" style="color: #E76F51; text-decoration: none; font-weight: bold; border-bottom: 1px dotted #E76F51;">{dn_recipe.get("name")}</a>'
+            dn_html = f'<a href="https://mealie.cosmoslab.dev/g/home/r/{dn_recipe.get("slug")}" style="color: #3C5A54; text-decoration: none; font-weight: bold; border-bottom: 1px dotted #3C5A54;">{dn_recipe.get("name")}</a>'
 
         prep_tip = ""
         if ai_prep_note:
             prep_tip = f"""
-            <div style="background-color: #FFF3CD; border-left: 4px solid #FFC107; padding: 15px; border-radius: 6px; margin: 20px 0; font-size: 14px; color: #664D03;">
-              📝 <strong>Dinner Prep Instructions:</strong> {ai_prep_note}
+            <div style="background-color: #FAF9F6; border-left: 2px solid #C66B3D; padding: 16px 20px; border-radius: 4px; margin: 24px 0; font-size: 14px; color: #5C5247; border: 1px solid #EFECE6; font-family: 'Plus Jakarta Sans', sans-serif;">
+              <strong style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 700; color: #C66B3D; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 6px;">Kitchen Preparation</strong>
+              <span style="line-height: 1.5; display: block;">{ai_prep_note}</span>
             </div>
             """
         elif is_blackstone:
             prep_tip = """
-            <div style="background-color: #E8F5E9; border-left: 4px solid #2A9D8F; padding: 15px; border-radius: 6px; margin: 20px 0; font-size: 14px; color: #1B5E20;">
-              🍳 <strong>Blackstone Griddle Fired Up!</strong> Tonight's dinner is griddle-ready. Consider batch-cooking proteins or veggies for the coming days while it's hot!
+            <div style="background-color: #F6FAF9; border-left: 2px solid #3C5A54; padding: 16px 20px; border-radius: 4px; margin: 24px 0; font-size: 14px; color: #354743; border: 1px solid #E6EFEF; font-family: 'Plus Jakarta Sans', sans-serif;">
+              <strong style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 700; color: #3C5A54; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 6px;">Blackstone Griddle Fired Up</strong>
+              <span style="line-height: 1.5; display: block;">Tonight's dinner is compatible with the Blackstone. Consider batch-cooking proteins or vegetables to save prep time later in the week.</span>
             </div>
             """
 
@@ -150,24 +156,26 @@ Keep the tone warm, enthusiastic, and concise. Avoid generic fluff. Do not outpu
             
             target = RDA.get(k, 0.0)
             pct = round((v / target) * 100) if target > 0 else 0
-            color = "#2A9D8F"
+            color = "#3C5A54"
             if k == "sodium" and pct > 100: color = "#EF5350"
-            elif k == "fiber" and pct < 100: color = "#E58325"
+            elif k == "fiber" and pct < 100: color = "#C66B3D"
             
             nut_text += f"""
-            <span style="display: inline-block; margin-right: 10px; margin-bottom: 8px; background: #F1F3F5; padding: 6px 12px; border-radius: 6px; font-size: 13px; border: 1px solid #E9ECEF; color: #495057;">
-              <strong>{k.capitalize()}</strong>: {v}{unit} (<span style="color: {color}; font-weight: bold;">{pct}%</span>)
+            <span style="display: inline-block; margin: 4px 6px; background: #FAF9F6; padding: 6px 12px; border-radius: 4px; font-size: 12px; border: 1px solid #EFECE6; color: #5C5247; font-family: 'Plus Jakarta Sans', sans-serif;">
+              <strong style="color: #3C5A54;">{k.capitalize()}</strong>: {v}{unit} &bull; <span style="color: {color}; font-weight: 700;">{pct}%</span>
             </span>
             """
 
         ai_summary_html = ""
         if ai_summary:
+            clean_summary = ai_summary.strip().strip('"').strip("'")
             ai_summary_html = f"""
-            <div style="background: linear-gradient(135deg, #F4F9F9 0%, #EBF4F5 100%); border-left: 5px solid #2A9D8F; padding: 18px; border-radius: 8px; margin: 20px 0; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02);">
-              <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #264653; font-style: italic;">
-                " {ai_summary} "
+            <div style="margin: 24px 0; padding: 0 10px;">
+              <p style="margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 16px; line-height: 1.7; color: #2C2C2C; font-style: italic; text-align: center;">
+                "{clean_summary}"
               </p>
             </div>
+            <div style="text-align: center; margin: 20px 0;"><span style="color: #D5CEB8; font-size: 14px;">❖ ❖ ❖</span></div>
             """
 
         html = f"""
@@ -175,27 +183,39 @@ Keep the tone warm, enthusiastic, and concise. Avoid generic fluff. Do not outpu
           <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Today's Daily Briefing</title>
+            <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+            <title>Today's Culinary Briefing</title>
           </head>
-          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, Helvetica, Arial, sans-serif; background-color: #F8F9FA; padding: 20px; color: #333; margin: 0;">
-            <div style="max-width: 650px; margin: 0 auto; background: white; border-radius: 16px; padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid #E9ECEF;">
+          <body style="font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color: #F4F0EB; padding: 20px; color: #2C2C2C; margin: 0;">
+            <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 30px; box-shadow: 0 4px 20px rgba(46, 33, 23, 0.05); border: 1px solid #E6DFD5;">
               
               <!-- Brand Header -->
-              <div style="text-align: center; margin-bottom: 25px; background: linear-gradient(135deg, #264653 0%, #2A9D8F 100%); padding: 20px; border-radius: 12px;">
-                <h2 style="color: white; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.5px;">🍽️ Today's Daily Briefing</h2>
-                <p style="color: #E0F2F1; margin: 5px 0 0 0; font-size: 14px; font-weight: 500;">{day_name}, {datetime.strptime(date_str, "%Y-%m-%d").strftime("%B %d, %Y")}</p>
+              <div style="text-align: center; padding: 24px 0 16px 0; border-bottom: 1px double #D5CEB8; margin-bottom: 24px;">
+                <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 700; color: #C66B3D; text-transform: uppercase; letter-spacing: 2px; display: block; margin-bottom: 6px;">Daily Briefing</span>
+                <h1 style="font-family: 'Playfair Display', Georgia, serif; color: #3C5A54; margin: 0; font-size: 28px; font-weight: 700; font-style: italic; line-height: 1.2;">The Crosty Kitchen</h1>
+                <p style="font-family: 'Plus Jakarta Sans', sans-serif; color: #8C8273; margin: 8px 0 0 0; font-size: 13px; font-weight: 500; letter-spacing: 0.5px;">{day_name} &bull; {datetime.strptime(date_str, "%Y-%m-%d").strftime("%B %d, %Y")}</p>
               </div>
 
               <!-- AI Summary Synopsis -->
               {ai_summary_html}
 
-              <!-- Today's Menu Grid -->
-              <div style="background-color: #F8F9FA; border-radius: 10px; padding: 20px; margin-bottom: 20px; border: 1px solid #E9ECEF;">
-                <h3 style="color: #264653; margin-top: 0; font-size: 16px; border-bottom: 1px solid #E9ECEF; padding-bottom: 8px;">📋 Today's Menu</h3>
-                <div style="margin: 15px 0; line-height: 1.5;">
-                  <p style="font-size: 15px; margin: 8px 0; color: #495057;">☕ <strong>Breakfast:</strong> <span style="color: #212529;">{bf}</span></p>
-                  <p style="font-size: 15px; margin: 8px 0; color: #495057;">🥗 <strong>Lunch:</strong> <span style="color: #212529;">{ln}</span></p>
-                  <p style="font-size: 16px; margin: 12px 0 0 0; color: #495057;">🥘 <strong>Dinner:</strong> <span style="font-size: 16px; color: #E76F51; font-weight: bold;">{dn_html}</span></p>
+              <!-- Today's Menu -->
+              <div style="margin-bottom: 30px; padding: 0 10px;">
+                <h2 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; font-weight: 700; color: #C66B3D; text-transform: uppercase; letter-spacing: 1.5px; text-align: center; margin-bottom: 20px; margin-top: 0;">Today's Menu</h2>
+                
+                <div style="margin-bottom: 20px; text-align: center;">
+                  <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 600; color: #8C8273; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 2px;">Breakfast</span>
+                  <span style="font-family: 'Playfair Display', Georgia, serif; font-size: 16px; color: #2C2C2C; font-weight: 500;">{bf}</span>
+                </div>
+
+                <div style="margin-bottom: 20px; text-align: center;">
+                  <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 600; color: #8C8273; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 2px;">Lunch</span>
+                  <span style="font-family: 'Playfair Display', Georgia, serif; font-size: 16px; color: #2C2C2C; font-weight: 500;">{ln}</span>
+                </div>
+
+                <div style="margin-bottom: 20px; text-align: center;">
+                  <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 600; color: #8C8273; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 2px;">Dinner</span>
+                  <span style="font-family: 'Playfair Display', Georgia, serif; font-size: 20px; color: #3C5A54; font-weight: 700; display: block;">{dn_html}</span>
                 </div>
               </div>
 
@@ -203,9 +223,9 @@ Keep the tone warm, enthusiastic, and concise. Avoid generic fluff. Do not outpu
               {prep_tip}
 
               <!-- Today's Nutrition Summary -->
-              <div style="margin-top: 25px; border-top: 1px solid #E9ECEF; padding-top: 20px;">
-                <h4 style="color: #264653; margin: 0 0 12px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">📊 Daily Nutritional Summary (per person)</h4>
-                <div style="line-height: 1.8;">
+              <div style="margin-top: 30px; border-top: 1px double #D5CEB8; padding-top: 20px;">
+                <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 700; color: #8C8273; text-transform: uppercase; letter-spacing: 1.5px; text-align: center; margin-bottom: 16px; margin-top: 0;">Daily Nutritional Analysis</h3>
+                <div style="text-align: center; line-height: 2;">
                   {nut_text}
                 </div>
               </div>
@@ -213,8 +233,8 @@ Keep the tone warm, enthusiastic, and concise. Avoid generic fluff. Do not outpu
               <!-- Appended Weekly Summary Content (Saturday only) -->
               {weekly_content_html or ""}
               
-              <p style="font-size: 13px; color: #868E96; text-align: center; margin-top: 35px; border-top: 1px solid #F1F3F5; padding-top: 20px;">
-                Need to change something? Go to <a href="{APP_URL}" style="color: #2A9D8F; text-decoration: none; font-weight: 600;">Your Dashboard</a> to edit dates, swap dinners, and sync your list instantly.
+              <p style="font-size: 13px; color: #8C8273; text-align: center; margin-top: 35px; border-top: 1px solid #EFECE6; padding-top: 20px; font-family: 'Plus Jakarta Sans', sans-serif;">
+                Need to change something? Go to <a href="{APP_URL}" style="color: #3C5A54; text-decoration: none; font-weight: 600; border-bottom: 1px dotted #3C5A54;">Your Dashboard</a> to edit dates, swap dinners, and sync your list instantly.
               </p>
             </div>
           </body>
@@ -318,18 +338,18 @@ Keep the tone warm, enthusiastic, and concise. Avoid generic fluff. Do not outpu
                     if dinner_item.get('recipeId'):
                         try:
                             r = self.client.get_recipe_details(dinner_item['recipeId'])
-                            dn = f'<a href="https://mealie.cosmoslab.dev/g/home/r/{r["slug"]}" style="color: #E76F51; text-decoration: none; border-bottom: 1px dotted #E76F51; font-weight:bold;">{r["name"]}</a>'
+                            dn = f'<a href="https://mealie.cosmoslab.dev/g/home/r/{r["slug"]}" style="color: #C66B3D; text-decoration: none; border-bottom: 1px dotted #C66B3D; font-weight:bold;">{r["name"]}</a>'
                         except:
                             dn = "Recipe Details Unavailable"
                     elif dinner_item.get('title'):
                         dn = dinner_item['title']
                         
                 meal_rows += f"""
-                <tr style="border-bottom: 1px solid #E9ECEF;">
-                  <td style="padding: 12px 10px; font-weight: bold; width: 120px; color: #264653;">{day_name}</td>
-                  <td style="padding: 12px 10px; color: #495057;">{bf}</td>
-                  <td style="padding: 12px 10px; color: #495057;">{ln}</td>
-                  <td style="padding: 12px 10px; color: #E76F51; font-weight: bold;">{dn}</td>
+                <tr style="border-bottom: 1px solid #EFECE6;">
+                  <td style="padding: 12px 10px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: bold; width: 120px; color: #3C5A54;">{day_name}</td>
+                  <td style="padding: 12px 10px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; color: #5C5247;">{bf}</td>
+                  <td style="padding: 12px 10px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; color: #5C5247;">{ln}</td>
+                  <td style="padding: 12px 10px; font-family: 'Playfair Display', Georgia, serif; font-size: 14px; font-weight: bold; color: #C66B3D;">{dn}</td>
                 </tr>
                 """
 
@@ -338,47 +358,47 @@ Keep the tone warm, enthusiastic, and concise. Avoid generic fluff. Do not outpu
             for k, rda_val in RDA.items():
                 avg_val = averages.get(k, 0.0)
                 pct = round((avg_val / rda_val) * 100) if rda_val > 0 else 0
-                status_color = "#2A9D8F"
+                status_color = "#3C5A54"
                 if k == "sodium" and pct > 100:
                     status_color = "#EF5350"
                 elif k == "fiber" and pct < 100:
-                    status_color = "#E58325"
+                    status_color = "#C66B3D"
                     
                 unit = "g"
                 if k == "calories": unit = "kcal"
                 elif k in ["sodium", "cholesterol"]: unit = "mg"
                 
                 nut_rows += f"""
-                <tr style="border-bottom: 1px solid #E9ECEF;">
-                  <td style="padding: 12px 10px; text-transform: capitalize; color: #495057;">{k}</td>
-                  <td style="padding: 12px 10px; font-weight: bold; color: #212529;">{avg_val} {unit}</td>
-                  <td style="padding: 12px 10px; color: #6C757D;">{rda_val} {unit}</td>
-                  <td style="padding: 12px 10px; font-weight: bold; color: {status_color};">{pct}%</td>
+                <tr style="border-bottom: 1px solid #EFECE6;">
+                  <td style="padding: 12px 10px; text-transform: capitalize; color: #5C5247; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px;">{k}</td>
+                  <td style="padding: 12px 10px; font-weight: bold; color: #2C2C2C; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px;">{avg_val} {unit}</td>
+                  <td style="padding: 12px 10px; color: #8C8273; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px;">{rda_val} {unit}</td>
+                  <td style="padding: 12px 10px; font-weight: bold; color: {status_color}; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px;">{pct}%</td>
                 </tr>
                 """
 
             # Clean up freezer & special requests text
             freezer_str = freezer_items if freezer_items else "None specified"
             special_requests_str = special_requests if special_requests else "None"
-            staples_str = f"<br/>* <strong>Low Staples Added</strong>: {', '.join(low_staples_names)}" if low_staples_names else ""
+            staples_str = f"<br/>&bull; <strong>Low Staples Added</strong>: {', '.join(low_staples_names)}" if low_staples_names else ""
             exclude_text_str = exclude_text if exclude_text else "None"
 
             # Assemble the appended weekly content HTML
             weekly_content_html = f"""
-            <div style="margin-top: 35px; border-top: 2px solid #2A9D8F; padding-top: 25px;">
-              <h2 style="color: #264653; font-size: 18px; margin-top: 0; text-align: center; text-transform: uppercase; letter-spacing: 1px;">🗓️ Full Weekly Plan & Shopping List Summary</h2>
-              <p style="font-size: 14px; line-height: 1.5; color: #6C757D; text-align: center; margin-bottom: 25px;">
+            <div style="margin-top: 35px; border-top: 2px double #D5CEB8; padding-top: 25px;">
+              <h2 style="color: #3C5A54; font-family: 'Playfair Display', Georgia, serif; font-style: italic; font-size: 20px; margin-top: 0; text-align: center; letter-spacing: 0.5px;">Weekly Plan & Shopping Summary</h2>
+              <p style="font-size: 14px; line-height: 1.5; color: #8C8273; text-align: center; margin-bottom: 25px; font-family: 'Plus Jakarta Sans', sans-serif;">
                 The active shopping list in Mealie has been populated with ingredients for the week of <strong>{start_date_str} to {end_date_str}</strong>.
               </p>
 
-              <h3 style="color: #264653; border-bottom: 2px solid #E9ECEF; padding-bottom: 6px; font-size: 15px; text-transform: uppercase;">📅 Weekly Calendar</h3>
+              <h3 style="color: #3C5A54; border-bottom: 1px solid #EFECE6; padding-bottom: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-family: 'Plus Jakarta Sans', sans-serif; margin-top: 30px;">📅 Weekly Calendar</h3>
               <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
                 <thead>
-                  <tr style="background-color: #F8F9FA; text-align: left; border-bottom: 2px solid #DEE2E6;">
-                    <th style="padding: 10px; color: #495057; font-size: 13px; text-transform: uppercase;">Day</th>
-                    <th style="padding: 10px; color: #495057; font-size: 13px; text-transform: uppercase;">Breakfast</th>
-                    <th style="padding: 10px; color: #495057; font-size: 13px; text-transform: uppercase;">Lunch</th>
-                    <th style="padding: 10px; color: #495057; font-size: 13px; text-transform: uppercase;">Dinner</th>
+                  <tr style="background-color: #FAF9F6; text-align: left; border-bottom: 2px solid #EFECE6;">
+                    <th style="padding: 10px; color: #3C5A54; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-family: 'Plus Jakarta Sans', sans-serif;">Day</th>
+                    <th style="padding: 10px; color: #3C5A54; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-family: 'Plus Jakarta Sans', sans-serif;">Breakfast</th>
+                    <th style="padding: 10px; color: #3C5A54; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-family: 'Plus Jakarta Sans', sans-serif;">Lunch</th>
+                    <th style="padding: 10px; color: #3C5A54; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-family: 'Plus Jakarta Sans', sans-serif;">Dinner</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -386,15 +406,15 @@ Keep the tone warm, enthusiastic, and concise. Avoid generic fluff. Do not outpu
                 </tbody>
               </table>
      
-              <h3 style="color: #264653; border-bottom: 2px solid #E9ECEF; padding-bottom: 6px; font-size: 15px; text-transform: uppercase; margin-top: 30px;">🥦 Weekly Nutritional Analysis (Family Average)</h3>
-              <p style="font-size: 13px; color: #6C757D; margin-top: 0; margin-bottom: 15px;">Calculated daily average per person, including estimated breakfast staples & leftovers.</p>
+              <h3 style="color: #3C5A54; border-bottom: 1px solid #EFECE6; padding-bottom: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-family: 'Plus Jakarta Sans', sans-serif; margin-top: 30px;">🥦 Weekly Nutritional Analysis (Family Average)</h3>
+              <p style="font-size: 13px; color: #8C8273; margin-top: 0; margin-bottom: 15px; font-family: 'Plus Jakarta Sans', sans-serif;">Calculated daily average per person, including estimated breakfast staples & leftovers.</p>
               <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
                 <thead>
-                  <tr style="background-color: #F8F9FA; text-align: left; border-bottom: 2px solid #DEE2E6;">
-                    <th style="padding: 10px; color: #495057; font-size: 13px; text-transform: uppercase;">Nutrient</th>
-                    <th style="padding: 10px; color: #495057; font-size: 13px; text-transform: uppercase;">Daily Avg</th>
-                    <th style="padding: 10px; color: #495057; font-size: 13px; text-transform: uppercase;">RDA Target</th>
-                    <th style="padding: 10px; color: #495057; font-size: 13px; text-transform: uppercase;">% Target</th>
+                  <tr style="background-color: #FAF9F6; text-align: left; border-bottom: 2px solid #EFECE6;">
+                    <th style="padding: 10px; color: #3C5A54; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-family: 'Plus Jakarta Sans', sans-serif;">Nutrient</th>
+                    <th style="padding: 10px; color: #3C5A54; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-family: 'Plus Jakarta Sans', sans-serif;">Daily Avg</th>
+                    <th style="padding: 10px; color: #3C5A54; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-family: 'Plus Jakarta Sans', sans-serif;">RDA Target</th>
+                    <th style="padding: 10px; color: #3C5A54; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-family: 'Plus Jakarta Sans', sans-serif;">% Target</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -402,11 +422,11 @@ Keep the tone warm, enthusiastic, and concise. Avoid generic fluff. Do not outpu
                 </tbody>
               </table>
      
-              <div style="background-color: #F8F9FA; border-left: 4px solid #2A9D8F; padding: 15px; border-radius: 6px; margin-top: 30px; font-size: 13px; color: #495057; border: 1px solid #E9ECEF;">
-                <strong style="color: #264653;">📝 Submission Context:</strong><br/>
-                <span style="display:inline-block; margin-top: 5px;">* <strong>Meal Opt-Outs</strong>: {exclude_text_str}</span><br/>
-                <span>* <strong>Freezer/Pantry/Fridge Items</strong>: {freezer_str}{staples_str}</span><br/>
-                <span>* <strong>Special Requests</strong>: {special_requests_str}</span>
+              <div style="background-color: #FAF9F6; border-left: 2px solid #C66B3D; padding: 16px 20px; border-radius: 4px; margin-top: 30px; font-size: 13px; color: #5C5247; border: 1px solid #EFECE6; font-family: 'Plus Jakarta Sans', sans-serif;">
+                <strong style="color: #C66B3D; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 6px;">Submission Context</strong>
+                <span style="display:inline-block; margin-top: 5px;">&bull; <strong>Meal Opt-Outs</strong>: {exclude_text_str}</span><br/>
+                <span>&bull; <strong>Freezer/Pantry/Fridge Items</strong>: {freezer_str}{staples_str}</span><br/>
+                <span>&bull; <strong>Special Requests</strong>: {special_requests_str}</span>
               </div>
             </div>
             """
