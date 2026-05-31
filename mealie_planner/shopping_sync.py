@@ -230,8 +230,18 @@ class ShoppingListSync:
                 # Safe Sync: Check if this item was previously checked off
                 is_checked = False
                 note_key = full_note.strip().lower()
+                clean_name = name.strip().lower()
+                
+                # 1. Exact match (fastest)
                 if note_key in checked_items_cache:
                     is_checked = True
+                else:
+                    # 2. Fuzzy match: check if clean name is a subset of any old checked note (or vice versa)
+                    # This handles "1 Shallot" vs "Shallot", "Olive Oil" vs "Extra Virgin Olive Oil", etc.
+                    for old_note in checked_items_cache.keys():
+                        if clean_name in old_note or old_note in clean_name:
+                            is_checked = True
+                            break
                 
                 ingredients_list.append({
                     "shoppingListId": ACTIVE_LIST_ID,
