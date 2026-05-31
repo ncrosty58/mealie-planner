@@ -166,6 +166,11 @@ In addition to the standard Shopping List Sync workflow, you must merge the newl
    - `checked`: The matched `checked` state (boolean).
    - `category`: The EXACT zone name from `available_labels`.
 
+### CATEGORIZATION GUIDELINES
+- Fresh herbs (e.g., Thyme, Rosemary, Parsley, Cilantro, Basil) MUST be categorized under "1. Produce: Vegetables & Greens", NOT under spices.
+- Jarred ingredients, canned goods, vinegars, condiments, and spreads (e.g., Artichoke Hearts, Olives, Dijon Mustard, Tahini, Balsamic Glaze, Chicken Broth, Rice) MUST be categorized under "5. Pantry & Grains".
+- Only dried spices, baking ingredients, and cooking oils (e.g., Olive Oil, Paprika, Red Pepper Flakes, Onion Powder) should be categorized under "6. Baking, Spices & Oils".
+
 ### CONTEXT:
 Input: {json.dumps(payload)}
 Dietary: {FAMILY_DIETARY_RULES_PROMPT}
@@ -206,7 +211,7 @@ Return ONLY the JSON array of objects. Do not include any extra text or conversa
                         "note": full_note,
                         "quantity": qty,
                         "checked": checked,
-                        "labelId": label_id or original.get('labelId')
+                        "labelId": original.get('labelId') or label_id
                     })
                     to_update.append(updated)
                 else:
