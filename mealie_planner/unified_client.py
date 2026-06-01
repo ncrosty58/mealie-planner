@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import time
 import logging
 from typing import List, Dict, Any, Optional
 
@@ -17,6 +18,11 @@ from .models import StandardizedIngredients
 from .config import _INGREDIENT_STANDARDIZATION_SKILL_DEFINITION
 
 _recipe_details_cache = {}
+# Per-key fetch timestamps so cached recipe details can expire (see RECIPE_CACHE_TTL).
+_recipe_details_cache_ts = {}
+# Default time-to-live (seconds) for cached recipe details. Bounds staleness when a
+# recipe is edited out-of-band (e.g. by the MCP chat subprocess, whose cache is separate).
+RECIPE_CACHE_TTL = int(os.getenv('RECIPE_CACHE_TTL', '600'))
 
 class UnifiedMealieClient(MealieFetcher):
     """
@@ -43,6 +49,7 @@ class UnifiedMealieClient(MealieFetcher):
             
         super().__init__(base_url=base_url, api_key=api_key)
         self._recipe_details_cache = _recipe_details_cache
+        self._recipe_details_cache_ts = _recipe_details_cache_ts
         self._initialized = True
 
     # --- Legacy Compatibility Aliases ---
@@ -65,23 +72,40 @@ class UnifiedMealieClient(MealieFetcher):
         return []
 
     def get_recipe_details(self, recipe_id_or_slug: str) -> Dict[str, Any]:
-        """Fetch full details of a specific recipe, using a local cache."""
-        if recipe_id_or_slug in self._recipe_details_cache:
-            return self._recipe_details_cache[recipe_id_or_slug]
+        """Fetch full details of a specific recipe, using a local TTL cache."""
+        cached = self._recipe_details_cache.get(recipe_id_or_slug)
+        if cached is not None:
+            age = time.time() - self._recipe_details_cache_ts.get(recipe_id_or_slug, 0)
+            if age < RECIPE_CACHE_TTL:
+                return cached
 
         details = self.get_recipe(recipe_id_or_slug)
         self._recipe_details_cache[recipe_id_or_slug] = details
+        self._recipe_details_cache_ts[recipe_id_or_slug] = time.time()
         return details
+
+    def invalidate_recipe_cache(self, *keys: str):
+        """Drop cached recipe details. Pass one or more id/slug keys, or no args to clear all.
+
+        Call after mutating a recipe so the next read re-fetches fresh data."""
+        if not keys:
+            self._recipe_details_cache.clear()
+            self._recipe_details_cache_ts.clear()
+            return
+        for key in keys:
+            self._recipe_details_cache.pop(key, None)
+            self._recipe_details_cache_ts.pop(key, None)
 
     def get_recipes_details_bulk(self, recipe_ids: List[str]) -> Dict[str, Dict[str, Any]]:
         """Fetch full details for a list of recipes sequentially to protect server stability."""
-        import time
         for rid in recipe_ids:
-            if rid not in self._recipe_details_cache:
+            cached = self._recipe_details_cache.get(rid)
+            fresh = cached is not None and (time.time() - self._recipe_details_cache_ts.get(rid, 0)) < RECIPE_CACHE_TTL
+            if not fresh:
                 try:
                     # Sequential fetch with a small breath to prevent SQLite/Worker locking
                     self.get_recipe_details(rid)
-                    time.sleep(0.1) 
+                    time.sleep(0.1)
                 except Exception as e:
                     logger.error(f"Error fetching recipe {rid}: {e}")
 

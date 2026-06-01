@@ -9,7 +9,7 @@ from .config import (
     FAMILY_RECIPIENT_EMAILS, RDA, STAPLES_LIST_ID, APP_URL, TIMEZONE,
     _DAILY_BRIEFING_GENERATION_SKILL_DEFINITION, _WEEKLY_THEMES_SYNOPSIS_SKILL_DEFINITION
 )
-from .utils import get_active_week_strings, get_active_week_range
+from .utils import get_active_week_strings, get_active_week_range, extract_ingredient_texts
 from .exceptions import MealieAPIError, MealiePlannerError
 
 class EmailNotifier:
@@ -89,18 +89,8 @@ class EmailNotifier:
         """Extract and format ingredients and instructions for the AI prompt from raw details."""
         if not raw_details:
             return None
-        ingredients = []
-        for ing in raw_details.get('recipeIngredient', []):
-            ing_text = ing.get('display') or ing.get('originalText')
-            if not ing_text:
-                note = ing.get('note') or ""
-                food_name = ing.get('food', {}).get('name') if ing.get('food') else ""
-                quantity = ing.get('quantity') or ""
-                unit = ing.get('unit', {}).get('name') if ing.get('unit') else ""
-                ing_text = f"{quantity} {unit} {food_name} {note}".strip()
-            if ing_text:
-                ingredients.append(ing_text)
-                
+        ingredients = extract_ingredient_texts(raw_details)
+
         instructions = [i.get('text', '') for i in raw_details.get('recipeInstructions', []) if i.get('text')]
         
         return {
@@ -275,8 +265,12 @@ Tomorrow's Dinner details:
         """
         return html
 
-    def send_daily_reminder_email(self, date_str=None):
-        """Generate and send the daily meal briefing email."""
+    def send_daily_reminder_email(self, date_str=None, weekly_content_html=None, subject_override=None):
+        """Generate and send the daily meal briefing email.
+
+        When `weekly_content_html` is supplied (e.g. the Saturday report), it is appended
+        below the daily briefing so a single combined email is sent.
+        """
         if not date_str:
             date_str = datetime.now(pytz.timezone(TIMEZONE)).strftime("%Y-%m-%d")
             
@@ -341,10 +335,11 @@ Tomorrow's Dinner details:
         
         html = self.build_daily_briefing_html(
             day_name=day_name, date_str=date_str, bf=bf, ln=ln, dn_title=dn_title,
-            dn_recipe=dn_recipe, ai_prep_note=ai_prep_note, today_nutrients=today_nutrients, ai_summary=ai_summary
+            dn_recipe=dn_recipe, ai_prep_note=ai_prep_note, today_nutrients=today_nutrients,
+            ai_summary=ai_summary, weekly_content_html=weekly_content_html
         )
-        
-        subject = f"🍽️ Today's Meal Plan: {dn_title} ({day_name})"
+
+        subject = subject_override or f"🍽️ Today's Meal Plan: {dn_title} ({day_name})"
         return self.send_email(subject, html)
 
     def send_saturday_report_email(self, start_date_str, end_date_str, exclude_text, freezer_items, low_staples_ids, special_requests=""):
@@ -410,12 +405,18 @@ Tomorrow's Dinner details:
             </div>
             """
 
-            # Prefix with today's daily briefing (first day of the newly planned subset)
-            self.send_daily_reminder_email(start_date_str)
-            # (In a real implementation we might combine them, but for brevity here we trigger daily)
-            
+            # Send a single combined email: today's daily briefing (first day of the newly
+            # planned subset) followed by the full weekly plan summary built above.
+            subject = f"🍽️ Your Weekly Meal Plan is Ready ({active_start_str} to {active_end_str})"
+            return self.send_daily_reminder_email(
+                start_date_str,
+                weekly_content_html=weekly_content_html,
+                subject_override=subject,
+            )
+
         except Exception as e:
             print(f"[Email] Failed Saturday report: {e}")
+            return False
 
 def send_email(subject, html_content):
     from .unified_client import UnifiedMealieClient

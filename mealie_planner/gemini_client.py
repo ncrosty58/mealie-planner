@@ -66,6 +66,29 @@ class GeminiClient:
             print(f"Gemini API call failed: {e}")
             raise
 
+    def generate(self, contents, system_instruction=None, tools=None,
+                 temperature=None, model=None, timeout=90) -> dict:
+        """Lower-level generateContent call exposing multi-turn `contents`, a system
+        instruction, and tool/function-calling. Returns the raw parsed JSON response.
+
+        Used by the MCP chat agent, which needs the full conversation + function calls
+        rather than the single-prompt-to-text convenience of `call()`.
+        """
+        model = model or self.model
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.api_key}"
+
+        payload = {"contents": contents}
+        if system_instruction:
+            payload["systemInstruction"] = {"parts": [{"text": system_instruction}]}
+        if tools:
+            payload["tools"] = tools
+        if temperature is not None:
+            payload["generationConfig"] = {"temperature": temperature}
+
+        resp = self.session.post(url, json=payload, timeout=timeout)
+        resp.raise_for_status()
+        return resp.json()
+
 def call_gemini(prompt: str, expect_json: bool = True, temperature: float = 0.2, thinking_budget: int = 0, response_schema = None) -> str:
     """Compatibility wrapper function."""
     client = GeminiClient()
