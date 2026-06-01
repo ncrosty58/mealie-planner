@@ -7,6 +7,7 @@ from .config import (
     _RECIPE_NUTRITION_IMPUTATION_SKILL_DEFINITION
 )
 from .exceptions import MealieAPIError, SkillParsingError
+from .models import RecipeNutritionImputation
 
 class RecipeNutrition:
     def __init__(self, mealie_client, gemini_client):
@@ -47,8 +48,8 @@ class RecipeNutrition:
         )
 
         try:
-            raw = self.gemini.call(prompt, expect_json=True)
-            result = json.loads(raw)
+            raw = self.gemini.call(prompt, response_schema=RecipeNutritionImputation)
+            result = RecipeNutritionImputation.model_validate_json(raw).model_dump()
             # Basic validation
             for k in RDA.keys():
                 if k not in result:

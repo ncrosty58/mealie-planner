@@ -8,6 +8,7 @@ from .config import (
 )
 from .recipe_crawler import RecipeCrawler
 from .exceptions import MealieAPIError, SkillParsingError
+from .models import CompiledShoppingList
 
 def normalize_ingredient_name(name: str) -> str:
     """Normalize ingredient name for matching by stripping quantity, unit, descriptors, and organic tag."""
@@ -176,8 +177,9 @@ Input: {json.dumps(payload)}
 Dietary: {FAMILY_DIETARY_RULES_PROMPT}
 
 Return ONLY the JSON array of objects. Do not include any extra text or conversational response."""
-            ai_response = self.gemini.call(prompt, expect_json=True)
-            final_items = json.loads(ai_response)
+            ai_response = self.gemini.call(prompt, response_schema=CompiledShoppingList)
+            parsed_list = CompiledShoppingList.model_validate_json(ai_response).root
+            final_items = [item.model_dump() for item in parsed_list]
 
             # 4. Merge changes in Mealie
             if progress_callback: progress_callback("Merging changes...", 98)

@@ -5,6 +5,7 @@ from .config import (
     _MEAL_EXCLUSION_PARSING_SKILL_DEFINITION
 )
 from .exceptions import SkillParsingError
+from .models import ParsedIngredientList, MealExclusions
 
 def parse_freezer_items(gemini_client, text: str) -> list:
     """Use Gemini to parse free-text freezer/pantry/fridge items into structured ingredient data."""
@@ -20,11 +21,10 @@ def parse_freezer_items(gemini_client, text: str) -> list:
     )
     
     try:
-        raw = gemini_client.call(prompt, expect_json=True)
-        result = json.loads(raw)
-        if isinstance(result, list):
-            return result
-        raise ValueError("AI did not return a list")
+        raw = gemini_client.call(prompt, response_schema=ParsedIngredientList)
+        # Parse and validate with Pydantic
+        result = ParsedIngredientList.model_validate_json(raw).root
+        return [item.model_dump() for item in result]
     except Exception as e:
         print(f"[AI] parse_freezer_items failed: {e} — falling back to simple split")
         # Fallback: simple comma split if AI fails
@@ -57,16 +57,14 @@ def parse_exclusions(gemini_client, text: str, start_date, end_date) -> dict:
     )
 
     try:
-        raw = gemini_client.call(prompt, expect_json=True)
-        result = json.loads(raw)
-        valid_days = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
-        valid_meals = {"breakfast", "lunch", "dinner"}
+        raw = gemini_client.call(prompt, response_schema=MealExclusions)
+        result = MealExclusions.model_validate_json(raw).root
+        
+        # Filter days and meals based on the pydantic model output
         exclusions = {}
         for day, meals in result.items():
-            if day in valid_days and isinstance(meals, list):
-                cleaned_meals = [m for m in meals if m in valid_meals]
-                if cleaned_meals:
-                    exclusions[day] = cleaned_meals
+            if meals:
+                exclusions[day] = meals
         return exclusions
     except Exception as e:
         print(f"[AI] parse_exclusions failed: {e} — no exclusions applied")

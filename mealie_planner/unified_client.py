@@ -13,6 +13,7 @@ if mcp_src_dir not in sys.path:
 from mealie import MealieFetcher
 
 logger = logging.getLogger("mealie-planner-unified")
+from .models import StandardizedIngredients
 
 _recipe_details_cache = {}
 
@@ -222,8 +223,8 @@ For each ingredient:
 
 Return ONLY a JSON array of strings."""
 
-            ai_response = gemini.call(prompt, expect_json=True)
-            return json.loads(ai_response)
+            ai_response = gemini.call(prompt, response_schema=StandardizedIngredients)
+            return StandardizedIngredients.model_validate_json(ai_response).root
         except Exception as e:
             logger.error(f"Error standardizing ingredients with AI: {e}")
             return ingredients

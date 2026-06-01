@@ -12,6 +12,7 @@ from .shopping_sync import ShoppingListSync
 from .email_notifier import EmailNotifier
 from .parsers import parse_freezer_items, parse_exclusions
 from .exceptions import MealieAPIError, SkillParsingError
+from .models import WeeklyMealPlanResponse
 
 class PlanGenerator:
     def __init__(self, mealie_client, gemini_client):
@@ -194,8 +195,8 @@ class PlanGenerator:
         
         meals = []
         try:
-            raw = self.gemini.call(selection_prompt, expect_json=True, temperature=0.7)
-            ai_result = json.loads(raw)
+            raw = self.gemini.call(selection_prompt, response_schema=WeeklyMealPlanResponse, temperature=0.7)
+            ai_result = WeeklyMealPlanResponse.model_validate_json(raw).model_dump()
             
             for day_entry in ai_result.get("days", []):
                 d_str = day_entry['date']
