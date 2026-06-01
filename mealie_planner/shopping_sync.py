@@ -140,45 +140,14 @@ class ShoppingListSync:
                 ]
             }
             
-            prompt = f"""You are an expert in 'Shopping List Sync Skill'.
-
-{_SHOPPING_LIST_SYNC_SKILL_DEFINITION}
-
-### MERGING & ID RETENTION RULES
-In addition to the standard Shopping List Sync workflow, you must merge the newly compiled shopping list with the current `active_shopping_list` using robust semantic matching to preserve their active checking state and database IDs:
-1. For each item in your final compiled shopping list, check if it matches an item in `active_shopping_list` semantically:
-   - Ignore leading/trailing quantities (e.g., "1", "2.5"), unit names (e.g., "tablespoon", "tbsp", "cup", "cloves", "oz", "lbs", "sprigs"), and misspellings.
-   - Ignore plural vs. singular differences (e.g., "Parsley" matches "Parsleys", "Tomato" matches "Tomatoes").
-   - Ignore descriptive prefixes, suffixes, preparation words, and adjectives (e.g., "Fresh", "Freshly Chopped", "Raw", "Canned", "Frozen", "Organic", "Leaves", "sprigs"). For example, "Lemon Juice" (or "tablespoon Lemon Juice") MUST match "tablespoon Fresh Lemon Juice", and "Cilantro" (or "Cilantro Leaves") MUST match "cup Fresh Cilantro Leaves".
-   - Be extremely generous and aggressive with matching. If both strings share the same core ingredient name (e.g., "Lemon Juice", "Cilantro", "Thyme", "Asparagus", "Tomato"), they MUST be matched.
-2. If there is a semantic match:
-   - Set `active_item_index` to the matching item's `index` integer from `active_shopping_list`.
-   - Retain the `checked` status (boolean) from the matched item in `active_shopping_list`.
-3. If there is NO semantic match:
-   - Set `active_item_index` to null.
-   - Set `checked` to false.
-4. **Staples Preservation Rule**: If there is an item in `active_shopping_list` that matches a staple in `staples` (using semantic matching), you MUST include it in the final output (with `unit: null`, setting `active_item_index` to its `index` and preserving its `checked` status) even if it is not required by any recipes in `ingredients`. This ensures that staples already on the list (whether checked or unchecked) are preserved rather than deleted.
-5. **Low Staples Rule**: Any staple in `low_staples` MUST be in the final output. If it is already in `active_shopping_list`, reuse its `index` and `checked` status. If it is NOT in `active_shopping_list`, set `active_item_index` to null and `checked` to false.
-6. **Staples Exclude Rule (Critical)**: If an ingredient in `ingredients` matches a staple in `staples` (using semantic matching), you MUST filter it out and NOT include it in the final output, UNLESS it is explicitly listed in `low_staples` or is already on the `active_shopping_list` (in which case it is preserved by Rule 4/5). Nathan and Kristin already have staples in stock, so do not put in-stock staples on the shopping list.
-7. Do not include any other items from `active_shopping_list` in the output that do not belong to the compiled shopping list anymore (i.e. they are no longer needed, they should be deleted, so do not output them).
-8. For the output, construct a JSON array of objects, where each object has these exact fields:
-   - `active_item_index`: The matched active item's index integer, or null if it's a new item.
-   - `name`: Cleaned, Title Cased name (e.g. "Chicken Breast").
-   - `quantity`: Aggregated numeric quantity as a float.
-   - `unit`: The extracted unit of measure (e.g. "lb", "cup", "can"), or null if it is a staple.
-   - `checked`: The matched `checked` state (boolean).
-   - `category`: The EXACT zone name from `available_labels`.
-
-### CATEGORIZATION GUIDELINES
-- Fresh herbs (e.g., Thyme, Rosemary, Parsley, Cilantro, Basil) MUST be categorized under "1. Produce: Vegetables & Greens", NOT under spices.
-- Jarred ingredients, canned goods, vinegars, condiments, and spreads (e.g., Artichoke Hearts, Olives, Dijon Mustard, Tahini, Balsamic Glaze, Chicken Broth, Rice) MUST be categorized under "5. Pantry & Grains".
-- Only dried spices, baking ingredients, and cooking oils (e.g., Olive Oil, Paprika, Red Pepper Flakes, Onion Powder) should be categorized under "6. Baking, Spices & Oils".
-
-### CONTEXT:
-Input: {json.dumps(payload)}
-Dietary: {FAMILY_DIETARY_RULES_PROMPT}
-
-Return ONLY the JSON array of objects. Do not include any extra text or conversational response."""
+            prompt = (
+                "You are an expert in the 'Shopping List Sync Skill'.\n\n" +
+                _SHOPPING_LIST_SYNC_SKILL_DEFINITION +
+                "\n\n### CONTEXT FOR THIS INVOCATION:\n" +
+                f"Payload: {json.dumps(payload)}\n" +
+                f"Family Dietary Rules: {FAMILY_DIETARY_RULES_PROMPT}\n\n" +
+                "Return ONLY the JSON array of objects as specified in the skill definition."
+            )
             ai_response = self.gemini.call(prompt, response_schema=CompiledShoppingList)
             parsed_list = CompiledShoppingList.model_validate_json(ai_response).root
             final_items = [item.model_dump() for item in parsed_list]

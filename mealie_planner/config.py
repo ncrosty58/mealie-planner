@@ -79,6 +79,10 @@ _SHOPPING_LIST_SYNC_SKILL_DEFINITION = load_skill_md('shopping-list-sync')
 _RECIPE_NUTRITION_IMPUTATION_SKILL_DEFINITION = load_skill_md('recipe-nutrition-imputation')
 _BANNED_RECIPES_SKILL_DEFINITION = load_skill_md('banned-recipes')
 _INGREDIENT_PARSING_SKILL_DEFINITION = load_skill_md('ingredient-parsing')
+_BLACKSTONE_COMPATIBILITY_SKILL_DEFINITION = load_skill_md('blackstone-compatibility')
+_INGREDIENT_STANDARDIZATION_SKILL_DEFINITION = load_skill_md('ingredient-standardization')
+_DAILY_BRIEFING_GENERATION_SKILL_DEFINITION = load_skill_md('daily-briefing-generation')
+_WEEKLY_THEMES_SYNOPSIS_SKILL_DEFINITION = load_skill_md('weekly-themes-synopsis')
 
 # Breakfast Nutrition Profiles
 BREAKFAST_PROFILES = {

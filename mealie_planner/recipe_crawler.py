@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import requests
 import json
 
-from .config import load_skill_md, _RECIPE_FINDER_SKILL_DEFINITION, get_banned_recipes
+from .config import load_skill_md, _RECIPE_FINDER_SKILL_DEFINITION, get_banned_recipes, _BLACKSTONE_COMPATIBILITY_SKILL_DEFINITION
 from .exceptions import MealieAPIError, SkillParsingError
 
 class RecipeCrawler:
@@ -177,13 +177,14 @@ def check_blackstone_compatibility(recipe_details):
     # AI Fallback
     name = recipe_details.get('name', '')
     instructions_list = [i.get('text', '') for i in instructions if i.get('text')]
-    prompt = f"""You are an expert griddle chef. Analyze if the following recipe can or should be cooked on an outdoor flat top griddle/Blackstone (e.g. stir-fries, smashed burgers, seared steaks, fajitas, pancakes, fried rice, street tacos).
-
-Recipe Name: {name}
-Instructions:
-{" ".join(instructions_list)}
-
-Respond with ONLY 'YES' or 'NO'."""
+    prompt = (
+        "You are an expert in the 'Blackstone Griddle Compatibility Skill'.\n\n" +
+        _BLACKSTONE_COMPATIBILITY_SKILL_DEFINITION +
+        "\n\n### CONTEXT FOR THIS INVOCATION:\n" +
+        f"Recipe Name: {name}\n" +
+        f"Instructions:\n{' '.join(instructions_list)}\n\n" +
+        "Return ONLY 'YES' or 'NO'."
+    )
     try:
         from .gemini_client import GeminiClient
         gemini = GeminiClient()

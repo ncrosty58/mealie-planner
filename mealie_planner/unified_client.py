@@ -14,6 +14,7 @@ from mealie import MealieFetcher
 
 logger = logging.getLogger("mealie-planner-unified")
 from .models import StandardizedIngredients
+from .config import _INGREDIENT_STANDARDIZATION_SKILL_DEFINITION
 
 _recipe_details_cache = {}
 
@@ -222,17 +223,13 @@ class UnifiedMealieClient(MealieFetcher):
             raw_text = "\n".join(ingredients)
             logger.info({"message": "Standardizing ingredients via Gemini AI", "count": len(ingredients)})
             
-            prompt = f"""You are a master chef. Clean and standardize the following list of ingredients.
-For each ingredient:
-1. Remove brand names (e.g. 'Success®', 'Heinen's').
-2. Keep the quantity and unit.
-3. Remove parenthetical instructions or secondary preparation details (e.g. 'minced', 'finely chopped').
-4. Return a clean, simple string like '2 lbs Chicken Breast' or '1 cup White Rice'.
-
-### INPUT LIST:
-{raw_text}
-
-Return ONLY a JSON array of strings."""
+            prompt = (
+                "You are an expert in the 'Ingredient Standardization Skill'.\n\n" +
+                _INGREDIENT_STANDARDIZATION_SKILL_DEFINITION +
+                "\n\n### CONTEXT FOR THIS INVOCATION:\n" +
+                f"Input List:\n{raw_text}\n\n" +
+                "Return ONLY a JSON array of strings."
+            )
 
             ai_response = gemini.call(prompt, response_schema=StandardizedIngredients)
             return StandardizedIngredients.model_validate_json(ai_response).root

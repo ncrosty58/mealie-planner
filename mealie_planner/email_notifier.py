@@ -5,7 +5,10 @@ from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 import pytz
 
-from .config import FAMILY_RECIPIENT_EMAILS, RDA, STAPLES_LIST_ID, APP_URL, TIMEZONE
+from .config import (
+    FAMILY_RECIPIENT_EMAILS, RDA, STAPLES_LIST_ID, APP_URL, TIMEZONE,
+    _DAILY_BRIEFING_GENERATION_SKILL_DEFINITION, _WEEKLY_THEMES_SYNOPSIS_SKILL_DEFINITION
+)
 from .utils import get_active_week_strings, get_active_week_range
 from .exceptions import MealieAPIError, MealiePlannerError
 
@@ -92,10 +95,7 @@ class EmailNotifier:
 
     def generate_daily_ai_summary(self, day_name, breakfast, lunch, dinner_title, recipe_details=None, prep_note=None, tomorrow_title=None, tomorrow_recipe_details=None, tomorrow_prep_note=None):
         """Call Gemini to generate a brief, practical daily kitchen briefing of the day's meals."""
-        prompt = f"""You are a professional culinary assistant writing a brief, practical daily kitchen briefing.
-Write a clean, appetizing, but grounded menu summary and preparation guide for today ({day_name}).
-
-Today's Menu:
+        context = f"""Today ({day_name})'s Menu:
 - Breakfast: {breakfast}
 - Lunch: {lunch}
 - Dinner: {dinner_title}
@@ -107,20 +107,20 @@ Today's Dinner details:
 - Manual Prep Note: {prep_note or ''}
 """
         if tomorrow_title:
-            prompt += f"""
+            context += f"""
 Tomorrow's Dinner details:
 - Name: {tomorrow_title}
 - Tomorrow's Instructions: {" ".join(tomorrow_recipe_details.get('instructions', []))[:1000] if tomorrow_recipe_details else ''}
 - Tomorrow's Manual Prep Note: {tomorrow_prep_note or ''}
 """
 
-        prompt += """
-Guidelines for the briefing:
-1. **Breakfast & Lunch**: Briefly state what is planned.
-2. **Today's Dinner & Practical Advice**: Describe today's dinner, focusing on flavor expectations, assembly, and practical watch-outs (e.g. cooking tips, doneness cues, griddle control, or prep steps).
-3. **Next-Day Prep**: Look ONLY at "Tomorrow's Dinner details" (instructions or prep notes) to see if there are prep tasks that should be started *today* (like thawing meat, marinating overnight, or prepping components ahead). If so, explicitly advise doing them today for tomorrow's dinner. Do NOT associate today's manual prep notes or today's salad prep with tomorrow's dinner name. If no next-day prep is needed for tomorrow, omit this entirely.
-4. **Style/Tone**: Practical, grounded, and concise. No greetings, names ("Nathan", "Kristin"), emojis, or markdown. Keep it under 110 words in a single cohesive paragraph.
-"""
+        prompt = (
+            "You are an expert in the 'Daily Briefing Generation Skill'.\n\n" +
+            _DAILY_BRIEFING_GENERATION_SKILL_DEFINITION +
+            "\n\n### CONTEXT FOR THIS INVOCATION:\n" +
+            context +
+            "\nReturn ONLY the single briefing paragraph as specified in the skill definition."
+        )
         try:
             summary = self.gemini.call(prompt, expect_json=False, temperature=0.4).strip()
             return summary
@@ -155,18 +155,13 @@ Guidelines for the briefing:
             
         dinners_str = "\n".join(dinners)
         
-        prompt = f"""You are a professional menu planner and culinary trend analyst.
-Analyze the upcoming weekly dinner menu for the Crosty family and write a brief, sophisticated synopsis (2-3 sentences) of the week's themes, culinary styles, or ingredient trends.
-
-Weekly Dinner Menu:
-{dinners_str}
-
-Guidelines:
-1. Identify 1 or 2 prominent culinary trends, themes, or core ingredients repeating in the menu.
-2. Keep the tone sophisticated, warm, and highly engaging.
-3. Absolutely no greetings, names, markdown formatting, or emojis.
-4. Keep it under 60 words.
-"""
+        prompt = (
+            "You are an expert in the 'Weekly Themes Synopsis Skill'.\n\n" +
+            _WEEKLY_THEMES_SYNOPSIS_SKILL_DEFINITION +
+            "\n\n### CONTEXT FOR THIS INVOCATION:\n" +
+            f"Weekly Dinner Menu:\n{dinners_str}\n\n" +
+            "Return ONLY the themes synopsis as specified in the skill definition."
+        )
         try:
             return self.gemini.call(prompt, expect_json=False, temperature=0.5).strip().strip('"').strip("'")
         except Exception as e:
