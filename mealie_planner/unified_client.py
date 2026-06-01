@@ -22,8 +22,18 @@ class UnifiedMealieClient(MealieFetcher):
     A unified Mealie client that inherits from the vendored MealieFetcher
     and adds missing or legacy compatibility methods.
     """
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(UnifiedMealieClient, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
     
     def __init__(self, base_url: Optional[str] = None, api_key: Optional[str] = None):
+        if self._initialized:
+            return
+            
         base_url = base_url or os.getenv('MEALIE_API_URL') or os.getenv('MEALIE_BASE_URL', 'http://mealie:9000')
         api_key = api_key or os.getenv('MEALIE_TOKEN') or os.getenv('MEALIE_API_KEY')
         
@@ -32,6 +42,7 @@ class UnifiedMealieClient(MealieFetcher):
             
         super().__init__(base_url=base_url, api_key=api_key)
         self._recipe_details_cache = _recipe_details_cache
+        self._initialized = True
 
     # --- Legacy Compatibility Aliases ---
     

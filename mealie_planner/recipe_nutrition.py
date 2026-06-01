@@ -48,12 +48,7 @@ class RecipeNutrition:
 
         try:
             raw = self.gemini.call(prompt, response_schema=RecipeNutritionImputation)
-            result = RecipeNutritionImputation.model_validate_json(raw).model_dump()
-            # Basic validation
-            for k in RDA.keys():
-                if k not in result:
-                    result[k] = "0"
-            return result
+            return RecipeNutritionImputation.model_validate_json(raw).model_dump()
         except Exception as e:
             print(f"[AI] Nutrition imputation failed: {e}")
             return None
@@ -121,8 +116,44 @@ class RecipeNutrition:
                         print(f"[Nutrition] Imputing missing data for: {r['name']}")
                         imputed = self.impute_nutrition_with_ai(r)
                         if imputed:
-                            # Optionally: update Mealie here? For now just use local.
-                            nut_data = {k: float(v) for k, v in imputed.items() if v and str(v).replace('.','',1).isdigit()}
+                            nut_data = {
+                                "calories": float(imputed.get('calories') or 0),
+                                "protein": float(imputed.get('proteinContent') or 0),
+                                "carbs": float(imputed.get('carbohydrateContent') or 0),
+                                "fat": float(imputed.get('fatContent') or 0),
+                                "fiber": float(imputed.get('fiberContent') or 0),
+                                "sodium": float(imputed.get('sodiumContent') or 0),
+                                "sugar": float(imputed.get('sugarContent') or 0),
+                                "cholesterol": float(imputed.get('cholesterolContent') or 0)
+                            }
+                            
+                            # Save back to Mealie database via PATCH to avoid future imputations
+                            try:
+                                slug = r.get('slug')
+                                if slug:
+                                    patch_payload = {
+                                        "nutrition": {
+                                            "calories": imputed.get("calories"),
+                                            "proteinContent": imputed.get("proteinContent"),
+                                            "carbohydrateContent": imputed.get("carbohydrateContent"),
+                                            "fatContent": imputed.get("fatContent"),
+                                            "fiberContent": imputed.get("fiberContent"),
+                                            "sodiumContent": imputed.get("sodiumContent"),
+                                            "sugarContent": imputed.get("sugarContent"),
+                                            "cholesterolContent": imputed.get("cholesterolContent")
+                                        }
+                                    }
+                                    self.client.patch_recipe(slug, patch_payload)
+                                    print(f"[Nutrition] Saved imputed nutrition back to Mealie for recipe: {r['name']}")
+                                    
+                                    # Update local client details cache too
+                                    r_id = r.get('id')
+                                    if r_id and r_id in self.client._recipe_details_cache:
+                                        self.client._recipe_details_cache[r_id]['nutrition'] = patch_payload["nutrition"]
+                                    if slug and slug in self.client._recipe_details_cache:
+                                        self.client._recipe_details_cache[slug]['nutrition'] = patch_payload["nutrition"]
+                            except Exception as patch_err:
+                                print(f"[Nutrition] Failed to save imputed nutrition back to Mealie: {patch_err}")
                     else:
                         raw_nut = r['nutrition']
                         # Standard Mealie keys: calories, proteinContent, fatContent, carbohydrateContent, fiberContent, sodiumContent, sugarContent, cholesterolContent
