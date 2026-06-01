@@ -190,6 +190,12 @@ def plan_stream():
     freezer_items = sanitize_input(request.args.get('freezer_items', ''))
     special_requests = sanitize_input(request.args.get('special_requests', ''))
     
+    save_state({
+        "exclude_text": exclude_text,
+        "freezer_items": freezer_items,
+        "special_requests": special_requests
+    })
+    
     state = load_state()
     low_staples_ids = state.get('low_staples', [])
 
@@ -270,7 +276,12 @@ def sync():
 def clear_plan_route():
     try:
         wipe_mealie_data()
-        save_state({'low_staples': []})
+        save_state({
+            'low_staples': [],
+            'freezer_items': "",
+            'exclude_text': "",
+            'special_requests': ""
+        })
         flash("Successfully cleared meal plans and reset state!", "success")
     except Exception as e:
         flash(f"Error clearing data: {str(e)}", "danger")

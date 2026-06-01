@@ -300,6 +300,23 @@ def update_shopping_list_item(
         raise ToolError(f"Error updating shopping list item: {str(e)}")
 
 @mcp.tool()
+def delete_mealplan(entry_id: str) -> str:
+    """Delete an existing mealplan entry (such as a placeholder or scheduled meal).
+    Use this when swapping or removing scheduled meals.
+
+    Args:
+        entry_id: The unique ID of the mealplan entry to delete.
+
+    Returns:
+        str: Status message.
+    """
+    try:
+        mealie.delete_meal_plan_entry(entry_id)
+        return f"Successfully deleted mealplan entry '{entry_id}'."
+    except Exception as e:
+        raise ToolError(f"Error deleting mealplan entry: {str(e)}")
+
+@mcp.tool()
 def sync_shopping_list(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
@@ -319,9 +336,10 @@ def sync_shopping_list(
         from mealie_planner.utils import get_active_week_strings
         from mealie_planner.shopping_sync import sync_shopping_list as run_sync
         
-        # Load state for low staples
+        # Load state for low staples and freezer items
         import json
         low_staples = []
+        freezer_items = ""
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         state_path = os.path.join(base_dir, "data", "planner_state.json")
         if os.path.exists(state_path):
@@ -329,6 +347,7 @@ def sync_shopping_list(
                 with open(state_path, "r") as f:
                     state = json.load(f)
                     low_staples = state.get("low_staples", [])
+                    freezer_items = state.get("freezer_items", "")
             except Exception:
                 pass
 
@@ -337,7 +356,7 @@ def sync_shopping_list(
             start_date = start_date or active_start
             end_date = end_date or active_end
 
-        success = run_sync(start_date, end_date, low_staples_ids=low_staples)
+        success = run_sync(start_date, end_date, low_staples_ids=low_staples, freezer_items=freezer_items)
         if success:
             return f"Successfully synchronized shopping list for the week of {start_date} to {end_date}."
         else:
