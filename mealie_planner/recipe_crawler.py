@@ -151,10 +151,7 @@ Guidelines:
                     continue
                 
                 print(f"[Crawler] Importing valid recipe: {url}")
-                import_url = f"{self.client.api_url}/api/recipes/create/url"
-                payload = {"url": url}
-                r = requests.post(import_url, json=payload, headers=self.client.headers)
-                r.raise_for_status()
+                self.client.create_recipe_from_url(url)
                 self._detailed_recipes_cache = None
                 print(f"[Crawler] Successfully imported: {ingredient_name}")
                 return True
