@@ -71,7 +71,7 @@ async def run_mcp_chat(history, user_message, model_name=None):
     """
     plan_changed = False
     if model_name is None:
-        model_name = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
+        model_name = os.getenv('GEMINI_MODEL', 'gemini-3.5-flash')
         
     mcp_src_dir = os.path.join(base_dir, "mealie-mcp-server", "src")
     server_params = StdioServerParameters(
@@ -82,7 +82,7 @@ async def run_mcp_chat(history, user_message, model_name=None):
             "MEALIE_BASE_URL": os.getenv("MEALIE_API_URL", "http://mealie:9000"),
             "MEALIE_API_KEY": os.getenv("MEALIE_TOKEN"),
             "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY"),
-            "GEMINI_MODEL": os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+            "GEMINI_MODEL": os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
             "PATH": os.environ.get("PATH", "")
         }
     )
