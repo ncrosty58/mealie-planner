@@ -36,7 +36,7 @@ This companion app interfaces with your Mealie instance to automate weekly menu 
 
 * **Backend:** Python 3.12, Flask, APScheduler
 * **Frontend:** Vanilla JS, CSS (Clean design tokens, responsive grid systems, safe-area mobile safe paddings)
-* **LLM Engine:** Gemini Pro (via structured JSON schemas and zero-shot prompt flows)
+* **LLM Engine:** Google Gemini (model configurable via `GEMINI_MODEL`, default `gemini-3.5-flash`; uses structured JSON schemas and zero-shot prompt flows)
 * **Real-time Updates:** HTML5 Server-Sent Events (SSE) progress streams
 
 ---
@@ -56,7 +56,9 @@ MEALIE_FRONTEND_URL=https://your-mealie-domain.com
 MEALIE_TOKEN=your_mealie_api_token
 
 # AI Gateway
-GEMINI_API_KEY=your_gemini_api_key
+GOOGLE_API_KEY=your_google_ai_studio_api_key
+# Optional: override the default Gemini model (defaults to gemini-3.5-flash)
+GEMINI_MODEL=gemini-3.5-flash
 
 # SMTP configuration for reports
 SMTP_HOST=smtp.gmail.com
@@ -67,7 +69,19 @@ SMTP_FROM_EMAIL=your_email@gmail.com
 SMTP_FROM_NAME=Mealie Companion
 ```
 
-### 2. Run with Docker Compose
+### 2. Vendored MCP server (submodule)
+The Mealie MCP client/tools live in `mealie-mcp-server/`, tracked as a git submodule.
+When cloning, pull it too:
+
+```bash
+git clone --recurse-submodules <this-repo>
+# or, if already cloned:
+git submodule update --init
+```
+
+The app imports from this directory at startup, so the submodule must be populated.
+
+### 3. Run with Docker Compose
 Build and run the stack:
 
 ```bash
