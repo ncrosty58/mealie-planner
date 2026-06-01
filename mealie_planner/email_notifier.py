@@ -24,6 +24,23 @@ class EmailNotifier:
 
     def send_email(self, subject, html_content):
         """Send an email using SMTP settings."""
+        # Check if emails are enabled in state
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        state_path = os.path.join(base_dir, "data", "planner_state.json")
+        emails_enabled = True
+        if os.path.exists(state_path):
+            try:
+                import json
+                with open(state_path, 'r') as f:
+                    state = json.load(f)
+                    emails_enabled = state.get('emails_enabled', True)
+            except Exception as e:
+                print(f"[Email] Error checking emails_enabled state: {e}")
+                
+        if not emails_enabled:
+            print(f"[Email] Emails are currently disabled. Skipping sending: '{subject}'")
+            return False
+
         smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
         smtp_port = int(os.getenv('SMTP_PORT', '587'))
         smtp_user = os.getenv('SMTP_USER')

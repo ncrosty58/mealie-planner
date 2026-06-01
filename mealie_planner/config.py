@@ -71,6 +71,8 @@ FAMILY_DIETARY_RULES_PROMPT = f"""
 {extract_section(_SKILL_MD_CONTENT, 'Household & Dietary Constraints')}
 """
 
+CHATBOT_GUIDELINES_PROMPT = load_skill_md('meal-planner', 'CHATBOT_GUIDELINES.md')
+
 # Skill definitions (exposed for compatibility with test scripts)
 _RECIPE_FINDER_SKILL_DEFINITION = load_skill_md('recipe-finder')
 _MEAL_EXCLUSION_PARSING_SKILL_DEFINITION = load_skill_md('meal-exclusion-parsing')

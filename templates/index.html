@@ -360,9 +360,7 @@
             <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;"><span class="brand-label">Management</span></div>
             <button class="nav-item" onclick="openStaplesModal()">📋 Manage Staples</button>
             <form action="{{ url_for('sync') }}" method="POST"><button type="submit" class="nav-item">🔄 Refresh List</button></form>
-            <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Permanently clear week?')">
-                <button type="submit" class="nav-item" style="color: var(--color-danger);">🗑️ Clear Week</button>
-            </form>
+            <button class="nav-item" id="nav-admin" onclick="switchTab('admin')">⚙️ Admin Settings</button>
         </nav>
         <div class="sidebar-footer"><div class="brand-label">Active Week</div><div style="font-size: 0.75rem; color: var(--color-muted); font-weight: 500;">{{ start_date }} &rarr; {{ end_date }}</div></div>
     </aside>
@@ -379,14 +377,16 @@
         {% endwith %}
 
         {% if not is_submitted %}
-        <div class="card" style="width: 100%; max-width: 600px; margin: auto;">
-            <div class="card-header"><h2 class="card-title">Plan New Week</h2></div>
-            <form id="plan-form" onsubmit="submitPlanForm(event)">
-                <div style="margin-bottom: 1.25rem;"><label class="brand-label">Exclusions</label><textarea class="textarea-input" name="exclude_text" placeholder="Skip meals..."></textarea></div>
-                <div style="margin-bottom: 1.25rem;"><label class="brand-label">Inventory</label><textarea class="textarea-input" name="freezer_items" placeholder="Salmon, frozen peas..."></textarea></div>
-                <div style="margin-bottom: 1.25rem;"><label class="brand-label">Requests</label><textarea class="textarea-input" name="special_requests" placeholder="Mexican, high fiber..."></textarea></div>
-                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.8rem;">Generate Weekly Plan</button>
-            </form>
+        <div id="tab-menu" class="tab-view">
+            <div class="card" style="width: 100%; max-width: 600px; margin: auto;">
+                <div class="card-header"><h2 class="card-title">Plan New Week</h2></div>
+                <form id="plan-form" onsubmit="submitPlanForm(event)">
+                    <div style="margin-bottom: 1.25rem;"><label class="brand-label">Exclusions</label><textarea class="textarea-input" name="exclude_text" placeholder="Skip meals..."></textarea></div>
+                    <div style="margin-bottom: 1.25rem;"><label class="brand-label">Inventory</label><textarea class="textarea-input" name="freezer_items" placeholder="Salmon, frozen peas..."></textarea></div>
+                    <div style="margin-bottom: 1.25rem;"><label class="brand-label">Requests</label><textarea class="textarea-input" name="special_requests" placeholder="Mexican, high fiber..."></textarea></div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.8rem;">Generate Weekly Plan</button>
+                </form>
+            </div>
         </div>
         {% else %}
 
@@ -529,7 +529,56 @@
             </div>
         </div>
         {% endif %}
-        
+
+        <div id="tab-admin" class="tab-view" style="display: none;">
+            <div class="card">
+                <div class="card-header" style="border-bottom: 1px solid var(--color-border); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+                    <h2 class="card-title">Admin Settings</h2>
+                    <span class="brand-label">Control Panel</span>
+                </div>
+                
+                <div style="margin-bottom: 2.5rem;">
+                    <h3 style="font-size: 1rem; color: var(--color-primary); border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem; margin-bottom: 1rem;">📧 Communication Control</h3>
+                    <p style="font-size: 0.85rem; color: var(--color-muted); margin-bottom: 1.25rem; line-height: 1.5;">
+                        Control whether the application sends automated emails, including the Saturday Questionnaire prompt, Saturday Report, and Daily Briefings.
+                    </p>
+                    <form action="{{ url_for('update_admin') }}" method="POST" style="display: flex; align-items: center; justify-content: space-between; background: #FAF9F6; padding: 1.25rem; border: 1px solid var(--color-border); border-radius: var(--border-radius); flex-wrap: wrap; gap: 1rem;">
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <span style="font-weight: 600; font-size: 0.9rem; color: var(--color-primary);">Email Notifications</span>
+                            <span id="email-status-label" style="font-size: 0.8rem; font-weight: 600; color: {% if emails_enabled %}var(--color-primary){% else %}var(--color-danger){% endif %}">
+                                Currently: {% if emails_enabled %}Enabled (Sending){% else %}Disabled (Muted){% endif %}
+                            </span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <input type="hidden" name="emails_enabled" id="emails-enabled-hidden" value="{% if emails_enabled %}1{% else %}0{% endif %}">
+                            <button type="button" id="email-toggle-btn" class="btn {% if not emails_enabled %}btn-primary{% else %}btn-secondary{% endif %}" onclick="toggleEmailValue()" style="min-width: 130px; justify-content: center; font-size: 0.85rem;">
+                                {% if not emails_enabled %}Enable Emails{% else %}Disable Emails{% endif %}
+                            </button>
+                            <button type="submit" class="btn btn-primary" style="padding: 0.6rem 1.25rem; background-color: var(--color-accent); border: none; font-weight: 600; font-size: 0.85rem;">Save Settings</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div>
+                    <h3 style="font-size: 1rem; color: var(--color-danger); border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem; margin-bottom: 1rem;">🗑️ Danger Zone</h3>
+                    <p style="font-size: 0.85rem; color: var(--color-muted); margin-bottom: 1.25rem; line-height: 1.5;">
+                        Clearing the week will permanently erase all scheduled breakfasts, lunches, and dinners from Mealie, as well as clear active shopping list items and questionnaire inputs.
+                    </p>
+                    <div style="background: #FFF5F5; border: 1px solid #FFCDCD; border-radius: var(--border-radius); padding: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <span style="font-weight: 600; font-size: 0.9rem; color: #D32F2F;">Clear Current Week</span>
+                            <span style="font-size: 0.8rem; color: #5D5D5D;">This action cannot be undone.</span>
+                        </div>
+                        <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you absolutely sure you want to permanently clear the current week and reset state?')">
+                            <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.85rem; border-radius: 4px; cursor: pointer;">
+                                Clear Week
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <footer style="margin-top: auto; padding-top: 4rem; text-align: center; opacity: 0.3;">
             <div class="ornament" style="font-size: 0.8rem;">❖ &bull; ❖ &bull; ❖</div>
             <p style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-top: 1rem;">Crosty Kitchen Culinary Companion</p>
@@ -586,6 +635,26 @@
         }
         function openStaplesModal() { document.getElementById('staples-modal').style.display = 'flex'; }
         function closeStaplesModal() { document.getElementById('staples-modal').style.display = 'none'; }
+        
+        function toggleEmailValue() {
+            const hiddenInput = document.getElementById('emails-enabled-hidden');
+            const toggleBtn = document.getElementById('email-toggle-btn');
+            const statusLabel = document.getElementById('email-status-label');
+            
+            if (hiddenInput.value === '1') {
+                hiddenInput.value = '0';
+                toggleBtn.innerText = 'Enable Emails';
+                toggleBtn.className = 'btn btn-primary';
+                statusLabel.innerText = 'Currently: Disabled (Pending Save)';
+                statusLabel.style.color = 'var(--color-accent)';
+            } else {
+                hiddenInput.value = '1';
+                toggleBtn.innerText = 'Disable Emails';
+                toggleBtn.className = 'btn btn-secondary';
+                statusLabel.innerText = 'Currently: Enabled (Pending Save)';
+                statusLabel.style.color = 'var(--color-accent)';
+            }
+        }
         
         function checkAllItems(btn) {
             if (!confirm("Check off all items on this list?")) return;
