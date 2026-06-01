@@ -1,7 +1,6 @@
 import os
 import sys
 import logging
-import traceback
 from typing import Dict, Any, List, Optional
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
