@@ -94,7 +94,7 @@ class TestPydanticIntegration(unittest.TestCase):
         ingredients = StandardizedIngredients.model_validate_json(valid_json).root
         self.assertEqual(ingredients, ["2 lbs Chicken Breast", "1 cup White Rice"])
 
-    @patch("requests.post")
+    @patch("requests.Session.post")
     def test_gemini_client_payload_construction(self, mock_post):
         # Configure mock response
         mock_resp = MagicMock()
@@ -113,7 +113,7 @@ class TestPydanticIntegration(unittest.TestCase):
         # Call with Pydantic model
         client.call("Test prompt", response_schema=ParsedIngredientList)
         
-        # Verify that requests.post was called with the correct generationConfig payload
+        # Verify that requests.Session.post was called with the correct generationConfig payload
         self.assertTrue(mock_post.called)
         args, kwargs = mock_post.call_args
         payload = kwargs["json"]

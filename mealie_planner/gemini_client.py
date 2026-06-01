@@ -20,6 +20,7 @@ class GeminiClient:
         self.model = model_name or os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
         if not self.api_key:
             raise ConfigurationError("GOOGLE_API_KEY is not set in environment.")
+        self.session = requests.Session()
         self._initialized = True
 
     def call(self, prompt: str, expect_json: bool = True, temperature: float = 0.2, thinking_budget: int = 0, response_schema = None) -> str:
@@ -54,7 +55,7 @@ class GeminiClient:
         print("-------------------")
 
         try:
-            resp = requests.post(url, json=payload, timeout=180)
+            resp = self.session.post(url, json=payload, timeout=180)
             resp.raise_for_status()
             data = resp.json()
             print("--- AI RAW RESPONSE (Meta) ---")
