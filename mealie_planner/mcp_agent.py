@@ -129,7 +129,7 @@ async def run_mcp_chat(history, user_message, model_name=None):
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
             
             session_http = requests.Session()
-            max_turns = 10
+            max_turns = 20
             for turn in range(max_turns):
                 payload = {
                     "contents": contents,

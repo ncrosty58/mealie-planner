@@ -40,6 +40,56 @@ except Exception as e:
 # Initialize FastMCP
 mcp = FastMCP("mealie-planner")
 
+def resolve_ingredient_food_and_unit(mealie, item: dict) -> tuple:
+    """Ensure that the ingredient's food and unit exist in Mealie, creating them if necessary.
+    Returns: (unit_dict, food_dict) ready for nested recipe ingredient payload.
+    """
+    unit = item.get('unit')
+    food = item.get('food')
+    
+    resolved_unit = None
+    if unit and unit.get('name'):
+        unit_id = unit.get('id')
+        unit_name = unit.get('name')
+        if not unit_id:
+            try:
+                res = mealie._handle_request("GET", "/api/units", params={"per_page": 1000})
+                all_units = res.get('items', []) if isinstance(res, dict) else res
+                existing = next((u for u in all_units if u.get('name', '').lower() == unit_name.lower()), None)
+                if existing:
+                    unit_id = existing['id']
+                else:
+                    new_u = mealie._handle_request("POST", "/api/units", json={
+                        "name": unit_name,
+                        "pluralName": unit_name + "s"
+                    })
+                    unit_id = new_u['id']
+            except Exception as e:
+                logger.warning(f"Failed to get/create unit '{unit_name}': {e}")
+        if unit_id:
+            resolved_unit = {"id": unit_id, "name": unit_name}
+            
+    resolved_food = None
+    if food and food.get('name'):
+        food_id = food.get('id')
+        food_name = food.get('name')
+        if not food_id:
+            try:
+                res = mealie._handle_request("GET", "/api/foods", params={"per_page": 1000})
+                all_foods = res.get('items', []) if isinstance(res, dict) else res
+                existing = next((f for f in all_foods if f.get('name', '').lower() == food_name.lower()), None)
+                if existing:
+                    food_id = existing['id']
+                else:
+                    new_f = mealie._handle_request("POST", "/api/foods", json={"name": food_name})
+                    food_id = new_f['id']
+            except Exception as e:
+                logger.warning(f"Failed to get/create food '{food_name}': {e}")
+        if food_id:
+            resolved_food = {"id": food_id, "name": food_name}
+            
+    return resolved_unit, resolved_food
+
 # 1. Register all tools from the vendored mealie-mcp-server
 register_all_tools(mcp, mealie)
 
@@ -106,15 +156,12 @@ def create_recipe_from_url(url: str) -> Dict[str, Any]:
                 # Map to Mealie's reliable nested object schema for PUT
                 update_ingredients = []
                 for item in parsed_results:
-                    unit = item.get('unit')
-                    food = item.get('food')
-                    
-                    # Mealie requires both ID and Name in nested objects for reliable structured updates
+                    resolved_unit, resolved_food = resolve_ingredient_food_and_unit(mealie, item)
                     update_ingredients.append({
                         "note": item.get('note') or "",
                         "quantity": item.get('quantity', 0.0),
-                        "unit": {"id": unit['id'], "name": unit['name']} if unit and unit.get('id') else None,
-                        "food": {"id": food['id'], "name": food['name']} if food and food.get('id') else None,
+                        "unit": resolved_unit,
+                        "food": resolved_food,
                         "disableAmount": item.get('disableAmount', False)
                     })
                 
@@ -173,23 +220,20 @@ def create_recipe(
         
         update_ingredients = []
         for item in parsed_results:
-            unit = item.get('unit')
-            food = item.get('food')
-            
-            # Mealie requires both ID and Name in nested objects for reliable structured updates
+            resolved_unit, resolved_food = resolve_ingredient_food_and_unit(mealie, item)
             update_ingredients.append({
                 "note": item.get('note') or "",
                 "quantity": item.get('quantity', 0.0),
-                "unit": {"id": unit['id'], "name": unit['name']} if unit and unit.get('id') else None,
-                "food": {"id": food['id'], "name": food['name']} if food and food.get('id') else None,
+                "unit": resolved_unit,
+                "food": resolved_food,
                 "disableAmount": item.get('disableAmount', False)
             })
         
         recipe_json["recipeIngredient"] = update_ingredients
         recipe_json["recipeInstructions"] = [{"text": i} for i in instructions]
         
-        # Clean up metadata
-        for field in ["id", "createdAt", "updatedAt", "dateAdded", "dateUpdated"]:
+        # Clean up metadata (keep 'id')
+        for field in ["createdAt", "updatedAt", "dateAdded", "dateUpdated"]:
             if field in recipe_json:
                 del recipe_json[field]
 
@@ -222,23 +266,20 @@ def update_recipe(
         
         update_ingredients = []
         for item in parsed_results:
-            unit = item.get('unit')
-            food = item.get('food')
-            
-            # Mealie requires both ID and Name in nested objects for reliable structured updates
+            resolved_unit, resolved_food = resolve_ingredient_food_and_unit(mealie, item)
             update_ingredients.append({
                 "note": item.get('note') or "",
                 "quantity": item.get('quantity', 0.0),
-                "unit": {"id": unit['id'], "name": unit['name']} if unit and unit.get('id') else None,
-                "food": {"id": food['id'], "name": food['name']} if food and food.get('id') else None,
+                "unit": resolved_unit,
+                "food": resolved_food,
                 "disableAmount": item.get('disableAmount', False)
             })
         
         recipe_json["recipeIngredient"] = update_ingredients
         recipe_json["recipeInstructions"] = [{"text": i} for i in instructions]
         
-        # Clean up metadata
-        for field in ["id", "createdAt", "updatedAt", "dateAdded", "dateUpdated"]:
+        # Clean up metadata (keep 'id')
+        for field in ["createdAt", "updatedAt", "dateAdded", "dateUpdated"]:
             if field in recipe_json:
                 del recipe_json[field]
 
