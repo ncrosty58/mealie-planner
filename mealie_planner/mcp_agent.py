@@ -127,6 +127,7 @@ async def run_mcp_chat(history, user_message, model_name=None):
             api_key = os.getenv('GOOGLE_API_KEY')
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
             
+            session_http = requests.Session()
             max_turns = 10
             for turn in range(max_turns):
                 payload = {
@@ -138,7 +139,7 @@ async def run_mcp_chat(history, user_message, model_name=None):
                 if gemini_tools:
                     payload["tools"] = gemini_tools
                     
-                resp = requests.post(url, json=payload, timeout=90)
+                resp = session_http.post(url, json=payload, timeout=90)
                 resp.raise_for_status()
                 data = resp.json()
                 

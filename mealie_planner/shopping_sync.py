@@ -19,6 +19,8 @@ def normalize_ingredient_name(name: str) -> str:
     name = re.sub(r'^[\d\/\s\.\-]+(lbs?|oz|cups?|cans?|cloves?|tsps?|tbsps?|g|kg|ml|l|packages?|bags?|pieces?|slices?)\b', '', name).strip()
     # Remove leading digits and remaining spaces
     name = re.sub(r'^[\d\/\s\.\-]+', '', name).strip()
+    # Normalize multiple consecutive spaces to a single space
+    name = re.sub(r'\s+', ' ', name).strip()
     return name
 
 class ShoppingListSync:

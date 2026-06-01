@@ -152,6 +152,7 @@ class TestPydanticIntegration(unittest.TestCase):
             # Test Case 4: AI Fallback returning NO
             mock_gemini_call.reset_mock()
             recipe_ai_no = {"name": "Slow Cooker Beef Stew", "recipeInstructions": [{"text": "Simmer in a slow cooker for 8 hours"}]}
+            mock_gemini_call.value = "NO"
             mock_gemini_call.return_value = "NO"
             self.assertFalse(check_blackstone_compatibility(recipe_ai_no))
             mock_gemini_call.assert_called_once()
@@ -160,6 +161,34 @@ class TestPydanticIntegration(unittest.TestCase):
                 os.environ["GOOGLE_API_KEY"] = old_key
             else:
                 os.environ.pop("GOOGLE_API_KEY", None)
+
+    def test_normalize_ingredient_name_spacing(self):
+        from mealie_planner.shopping_sync import normalize_ingredient_name
+        # Test double space normalization
+        self.assertEqual(normalize_ingredient_name("fresh red onion"), "red onion")
+        self.assertEqual(normalize_ingredient_name("chicken raw breast"), "chicken breast")
+        self.assertEqual(normalize_ingredient_name("3 cloves   garlic"), "garlic")
+        self.assertEqual(normalize_ingredient_name("1/2 cup organic spinach"), "spinach")
+
+    @patch("httpx.Client")
+    def test_unified_mealie_client_singleton(self, mock_httpx_client):
+        # Configure mock get request inside MealieClient initialization connection check
+        mock_client_instance = MagicMock()
+        mock_httpx_client.return_value = mock_client_instance
+        
+        from mealie_planner.unified_client import UnifiedMealieClient
+        
+        # Reset singleton state for testing
+        UnifiedMealieClient._instance = None
+        
+        # Instantiate twice
+        c1 = UnifiedMealieClient(base_url="http://mock-mealie", api_key="dummy-key")
+        c2 = UnifiedMealieClient(base_url="http://mock-mealie", api_key="dummy-key")
+        
+        # Assert they are the exact same instance
+        self.assertIs(c1, c2)
+        # Assert connection test get was called only once
+        self.assertEqual(mock_client_instance.get.call_count, 1)
 
 if __name__ == "__main__":
     unittest.main()

@@ -348,8 +348,17 @@ def change_meal():
             
         if recipe_id != "SKIP":
             client.schedule_meal(date_str, "dinner", recipe_id=recipe_id)
+            
+        # Trigger shopping list auto-sync so changes reflect immediately
+        try:
+            start_date_str, end_date_str = get_active_week_strings()
+            state = load_state()
+            low_staples = state.get('low_staples', [])
+            sync_shopping_list(start_date_str, end_date_str, low_staples)
+        except Exception as sync_err:
+            print(f"[Change Meal Auto-Sync] Error during auto-sync: {sync_err}")
         
-        flash(f"Successfully updated meal for {date_str}!", "success")
+        flash(f"Successfully updated meal for {date_str} and synchronized shopping list!", "success")
     except Exception as e:
         flash(f"Error updating meal: {e}", "danger")
         

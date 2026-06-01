@@ -117,7 +117,7 @@ class PlanGenerator:
         try:
             prev_start = start_date - timedelta(days=7)
             prev_end = start_date - timedelta(days=1)
-            prev_plans = self.client.get_meal_plan(prev_start.strftime("%Y-%m-%d"), prev_end.strftime("%Y-%m-%d"))
+            prev_plans = self.client.get_detailed_meal_plan(prev_start.strftime("%Y-%m-%d"), prev_end.strftime("%Y-%m-%d"))
             for p in prev_plans:
                 if p.get('recipe') and p['recipe'].get('name'):
                     recent_recipe_names.append(p['recipe']['name'])
