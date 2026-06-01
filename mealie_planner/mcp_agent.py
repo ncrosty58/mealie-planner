@@ -43,6 +43,7 @@ Guidelines:
 8. When answering other questions, retrieve the relevant information (e.g., `get_recipes`, `get_shopping_lists`, or `get_shopping_list_items`) to provide accurate answers.
 9. You are encouraged to use your general knowledge to answer culinary and nutritional questions (e.g., "What does nutritional yeast do?", "How do I cook this?", "Which recipe uses these mushrooms?"). Help Nathan and Kristin understand and enjoy their food.
 10. Be brief, friendly, and helpful. Always explain what updates you did.
+11. If the user asks to add or schedule a specific meal by name (e.g., "add corn chowder"), you MUST first search their collection using the `get_recipes` tool with a search query. If a matching recipe is found, schedule it using its `recipe_id`. If no matching recipe is found in their collection, do NOT silently schedule it as a text placeholder; instead, tell them that the recipe was not found in their collection, and ask if they would like you to import one from a URL, or if they prefer to schedule it as a text placeholder first.
 """
 
 def clean_schema(schema: dict) -> dict:
