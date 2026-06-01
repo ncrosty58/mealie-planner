@@ -1,7 +1,6 @@
 import asyncio
 import os
 import json
-import requests
 from datetime import datetime
 import pytz
 from dotenv import load_dotenv
@@ -19,6 +18,7 @@ from mealie_planner.config import (
     CHATBOT_GUIDELINES_PROMPT,
     load_skill_md
 )
+from mealie_planner.gemini_client import GeminiClient
 
 def get_system_prompt():
     tz = pytz.timezone(TIMEZONE)
@@ -116,25 +116,17 @@ async def run_mcp_chat(history, user_message, model_name=None):
                 
             # Loop for Gemini to call functions
             system_instruction = get_system_prompt()
-            api_key = os.getenv('GOOGLE_API_KEY')
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-            
-            session_http = requests.Session()
+            gemini = GeminiClient()
+
             max_turns = 20
             for turn in range(max_turns):
-                payload = {
-                    "contents": contents,
-                    "systemInstruction": {
-                        "parts": [{"text": system_instruction}]
-                    }
-                }
-                if gemini_tools:
-                    payload["tools"] = gemini_tools
-                    
-                resp = session_http.post(url, json=payload, timeout=90)
-                resp.raise_for_status()
-                data = resp.json()
-                
+                data = gemini.generate(
+                    contents,
+                    system_instruction=system_instruction,
+                    tools=gemini_tools or None,
+                    model=model_name,
+                )
+
                 candidate = data["candidates"][0]
                 message = candidate["content"]
                 parts = message.get("parts", [])

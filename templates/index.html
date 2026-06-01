@@ -343,11 +343,38 @@
         .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(244, 240, 235, 0.98); z-index: 9999; display: flex; align-items: center; justify-content: center; text-align: center; }
         .spinner { width: 30px; height: 30px; border: 3px solid #E6DFD5; border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* AI activity pill — non-blocking "behind the scenes" indicator */
+        .ai-pill {
+            position: fixed; top: calc(1rem + env(safe-area-inset-top)); left: 50%;
+            transform: translateX(-50%) translateY(-160%);
+            display: flex; align-items: center; gap: 0.55rem;
+            background: var(--color-primary); color: #fff;
+            padding: 0.5rem 1rem 0.5rem 0.85rem; border-radius: 999px;
+            font-size: 0.8rem; font-weight: 600; letter-spacing: 0.01em;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9998;
+            opacity: 0; pointer-events: none;
+            transition: transform 0.35s cubic-bezier(.2,.8,.2,1), opacity 0.35s ease;
+        }
+        .ai-pill.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .ai-pill .ai-spark { display: inline-block; animation: aiSpark 1.6s ease-in-out infinite; }
+        @keyframes aiSpark { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.28); opacity: 1; } }
+        .ai-pill .ai-dots { display: inline-flex; gap: 3px; }
+        .ai-pill .ai-dots span { width: 5px; height: 5px; background: #fff; border-radius: 50%; animation: blink 1.4s infinite both; }
+        .ai-pill .ai-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .ai-pill .ai-dots span:nth-child(3) { animation-delay: 0.4s; }
+        /* mark a <select> as busy while the chef fetches suggestions */
+        .select-recipe.ai-busy { opacity: 0.7; cursor: progress; }
     </style>
 </head>
 <body>
     <div id="loading-overlay" class="loading-overlay" style="display: none;">
         <div><div class="spinner"></div><div class="brand-label">Kitchen Process</div><div id="loading-text" class="brand-title" style="font-size: 1.2rem;">Orchestrating Menu</div><div id="loading-log" style="font-size: 10px; color: var(--color-muted); margin-top: 1rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></div></div>
+    </div>
+    <div id="ai-pill" class="ai-pill" role="status" aria-live="polite">
+        <span class="ai-spark">✨</span>
+        <span id="ai-pill-text">Chef is thinking&hellip;</span>
+        <span class="ai-dots"><span></span><span></span><span></span></span>
     </div>
     <div id="drawer-overlay" class="drawer-overlay" onclick="toggleDrawer()"></div>
 
@@ -359,7 +386,7 @@
             <button class="nav-item" id="nav-prep" onclick="switchTab('prep')">👨‍🍳 Prep Guide</button>
             <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;"><span class="brand-label">Management</span></div>
             <button class="nav-item" onclick="openStaplesModal()">📋 Manage Staples</button>
-            <form action="{{ url_for('sync') }}" method="POST"><button type="submit" class="nav-item">🔄 Refresh List</button></form>
+            <form action="{{ url_for('sync') }}" method="POST" onsubmit="showLoading('Recalculating Groceries', 'The chef is re-optimizing your shopping list…')"><button type="submit" class="nav-item">🔄 Refresh List</button></form>
             <button class="nav-item" id="nav-admin" onclick="switchTab('admin')">⚙️ Admin Settings</button>
         </nav>
         <div class="sidebar-footer"><div class="brand-label">Active Week</div><div style="font-size: 0.75rem; color: var(--color-muted); font-weight: 500;">{{ start_date }} &rarr; {{ end_date }}</div></div>
@@ -424,7 +451,7 @@
                                 <form action="{{ url_for('change_meal') }}" method="POST">
                                     <input type="hidden" name="date" value="{{ d_str }}">
                                     <input type="hidden" name="entry_id" value="{{ dinner_entry[0].id if dinner_entry else '' }}">
-                                    <select name="recipe_id" class="select-recipe" data-date="{{ d_str }}" onclick="loadSwapRecommendations(this)" onchange="this.form.submit()">
+                                    <select name="recipe_id" class="select-recipe" data-date="{{ d_str }}" onclick="loadSwapRecommendations(this)" onchange="onSwapSelected(this)">
                                         <option value="">Swap Dinner...</option>
                                         <option value="SKIP">🚫 Eating Out</option>
                                         <optgroup class="ai-recs-group" label="💡 AI Recommended (Loading...)" style="display: none;">
@@ -621,6 +648,19 @@
     <button class="chat-trigger" onclick="toggleChat()">💬</button>
 
     <script>
+        // --- AI activity indicator (non-blocking pill) ---
+        // Counter-based so overlapping AI requests keep the pill visible until the last finishes.
+        let _aiBusyCount = 0;
+        function aiBusy(label) {
+            _aiBusyCount++;
+            if (label) document.getElementById('ai-pill-text').innerText = label;
+            document.getElementById('ai-pill').classList.add('show');
+        }
+        function aiIdle() {
+            _aiBusyCount = Math.max(0, _aiBusyCount - 1);
+            if (_aiBusyCount === 0) document.getElementById('ai-pill').classList.remove('show');
+        }
+
         function toggleDrawer() { document.getElementById('sidebar').classList.toggle('active'); document.getElementById('drawer-overlay').classList.toggle('active'); }
         function toggleChat() { document.getElementById('chat-window').classList.toggle('open'); }
         function switchTab(id) {
@@ -733,11 +773,17 @@
         async function loadSwapRecommendations(selectEl) {
             if (selectEl.dataset.loaded) return;
             selectEl.dataset.loaded = "true";
-            
+
             const date = selectEl.dataset.date;
             const recsGroup = selectEl.querySelector('.ai-recs-group');
             recsGroup.style.display = 'block';
-            
+            recsGroup.label = '✨ Chef is choosing pairings…';
+
+            // Visible "AI is working" cues: a placeholder option + the global pill + busy select.
+            recsGroup.innerHTML = '<option disabled>Consulting the chef…</option>';
+            selectEl.classList.add('ai-busy');
+            aiBusy('Finding tasty swaps…');
+
             try {
                 const res = await fetch(`/get-swap-recommendations?date=${date}`);
                 if (res.ok) {
@@ -760,7 +806,18 @@
             } catch (err) {
                 console.error("Error loading swap recommendations", err);
                 recsGroup.style.display = 'none';
+                selectEl.dataset.loaded = "";  // allow a retry on next click
+            } finally {
+                selectEl.classList.remove('ai-busy');
+                aiIdle();
             }
+        }
+
+        // Selecting a swap/skip triggers a server-side AI shopping-list re-sync, then a reload.
+        function onSwapSelected(sel) {
+            if (!sel.value) return;  // ignore the "Swap Dinner…" placeholder
+            showLoading('Updating Menu', 'Re-syncing your shopping list with the chef…');
+            sel.form.submit();
         }
 
         function showLoading(msg, sub='') {
@@ -855,7 +912,10 @@
                 csend.disabled = true;
                 
                 showTyping();
-                
+                // Global cue when the chat panel isn't visible (the typing dots cover the open case).
+                const chatVisible = document.getElementById('chat-window').classList.contains('open');
+                if (!chatVisible) aiBusy('Chef is replying…');
+
                 try {
                     const r = await fetch('/chat', {
                         method: 'POST',
@@ -863,20 +923,22 @@
                         body: JSON.stringify({message: t, history})
                     });
                     const res = await r.json();
-                    hideTyping();
                     if (res.success) {
                         addMsg('bot', res.reply);
                         history = res.history;
                         localStorage.setItem('mealie_chat_history', JSON.stringify(history));
                         if (res.plan_changed) {
-                            setTimeout(() => { window.location.reload(); }, 1500);
+                            showLoading('Refreshing Kitchen', 'Updating your menu and shopping list…');
+                            setTimeout(() => { window.location.reload(); }, 1200);
                         }
                     } else {
                         addMsg('bot', 'Chef is having some technical difficulties. Please try again.');
                     }
                 } catch (e) {
-                    hideTyping();
                     addMsg('bot', 'Lost connection to the kitchen. Please check the server.');
+                } finally {
+                    hideTyping();
+                    if (!chatVisible) aiIdle();
                 }
             };
         });

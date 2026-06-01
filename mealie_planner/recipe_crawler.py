@@ -162,19 +162,57 @@ Guidelines:
                 
         return False
 
+def _persist_blackstone_verdict(recipe_details, result):
+    """Cache a computed Blackstone verdict back onto the Mealie recipe's `extras`
+    so subsequent dashboard loads read it instead of re-invoking the LLM."""
+    slug = recipe_details.get('slug')
+    if not slug:
+        return
+    try:
+        from .unified_client import UnifiedMealieClient
+        client = UnifiedMealieClient()
+        existing_extras = recipe_details.get('extras') or {}
+        new_extras = {**existing_extras, 'blackstone_compatible': 'true' if result else 'false'}
+        client.patch_recipe(slug, {"extras": new_extras})
+
+        # Keep the in-memory copy and the shared details cache in sync.
+        recipe_details['extras'] = new_extras
+        cache = getattr(client, '_recipe_details_cache', {})
+        rid = recipe_details.get('id')
+        if rid and rid in cache and isinstance(cache[rid], dict):
+            cache[rid]['extras'] = new_extras
+        if slug in cache and isinstance(cache[slug], dict):
+            cache[slug]['extras'] = new_extras
+    except Exception as e:
+        print(f"[Crawler] Failed to persist Blackstone verdict for '{slug}': {e}")
+
+
 def check_blackstone_compatibility(recipe_details):
-    """Standalone utility to check Blackstone compatibility using keyword check and AI fallback."""
+    """Standalone utility to check Blackstone compatibility using keyword check and AI fallback.
+
+    The verdict is cached on the recipe's Mealie `extras` (`blackstone_compatible`) so it is
+    computed at most once per recipe rather than on every dashboard render.
+    """
     if not recipe_details:
         return False
+
+    # 0. Cached verdict (avoids the keyword scan AND the LLM call entirely)
+    extras = recipe_details.get('extras') or {}
+    cached = extras.get('blackstone_compatible')
+    if cached is not None:
+        return str(cached).lower() in ('true', '1', 'yes')
+
     name_lower = recipe_details.get('name', '').lower()
     instructions = recipe_details.get('recipeInstructions', [])
     instructions_text = " ".join([i.get('text', '').lower() for i in instructions if i.get('text')]).lower()
-    
-    # Fast path
-    if 'blackstone' in name_lower or 'griddle' in name_lower or 'blackstone' in instructions_text or 'griddle' in instructions_text:
+
+    # 1. Fast path: explicit keyword mention
+    if ('blackstone' in name_lower or 'griddle' in name_lower or 'flat top' in name_lower
+            or 'blackstone' in instructions_text or 'griddle' in instructions_text):
+        _persist_blackstone_verdict(recipe_details, True)
         return True
-        
-    # AI Fallback
+
+    # 2. AI Fallback
     name = recipe_details.get('name', '')
     instructions_list = [i.get('text', '') for i in instructions if i.get('text')]
     prompt = (
@@ -189,7 +227,9 @@ def check_blackstone_compatibility(recipe_details):
         from .gemini_client import GeminiClient
         gemini = GeminiClient()
         response = gemini.call(prompt, expect_json=False)
-        return 'YES' in response.upper()
+        result = 'YES' in response.upper()
+        _persist_blackstone_verdict(recipe_details, result)
+        return result
     except Exception as e:
         print(f"[Crawler] Standalone Blackstone griddle AI check failed, falling back: {e}")
         return False

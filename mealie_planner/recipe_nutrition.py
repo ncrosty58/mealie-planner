@@ -7,6 +7,7 @@ from .config import (
 )
 from .exceptions import MealieAPIError, SkillParsingError
 from .models import RecipeNutritionImputation
+from .utils import extract_ingredient_texts
 
 class RecipeNutrition:
     def __init__(self, mealie_client, gemini_client):
@@ -15,18 +16,8 @@ class RecipeNutrition:
 
     def impute_nutrition_with_ai(self, recipe_details):
         """Call Gemini to estimate nutritional values for a recipe missing data."""
-        ingredients = []
-        for ing in recipe_details.get('recipeIngredient', []):
-            ing_text = ing.get('display') or ing.get('originalText')
-            if not ing_text:
-                note = ing.get('note') or ""
-                food_name = ing.get('food', {}).get('name') if ing.get('food') else ""
-                quantity = ing.get('quantity') or ""
-                unit = ing.get('unit', {}).get('name') if ing.get('unit') else ""
-                ing_text = f"{quantity} {unit} {food_name} {note}".strip()
-            if ing_text:
-                ingredients.append(ing_text)
-        
+        ingredients = extract_ingredient_texts(recipe_details)
+
         servings = recipe_details.get('recipeServings') or recipe_details.get('recipeYield') or '4'
         description = recipe_details.get('description') or ''
         
