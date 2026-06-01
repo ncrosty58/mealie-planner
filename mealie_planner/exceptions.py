@@ -1,5 +1,3 @@
-import json
-
 class MealiePlannerError(Exception):
     """Base class for exceptions in this module."""
     pass
