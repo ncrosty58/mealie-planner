@@ -15,7 +15,7 @@ from mealie_planner.shopping_sync import sync_shopping_list
 from mealie_planner.recipe_nutrition import calculate_nutrition_for_range
 from mealie_planner.recipe_crawler import check_blackstone_compatibility
 from mealie_planner.config import ACTIVE_LIST_ID, STAPLES_LIST_ID, RDA, TIMEZONE, APP_URL, FAMILY_RECIPIENT_EMAILS, FAMILY_NAMES
-from mealie_planner.utils import get_active_week_strings, get_planning_week_strings, get_planning_week_range, sanitize_input
+from mealie_planner.utils import get_active_week_strings, get_planning_week_strings, get_planning_week_range, sanitize_input, extract_ingredient_texts
 from scripts.clear_mealie import wipe_mealie_data
 
 # Mealie configuration
@@ -421,17 +421,7 @@ def get_swap_recommendations():
             # Fetch details to get ingredients
             try:
                 det = client.get_recipe_details(r['id'])
-                ingredients = []
-                for ing in det.get('recipeIngredient', []):
-                    ing_text = ing.get('display') or ing.get('originalText')
-                    if not ing_text:
-                        note = ing.get('note') or ""
-                        food_name = ing.get('food', {}).get('name') if ing.get('food') else ""
-                        quantity = ing.get('quantity') or ""
-                        unit = ing.get('unit', {}).get('name') if ing.get('unit') else ""
-                        ing_text = f"{quantity} {unit} {food_name} {note}".strip()
-                    if ing_text:
-                        ingredients.append(ing_text)
+                ingredients = extract_ingredient_texts(det)
                 other_dinner_context.append({
                     "name": r['name'],
                     "ingredients": ingredients

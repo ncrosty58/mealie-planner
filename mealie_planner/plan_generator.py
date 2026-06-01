@@ -14,6 +14,26 @@ from .parsers import parse_freezer_items, parse_exclusions
 from .exceptions import MealieAPIError, SkillParsingError
 from .models import WeeklyMealPlanResponse
 
+def classify_early_late_dates(target_date_strings):
+    """Split the planning range into 'early' (fresh/perishable) and 'late'
+    (frozen/shelf-stable) day buckets used for perishability sequencing.
+
+    Pure function so the sequencing rule can be unit-tested independently of the
+    LLM-driven plan generation.
+    """
+    num_days = len(target_date_strings)
+    if num_days <= 1:
+        return list(target_date_strings), list(target_date_strings)
+    elif num_days == 2:
+        return target_date_strings[:1], target_date_strings[1:]
+    elif num_days == 3:
+        return target_date_strings[:2], target_date_strings[2:]
+    else:
+        # 4 to 7 days: reserve the last 3 days as 'late' once the range is long enough.
+        split_idx = num_days - 3 if num_days >= 6 else num_days // 2
+        return target_date_strings[:split_idx], target_date_strings[split_idx:]
+
+
 class PlanGenerator:
     def __init__(self, mealie_client, gemini_client):
         self.client = mealie_client
@@ -140,21 +160,8 @@ class PlanGenerator:
         random.shuffle(recipe_catalogue)
 
         # Classify early vs late days relative to the planning range
-        if num_days <= 1:
-            early_target_dates = target_date_strings
-            late_target_dates = target_date_strings
-        elif num_days == 2:
-            early_target_dates = target_date_strings[:1]
-            late_target_dates = target_date_strings[1:]
-        elif num_days == 3:
-            early_target_dates = target_date_strings[:2]  # Wed, Thu
-            late_target_dates = target_date_strings[2:]   # Fri
-        else:
-            # 4 to 7 days
-            split_idx = num_days - 3 if num_days >= 6 else num_days // 2
-            early_target_dates = target_date_strings[:split_idx]
-            late_target_dates = target_date_strings[split_idx:]
-            
+        early_target_dates, late_target_dates = classify_early_late_dates(target_date_strings)
+
         early_days_display = ", ".join([datetime.strptime(d, "%Y-%m-%d").strftime("%A (%Y-%m-%d)") for d in early_target_dates])
         late_days_display = ", ".join([datetime.strptime(d, "%Y-%m-%d").strftime("%A (%Y-%m-%d)") for d in late_target_dates])
 

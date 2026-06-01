@@ -63,3 +63,31 @@ def sanitize_input(text, max_length=1000):
         return ""
     # Strip whitespace and truncate
     return text.strip()[:max_length]
+
+def extract_ingredient_text(ing):
+    """Build a human-readable ingredient string from a Mealie recipe ingredient object.
+
+    Prefers the pre-rendered `display`/`originalText` fields, falling back to
+    assembling quantity + unit + food + note when those are missing.
+    """
+    text = ing.get('display') or ing.get('originalText')
+    if not text:
+        note = ing.get('note') or ""
+        food = ing.get('food') or {}
+        food_name = food.get('name') if isinstance(food, dict) else ""
+        quantity = ing.get('quantity') or ""
+        unit = ing.get('unit') or {}
+        unit_name = unit.get('name') if isinstance(unit, dict) else ""
+        text = f"{quantity} {unit_name} {food_name} {note}".strip()
+    return text
+
+def extract_ingredient_texts(recipe_details):
+    """Return a list of cleaned ingredient strings from raw Mealie recipe details."""
+    if not recipe_details:
+        return []
+    out = []
+    for ing in recipe_details.get('recipeIngredient', []):
+        text = extract_ingredient_text(ing)
+        if text and text.strip():
+            out.append(text.strip())
+    return out

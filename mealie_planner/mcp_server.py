@@ -403,6 +403,20 @@ def sync_shopping_list(
         raise ToolError(f"Error during shopping list sync: {str(e)}")
 
 if __name__ == "__main__":
-    # Register all tools from the vendored mealie-mcp-server (overlay tools already registered will be preserved)
+    # Tool-override policy (IMPORTANT):
+    # FastMCP's ToolManager.add_tool is FIRST-REGISTRATION-WINS — a duplicate name keeps
+    # the EXISTING tool and ignores the new one. Our custom overlay tools above are
+    # registered at import time (via @mcp.tool() decorators), i.e. BEFORE this block.
+    # Therefore calling register_all_tools() here can only ADD vendored tools whose names
+    # don't already exist; for any collision the custom high-fidelity version is preserved.
+    # Do NOT move register_all_tools() above the overlay definitions or the vendored tools
+    # would win instead.
+    try:
+        overlay_names = sorted(mcp._tool_manager._tools.keys())
+        logger.info(f"Custom overlay tools (take precedence over vendored): {overlay_names}")
+    except Exception:
+        pass
+
     register_all_tools(mcp, mealie)
+
     mcp.run()
