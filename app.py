@@ -66,6 +66,7 @@ def index():
     client = UnifiedMealieClient()
     state = load_state()
     current_week_low_staples = state.get('low_staples', [])
+    emails_enabled = state.get('emails_enabled', True)
 
     # Get active week range (for Dashboard display)
     active_start_str, active_end_str = get_active_week_strings()
@@ -161,7 +162,8 @@ def index():
             mealie_url=MEALIE_FRONTEND_URL,
             active_list_id=formatted_list_id,
             week_view='current',
-            today_str=today_str
+            today_str=today_str,
+            emails_enabled=emails_enabled
         )
     else:
         # Questionnaire View - Displays and plans for the REMAINING dates
@@ -172,7 +174,8 @@ def index():
             end_date=planning_end_str,
             staples=staples,
             low_staples=current_week_low_staples,
-            today_str=today_str
+            today_str=today_str,
+            emails_enabled=emails_enabled
         )
 
 @app.route('/plan', methods=['POST'])
@@ -270,6 +273,14 @@ def sync():
     except Exception as e:
         flash(f"Error syncing shopping list: {str(e)}", "danger")
 
+    return redirect(url_for('index'))
+
+@app.route('/update-admin', methods=['POST'])
+def update_admin():
+    """Update general administration settings (like disabling/enabling emails)."""
+    emails_enabled = request.form.get('emails_enabled') == '1'
+    save_state({'emails_enabled': emails_enabled})
+    flash(f"Admin settings updated successfully! Emails are now {'enabled' if emails_enabled else 'disabled'}.", "success")
     return redirect(url_for('index'))
 
 @app.route('/clear', methods=['POST'])
