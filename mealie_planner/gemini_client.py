@@ -3,60 +3,6 @@ import json
 import requests
 from .exceptions import ConfigurationError
 
-def dereference_schema(schema: dict, defs: dict = None) -> dict:
-    """Recursively resolve all $ref pointers in a schema using its $defs."""
-    if defs is None:
-        defs = schema.get("$defs", {})
-        
-    if not isinstance(schema, dict):
-        return schema
-        
-    if "$ref" in schema:
-        ref_path = schema["$ref"]
-        ref_name = ref_path.split("/")[-1]
-        if ref_name in defs:
-            resolved = dereference_schema(defs[ref_name], defs)
-            if "description" in schema:
-                resolved["description"] = schema["description"]
-            return resolved
-            
-    cleaned = {}
-    for k, v in schema.items():
-        if k == "$defs":
-            continue
-        if isinstance(v, dict):
-            cleaned[k] = dereference_schema(v, defs)
-        elif isinstance(v, list):
-            cleaned[k] = [dereference_schema(item, defs) if isinstance(item, dict) else item for item in v]
-        else:
-            cleaned[k] = v
-    return cleaned
-
-
-def clean_schema(schema: dict) -> dict:
-    """Ensure schema keys and types conform to Gemini REST API expectations (e.g., uppercase types)."""
-    if not isinstance(schema, dict):
-        return schema
-    
-    allowed_keys = {"type", "properties", "required", "items", "description", "enum", "format", "nullable"}
-    clean = {}
-    
-    for k, v in schema.items():
-        if k not in allowed_keys:
-            continue
-            
-        if k == 'type' and isinstance(v, str):
-            clean[k] = v.upper()
-        elif k == 'properties' and isinstance(v, dict):
-            clean[k] = {prop_name: clean_schema(prop_val) for prop_name, prop_val in v.items()}
-        elif k == 'items' and isinstance(v, dict):
-            clean[k] = clean_schema(v)
-        else:
-            clean[k] = v
-            
-    return clean
-
-
 class GeminiClient:
     _instance = None
 
@@ -81,7 +27,7 @@ class GeminiClient:
         Send a prompt to the Gemini API and return the text response.
         If expect_json=True or response_schema is set, requests JSON output mode.
         If response_schema is provided (should be a Pydantic model class), it is used
-        to configure the response schema constraint in Gemini.
+        to configure the response schema constraint in Gemini via responseJsonSchema.
         """
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}"
 
@@ -96,10 +42,7 @@ class GeminiClient:
         if response_schema:
             from pydantic import BaseModel
             if issubclass(response_schema, BaseModel):
-                raw_schema = response_schema.model_json_schema()
-                dereferenced = dereference_schema(raw_schema)
-                cleaned = clean_schema(dereferenced)
-                generation_config["responseSchema"] = cleaned
+                generation_config["responseJsonSchema"] = response_schema.model_json_schema()
 
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],

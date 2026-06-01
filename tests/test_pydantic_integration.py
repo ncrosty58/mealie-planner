@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 from pydantic import ValidationError
 
-from mealie_planner.gemini_client import dereference_schema, clean_schema, GeminiClient
+from mealie_planner.gemini_client import GeminiClient
 from mealie_planner.models import (
     ParsedIngredientList,
     MealExclusions,
@@ -15,41 +15,6 @@ from mealie_planner.models import (
 from mealie_planner.parsers import parse_freezer_items, parse_exclusions
 
 class TestPydanticIntegration(unittest.TestCase):
-    
-    def test_dereference_schema(self):
-        # ParsedIngredientList uses nested ParsedIngredient model which results in a $ref
-        raw_schema = ParsedIngredientList.model_json_schema()
-        # Verify $ref is present in raw schema
-        self.assertIn("$defs", raw_schema)
-        
-        dereferenced = dereference_schema(raw_schema)
-        # Verify $ref and $defs are resolved and removed
-        self.assertNotIn("$defs", dereferenced)
-        self.assertNotIn("$ref", dereferenced["items"])
-        self.assertEqual(dereferenced["items"]["type"], "object")
-        self.assertIn("raw", dereferenced["items"]["properties"])
-
-    def test_clean_schema(self):
-        test_schema = {
-            "type": "array",
-            "title": "Some Title",
-            "additionalProperties": False,
-            "items": {
-                "type": "object",
-                "properties": {
-                    "has_meat": {"type": "boolean", "title": "Has Meat"}
-                }
-            }
-        }
-        cleaned = clean_schema(test_schema)
-        # Should capitalize type names
-        self.assertEqual(cleaned["type"], "ARRAY")
-        self.assertEqual(cleaned["items"]["type"], "OBJECT")
-        self.assertEqual(cleaned["items"]["properties"]["has_meat"]["type"], "BOOLEAN")
-        # Should strip non-allowed keys like title and additionalProperties
-        self.assertNotIn("title", cleaned)
-        self.assertNotIn("additionalProperties", cleaned)
-        self.assertNotIn("title", cleaned["items"]["properties"]["has_meat"])
 
     def test_parsed_ingredient_list(self):
         valid_json = '[{"raw": "1lb beef", "core_ingredient": "beef", "has_meat": true}]'
@@ -155,11 +120,12 @@ class TestPydanticIntegration(unittest.TestCase):
         
         generation_config = payload["generationConfig"]
         self.assertEqual(generation_config["responseMimeType"], "application/json")
-        self.assertIn("responseSchema", generation_config)
+        self.assertIn("responseJsonSchema", generation_config)
         
-        schema = generation_config["responseSchema"]
-        self.assertEqual(schema["type"], "ARRAY")
-        self.assertEqual(schema["items"]["type"], "OBJECT")
+        schema = generation_config["responseJsonSchema"]
+        self.assertEqual(schema["type"], "array")
+        # Verify the raw JSON schema is passed directly (including $defs)
+        self.assertIn("$defs", schema)
 
 if __name__ == "__main__":
     unittest.main()
