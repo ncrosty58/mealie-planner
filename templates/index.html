@@ -774,6 +774,11 @@
             };
 
             cin.oninput = () => csend.disabled = !cin.value.trim();
+            cin.onkeydown = (e) => {
+                if (e.key === 'Enter' && !csend.disabled) {
+                    csend.click();
+                }
+            };
             csend.onclick = async () => {
                 const t = cin.value.trim();
                 addMsg('user', t);
