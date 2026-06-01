@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timedelta
 from .config import (
     _INGREDIENT_PARSING_SKILL_DEFINITION,
