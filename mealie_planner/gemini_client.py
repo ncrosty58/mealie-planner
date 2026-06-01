@@ -17,7 +17,7 @@ class GeminiClient:
             return
             
         self.api_key = api_key or os.getenv('GOOGLE_API_KEY')
-        self.model = model_name or os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
+        self.model = model_name or os.getenv('GEMINI_MODEL', 'gemini-3.5-flash')
         if not self.api_key:
             raise ConfigurationError("GOOGLE_API_KEY is not set in environment.")
         self.session = requests.Session()
