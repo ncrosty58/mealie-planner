@@ -127,5 +127,39 @@ class TestPydanticIntegration(unittest.TestCase):
         # Verify the raw JSON schema is passed directly (including $defs)
         self.assertIn("$defs", schema)
 
+    @patch("mealie_planner.gemini_client.GeminiClient.call")
+    def test_check_blackstone_compatibility(self, mock_gemini_call):
+        import os
+        old_key = os.environ.get("GOOGLE_API_KEY")
+        os.environ["GOOGLE_API_KEY"] = "dummy_key"
+        try:
+            from mealie_planner.recipe_crawler import check_blackstone_compatibility
+            
+            # Test Case 1: Fast-path via name keyword
+            recipe_griddle = {"name": "Smashed Griddle Burgers", "recipeInstructions": []}
+            self.assertTrue(check_blackstone_compatibility(recipe_griddle))
+            
+            # Test Case 2: Fast-path via instructions keyword
+            recipe_instructions = {"name": "Stir Fry", "recipeInstructions": [{"text": "Cook on the Blackstone griddle"}]}
+            self.assertTrue(check_blackstone_compatibility(recipe_instructions))
+            
+            # Test Case 3: AI Fallback returning YES
+            recipe_ai_yes = {"name": "Fajitas", "recipeInstructions": [{"text": "Sear chicken and peppers on a flat pan"}]}
+            mock_gemini_call.return_value = "YES"
+            self.assertTrue(check_blackstone_compatibility(recipe_ai_yes))
+            mock_gemini_call.assert_called_once()
+            
+            # Test Case 4: AI Fallback returning NO
+            mock_gemini_call.reset_mock()
+            recipe_ai_no = {"name": "Slow Cooker Beef Stew", "recipeInstructions": [{"text": "Simmer in a slow cooker for 8 hours"}]}
+            mock_gemini_call.return_value = "NO"
+            self.assertFalse(check_blackstone_compatibility(recipe_ai_no))
+            mock_gemini_call.assert_called_once()
+        finally:
+            if old_key is not None:
+                os.environ["GOOGLE_API_KEY"] = old_key
+            else:
+                os.environ.pop("GOOGLE_API_KEY", None)
+
 if __name__ == "__main__":
     unittest.main()
