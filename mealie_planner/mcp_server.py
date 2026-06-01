@@ -90,9 +90,6 @@ def resolve_ingredient_food_and_unit(mealie, item: dict) -> tuple:
             
     return resolved_unit, resolved_food
 
-# 1. Register all tools from the vendored mealie-mcp-server
-register_all_tools(mcp, mealie)
-
 # 2. Register Custom/Overlay Tools that override or extend the base tools
 
 @mcp.tool()
@@ -406,4 +403,6 @@ def sync_shopping_list(
         raise ToolError(f"Error during shopping list sync: {str(e)}")
 
 if __name__ == "__main__":
+    # Register all tools from the vendored mealie-mcp-server (overlay tools already registered will be preserved)
+    register_all_tools(mcp, mealie)
     mcp.run()
