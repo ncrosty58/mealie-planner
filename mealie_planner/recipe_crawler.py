@@ -8,13 +8,13 @@ from .config import load_skill_md, _RECIPE_FINDER_SKILL_DEFINITION, get_banned_r
 from .exceptions import MealieAPIError, SkillParsingError
 
 class RecipeCrawler:
-    def __init__(self, mealie_client, deepseek_client):
+    def __init__(self, mealie_client, ai_client):
         self.client = mealie_client
-        self.deepseek = deepseek_client
+        self.ai = ai_client
         self._detailed_recipes_cache = None
 
     def check_blackstone_compatibility(self, recipe_details):
-        """Analyze recipe details using DeepSeek semantic reasoning to check flat top griddle compatibility."""
+        """Analyze recipe details using AI semantic reasoning to check flat top griddle compatibility."""
         return check_blackstone_compatibility(recipe_details)
 
     def get_recipes_from_db(self):
@@ -38,7 +38,7 @@ class RecipeCrawler:
             if search_term.replace(' ', '-') in r.get('slug', '').lower():
                 return r['id']
 
-        # 3. Semantic Path: Ask DeepSeek to resolve the closest culinary match
+        # 3. Semantic Path: Ask AI to resolve the closest culinary match
         catalogue = [
             {
                 "id": r["id"],
@@ -61,7 +61,7 @@ Guidelines:
 - If no recipe is a good culinary match or utilizes the ingredient, respond with 'NONE'.
 - Respond with ONLY the matched recipe ID/UUID or 'NONE'."""
         try:
-            response = self.deepseek.call(prompt, expect_json=False).strip()
+            response = self.ai.call(prompt, expect_json=False).strip()
             if response and response.upper() != 'NONE' and len(response) > 20:
                 # Validate it's a valid ID from the catalogue
                 valid_ids = {r["id"] for r in all_recipes}
@@ -120,7 +120,7 @@ Guidelines:
             return None
 
     def validate_recipe_link_with_ai(self, url, title, description):
-        """Use DeepSeek to confirm if a URL is actually a single, high-quality recipe."""
+        """Use AI to confirm if a URL is actually a single, high-quality recipe."""
         prompt = (
             "You are an expert in the 'Mealie Recipe Link Validator Skill'.\n\n" +
             _RECIPE_FINDER_SKILL_DEFINITION +
@@ -129,7 +129,7 @@ Guidelines:
             "Return ONLY 'YES' or 'NO'."
         )
         try:
-            response = self.deepseek.call(prompt, expect_json=False)
+            response = self.ai.call(prompt, expect_json=False)
             return 'YES' in response.upper()
         except:
             return False
@@ -164,7 +164,7 @@ Guidelines:
 
 def _persist_blackstone_verdict(recipe_details, result):
     """Cache a computed Blackstone verdict back onto the Mealie recipe's `extras`
-    so subsequent dashboard loads read it instead of re-invoking the LLM."""
+    so subsequent dashboard loads read it instead of re-invoking the AI."""
     slug = recipe_details.get('slug')
     if not slug:
         return
@@ -196,7 +196,7 @@ def check_blackstone_compatibility(recipe_details):
     if not recipe_details:
         return False
 
-    # 0. Cached verdict (avoids the keyword scan AND the LLM call entirely)
+    # 0. Cached verdict (avoids the keyword scan AND the AI call entirely)
     extras = recipe_details.get('extras') or {}
     cached = extras.get('blackstone_compatible')
     if cached is not None:
@@ -224,9 +224,9 @@ def check_blackstone_compatibility(recipe_details):
         "Return ONLY 'YES' or 'NO'."
     )
     try:
-        from .deepseek_client import DeepSeekClient
-        deepseek = DeepSeekClient()
-        response = deepseek.call(prompt, expect_json=False)
+        from .ai_client import AIClient
+        ai = AIClient()
+        response = ai.call(prompt, expect_json=False)
         result = 'YES' in response.upper()
         _persist_blackstone_verdict(recipe_details, result)
         return result

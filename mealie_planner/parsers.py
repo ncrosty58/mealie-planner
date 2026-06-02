@@ -6,8 +6,8 @@ from .config import (
 from .exceptions import SkillParsingError
 from .models import ParsedIngredientList, MealExclusions
 
-def parse_freezer_items(deepseek_client, text: str) -> list:
-    """Use DeepSeek to parse free-text freezer/pantry/fridge items into structured ingredient data."""
+def parse_freezer_items(ai_client, text: str) -> list:
+    """Use AI to parse free-text freezer/pantry/fridge items into structured ingredient data."""
     if not text or not text.strip():
         return []
     
@@ -20,7 +20,7 @@ def parse_freezer_items(deepseek_client, text: str) -> list:
     )
     
     try:
-        raw = deepseek_client.call(prompt, response_schema=ParsedIngredientList)
+        raw = ai_client.call(prompt, response_schema=ParsedIngredientList)
         # Parse and validate with Pydantic
         result = ParsedIngredientList.model_validate_json(raw).root
         return [item.model_dump() for item in result]
@@ -30,8 +30,8 @@ def parse_freezer_items(deepseek_client, text: str) -> list:
         return [{"raw": i.strip(), "core_ingredient": i.strip(), "has_meat": False} 
                 for i in text.split(",") if i.strip()]
 
-def parse_exclusions(deepseek_client, text: str, start_date, end_date) -> dict:
-    """Use DeepSeek to interpret a free-text description of which meals to skip."""
+def parse_exclusions(ai_client, text: str, start_date, end_date) -> dict:
+    """Use AI to interpret a free-text description of which meals to skip."""
     if not text or not text.strip():
         return {}
 
@@ -56,7 +56,7 @@ def parse_exclusions(deepseek_client, text: str, start_date, end_date) -> dict:
     )
 
     try:
-        raw = deepseek_client.call(prompt, response_schema=MealExclusions)
+        raw = ai_client.call(prompt, response_schema=MealExclusions)
         result = MealExclusions.model_validate_json(raw).root
         
         # Filter days and meals based on the pydantic model output

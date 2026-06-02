@@ -10,12 +10,12 @@ from .models import RecipeNutritionImputation
 from .utils import extract_ingredient_texts
 
 class RecipeNutrition:
-    def __init__(self, mealie_client, deepseek_client):
+    def __init__(self, mealie_client, ai_client):
         self.client = mealie_client
-        self.deepseek = deepseek_client
+        self.ai = ai_client
 
     def impute_nutrition_with_ai(self, recipe_details):
-        """Call DeepSeek to estimate nutritional values for a recipe missing data."""
+        """Call AI to estimate nutritional values for a recipe missing data."""
         ingredients = extract_ingredient_texts(recipe_details)
 
         servings = recipe_details.get('recipeServings') or recipe_details.get('recipeYield') or '4'
@@ -38,7 +38,7 @@ class RecipeNutrition:
         )
 
         try:
-            raw = self.deepseek.call(prompt, response_schema=RecipeNutritionImputation)
+            raw = self.ai.call(prompt, response_schema=RecipeNutritionImputation)
             return RecipeNutritionImputation.model_validate_json(raw).model_dump()
         except Exception as e:
             print(f"[AI] Nutrition imputation failed: {e}")
@@ -186,8 +186,8 @@ class RecipeNutrition:
 def calculate_nutrition_for_range(start_date_str, end_date_str):
     """Standalone helper to run nutrition calculation with fresh clients."""
     from .unified_client import UnifiedMealieClient
-    from .deepseek_client import DeepSeekClient
+    from .ai_client import AIClient
     client = UnifiedMealieClient()
-    deepseek = DeepSeekClient()
-    nutrition = RecipeNutrition(client, deepseek)
+    ai = AIClient()
+    nutrition = RecipeNutrition(client, ai)
     return nutrition.calculate_nutrition_for_range(start_date_str, end_date_str)
