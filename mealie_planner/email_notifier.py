@@ -443,7 +443,7 @@ def send_saturday_qa_email():
     
     subject = "📋 Weekly Meal Plan Questionnaire"
     body = f"""
-    <h2>Good morning!</h2>
+    <h2>Hey there!</h2>
     <p>It's Saturday morning. Please take a moment to fill out the weekly meal plan questionnaire:</p>
     <p><a href="{APP_URL}" style="display: inline-block; padding: 10px 20px; background-color: #E58325; color: white; text-decoration: none; border-radius: 5px;">Fill out Questionnaire</a></p>
     <p>Thank you!</p>
