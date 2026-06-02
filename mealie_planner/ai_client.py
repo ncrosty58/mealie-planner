@@ -101,3 +101,74 @@ class AIClient:
 
         response = self.client.chat.completions.create(**kwargs)
         return response.choices[0].message.content
+
+    def generate(
+        self,
+        contents: list,
+        system_instruction: str = None,
+        tools: Optional[list] = None,
+        model: Optional[str] = None,
+    ) -> dict:
+        """
+        OpenAI‑compatible function‑calling loop, mimicking GeminiClient.generate() output.
+
+        ```python
+        # contents = [{"role": "user", "parts": [{"text": "..."}]}, ...]
+        # tools   = [{"functionDeclarations": [...]}]   (Gemini‑style)
+        ```
+
+        Returns dict with signature:
+            {"candidates": [{"content": {"parts": [...]}}]}
+        each part can be `{"text": "..."}` or `{"functionCall": {...}}`.
+        """
+        # Convert Gemini‑style tools to OpenAI format
+        openai_tools = None
+        if tools:
+            openai_tools = []
+            for tool in tools:
+                for decl in tool.get("functionDeclarations", []):
+                    openai_tools.append({
+                        "type": "function",
+                        "function": {
+                            "name": decl["name"],
+                            "description": decl.get("description", ""),
+                            "parameters": decl.get("parameters", {}),
+                        }
+                    })
+
+        messages = [{"role": "system", "content": system_instruction}] if system_instruction else []
+        for item in contents:
+            role = item.get("role", "user")
+            parts = item.get("parts", [])
+            text = "".join(p.get("text", "") for p in parts if "text" in p)
+            messages.append({"role": role, "content": text})
+
+        # Fire the request (may use tools)
+        response = self.client.chat.completions.create(
+            model=model or self.model_name,
+            messages=messages,
+            tools=openai_tools,
+            tool_choice="auto" if openai_tools else None,
+        )
+
+        choice = response.choices[0]
+        msg = choice.message
+
+        # Build Gemini‑like response structure
+        parts = []
+        if msg.content:
+            parts.append({"text": msg.content})
+        if msg.tool_calls:
+            for tc in msg.tool_calls:
+                parts.append({
+                    "functionCall": {
+                        "name": tc.function.name,
+                        "args": json.loads(tc.function.arguments) if tc.function.arguments else {},
+                    }
+                })
+
+        return {
+            "candidates": [
+                {"content": {"parts": parts}}
+            ]
+        }
