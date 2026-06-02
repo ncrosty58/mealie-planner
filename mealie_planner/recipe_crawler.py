@@ -8,13 +8,13 @@ from .config import load_skill_md, _RECIPE_FINDER_SKILL_DEFINITION, get_banned_r
 from .exceptions import MealieAPIError, SkillParsingError
 
 class RecipeCrawler:
-    def __init__(self, mealie_client, gemini_client):
+    def __init__(self, mealie_client, deepseek_client):
         self.client = mealie_client
-        self.gemini = gemini_client
+        self.deepseek = deepseek_client
         self._detailed_recipes_cache = None
 
     def check_blackstone_compatibility(self, recipe_details):
-        """Analyze recipe details using Gemini semantic reasoning to check flat top griddle compatibility."""
+        """Analyze recipe details using DeepSeek semantic reasoning to check flat top griddle compatibility."""
         return check_blackstone_compatibility(recipe_details)
 
     def get_recipes_from_db(self):
@@ -38,7 +38,7 @@ class RecipeCrawler:
             if search_term.replace(' ', '-') in r.get('slug', '').lower():
                 return r['id']
 
-        # 3. Semantic Path: Ask Gemini to resolve the closest culinary match
+        # 3. Semantic Path: Ask DeepSeek to resolve the closest culinary match
         catalogue = [
             {
                 "id": r["id"],
@@ -61,7 +61,7 @@ Guidelines:
 - If no recipe is a good culinary match or utilizes the ingredient, respond with 'NONE'.
 - Respond with ONLY the matched recipe ID/UUID or 'NONE'."""
         try:
-            response = self.gemini.call(prompt, expect_json=False).strip()
+            response = self.deepseek.call(prompt, expect_json=False).strip()
             if response and response.upper() != 'NONE' and len(response) > 20:
                 # Validate it's a valid ID from the catalogue
                 valid_ids = {r["id"] for r in all_recipes}
@@ -120,7 +120,7 @@ Guidelines:
             return None
 
     def validate_recipe_link_with_ai(self, url, title, description):
-        """Use Gemini to confirm if a URL is actually a single, high-quality recipe."""
+        """Use DeepSeek to confirm if a URL is actually a single, high-quality recipe."""
         prompt = (
             "You are an expert in the 'Mealie Recipe Link Validator Skill'.\n\n" +
             _RECIPE_FINDER_SKILL_DEFINITION +
@@ -129,7 +129,7 @@ Guidelines:
             "Return ONLY 'YES' or 'NO'."
         )
         try:
-            response = self.gemini.call(prompt, expect_json=False)
+            response = self.deepseek.call(prompt, expect_json=False)
             return 'YES' in response.upper()
         except:
             return False
@@ -224,9 +224,9 @@ def check_blackstone_compatibility(recipe_details):
         "Return ONLY 'YES' or 'NO'."
     )
     try:
-        from .gemini_client import GeminiClient
-        gemini = GeminiClient()
-        response = gemini.call(prompt, expect_json=False)
+        from .deepseek_client import DeepSeekClient
+        deepseek = DeepSeekClient()
+        response = deepseek.call(prompt, expect_json=False)
         result = 'YES' in response.upper()
         _persist_blackstone_verdict(recipe_details, result)
         return result
