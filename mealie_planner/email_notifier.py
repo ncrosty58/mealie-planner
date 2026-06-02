@@ -13,14 +13,14 @@ from .utils import get_active_week_strings, get_active_week_range, extract_ingre
 from .exceptions import MealieAPIError, MealiePlannerError
 
 class EmailNotifier:
-    def __init__(self, mealie_client, deepseek_client):
+    def __init__(self, mealie_client, ai_client):
         # Lazy imports to avoid circular dependencies
         from .recipe_crawler import RecipeCrawler
         from .recipe_nutrition import RecipeNutrition
         self.client = mealie_client
-        self.deepseek = deepseek_client
-        self.crawler = RecipeCrawler(mealie_client, deepseek_client)
-        self.nutrition = RecipeNutrition(mealie_client, deepseek_client)
+        self.ai = ai_client
+        self.crawler = RecipeCrawler(mealie_client, ai_client)
+        self.nutrition = RecipeNutrition(mealie_client, ai_client)
 
     def send_email(self, subject, html_content):
         """Send an email using SMTP settings."""
@@ -101,7 +101,7 @@ class EmailNotifier:
         }
 
     def generate_daily_ai_summary(self, day_name, breakfast, lunch, dinner_title, recipe_details=None, prep_note=None, tomorrow_title=None, tomorrow_recipe_details=None, tomorrow_prep_note=None):
-        """Call DeepSeek to generate a brief, practical daily kitchen briefing of the day's meals."""
+        """Call AI to generate a brief, practical daily kitchen briefing of the day's meals."""
         context = f"""Today ({day_name})'s Menu:
 - Breakfast: {breakfast}
 - Lunch: {lunch}
@@ -129,7 +129,7 @@ Tomorrow's Dinner details:
             "\nReturn ONLY the single briefing paragraph as specified in the skill definition."
         )
         try:
-            summary = self.deepseek.call(prompt, expect_json=False, temperature=0.4).strip()
+            summary = self.ai.call(prompt, expect_json=False, temperature=0.4).strip()
             return summary
         except Exception as e:
             print(f"[Email] Failed to generate AI summary: {e}")
@@ -137,7 +137,7 @@ Tomorrow's Dinner details:
             return f"Today we have {breakfast} for breakfast, {lunch} for lunch, and {dinner_title} for dinner.{prep_str}"
 
     def generate_weekly_themes_summary(self, meal_plans, start_date_str, end_date_str):
-        """Call DeepSeek to generate a brief summary and thematic analysis of the upcoming week's meals."""
+        """Call AI to generate a brief summary and thematic analysis of the upcoming week's meals."""
         dinners = []
         try:
             start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
@@ -170,7 +170,7 @@ Tomorrow's Dinner details:
             "Return ONLY the themes synopsis as specified in the skill definition."
         )
         try:
-            return self.deepseek.call(prompt, expect_json=False, temperature=0.5).strip().strip('"').strip("'")
+            return self.ai.call(prompt, expect_json=False, temperature=0.5).strip().strip('"').strip("'")
         except Exception as e:
             print(f"[Email] Failed to generate weekly themes summary: {e}")
             return "A diverse week of planned dinners, highlighting fresh ingredients and easy-to-cook recipes."
@@ -420,27 +420,27 @@ Tomorrow's Dinner details:
 
 def send_email(subject, html_content):
     from .unified_client import UnifiedMealieClient
-    from .deepseek_client import DeepSeekClient
+    from .ai_client import AIClient
     client = UnifiedMealieClient()
-    deepseek = DeepSeekClient()
-    notifier = EmailNotifier(client, deepseek)
+    ai = AIClient()
+    notifier = EmailNotifier(client, ai)
     return notifier.send_email(subject, html_content)
 
 def send_daily_reminder_email(date_str=None):
     from .unified_client import UnifiedMealieClient
-    from .deepseek_client import DeepSeekClient
+    from .ai_client import AIClient
     client = UnifiedMealieClient()
-    deepseek = DeepSeekClient()
-    notifier = EmailNotifier(client, deepseek)
+    ai = AIClient()
+    notifier = EmailNotifier(client, ai)
     return notifier.send_daily_reminder_email(date_str)
 
 def send_saturday_qa_email():
     from .unified_client import UnifiedMealieClient
-    from .deepseek_client import DeepSeekClient
+    from .ai_client import AIClient
     client = UnifiedMealieClient()
-    deepseek = DeepSeekClient()
-    notifier = EmailNotifier(client, deepseek)
-    
+    ai = AIClient()
+    notifier = EmailNotifier(client, ai)
+
     subject = "📋 Weekly Meal Plan Questionnaire"
     body = f"""
     <h2>Hey there!</h2>
@@ -450,23 +450,30 @@ def send_saturday_qa_email():
     """
     return notifier.send_email(subject, body)
 
-def setup_scheduler(mealie_client, gemini_client):
+def setup_scheduler(mealie_client, ai_client):
     """Initialize and start the background scheduler for email notifications."""
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
     
     scheduler = BackgroundScheduler(timezone=TIMEZONE)
+
+    # We need closures to capture the notifier instance
+    def daily_reminder_job():
+        send_daily_reminder_email()
     
+    def saturday_qa_job():
+        send_saturday_qa_email()
+
     # 1. Saturday Q/A email at 8:00 AM
     scheduler.add_job(
-        send_saturday_qa_email,
+        saturday_qa_job,
         CronTrigger(day_of_week='sat', hour=8, minute=0),
         id='saturday_qa_email'
     )
     
     # 2. Daily Reminder email Monday-Friday and Sunday at 7:00 AM
     scheduler.add_job(
-        send_daily_reminder_email,
+        daily_reminder_job,
         CronTrigger(day_of_week='mon-fri,sun', hour=7, minute=0),
         id='daily_reminder_email'
     )

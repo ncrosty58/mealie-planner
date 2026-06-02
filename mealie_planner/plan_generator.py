@@ -35,12 +35,12 @@ def classify_early_late_dates(target_date_strings):
 
 
 class PlanGenerator:
-    def __init__(self, mealie_client, deepseek_client):
+    def __init__(self, mealie_client, ai_client):
         self.client = mealie_client
-        self.deepseek = deepseek_client
-        self.crawler = RecipeCrawler(mealie_client, deepseek_client)
-        self.shopping = ShoppingListSync(mealie_client, deepseek_client)
-        self.notifier = EmailNotifier(mealie_client, deepseek_client)
+        self.ai = ai_client
+        self.crawler = RecipeCrawler(mealie_client, ai_client)
+        self.shopping = ShoppingListSync(mealie_client, ai_client)
+        self.notifier = EmailNotifier(mealie_client, ai_client)
 
     def generate_weekly_plan(self, start_date_str, end_date_str, exclude_text="", freezer_items="", special_requests="", low_staples_ids=[], progress_callback=None):
         """Generate weekly plan using an AI-driven intelligent rule-based scoring engine and schedule in Mealie."""
@@ -55,7 +55,7 @@ class PlanGenerator:
         item_to_recipe_map = {}
         if freezer_items:
             # Use AI to parse free-text items into structured ingredients
-            parsed_items = parse_freezer_items(self.deepseek, freezer_items)
+            parsed_items = parse_freezer_items(self.ai, freezer_items)
             
             for item in parsed_items:
                 core = item.get("core_ingredient", item.get("raw", ""))
@@ -123,7 +123,7 @@ class PlanGenerator:
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
         end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
         num_days = (end_date - start_date).days + 1
-        exclusions = parse_exclusions(self.deepseek, exclude_text, start_date, end_date)
+        exclusions = parse_exclusions(self.ai, exclude_text, start_date, end_date)
         dinner_days = [
             (start_date + timedelta(days=i)).strftime("%A")
             for i in range(num_days)
@@ -198,11 +198,11 @@ class PlanGenerator:
         )
 
         if progress_callback:
-            progress_callback(f"Querying DeepSeek for optimized {num_days}-day plan...", 50)
+            progress_callback(f"Querying AI for optimized {num_days}-day plan...", 50)
         
         meals = []
         try:
-            raw = self.deepseek.call(selection_prompt, response_schema=WeeklyMealPlanResponse, temperature=0.7)
+            raw = self.ai.call(selection_prompt, response_schema=WeeklyMealPlanResponse, temperature=0.7)
             ai_result = WeeklyMealPlanResponse.model_validate_json(raw).model_dump()
             
             for day_entry in ai_result.get("days", []):
@@ -335,4 +335,3 @@ class PlanGenerator:
         if progress_callback:
             progress_callback("Meal plan generation complete!", 100)
         print(f"Rule-based plan successfully generated and scheduled for {start_date_str} to {end_date_str}.")
-
