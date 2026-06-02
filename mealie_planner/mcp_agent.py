@@ -18,7 +18,7 @@ from mealie_planner.config import (
     CHATBOT_GUIDELINES_PROMPT,
     load_skill_md
 )
-from mealie_planner.gemini_client import GeminiClient
+from mealie_planner.ai_client import AIClient
 
 def get_system_prompt():
     tz = pytz.timezone(TIMEZONE)
@@ -114,13 +114,13 @@ async def run_mcp_chat(history, user_message, model_name=None):
                     })
                 gemini_tools = [{"functionDeclarations": declarations}]
                 
-            # Loop for Gemini to call functions
+            # Loop for AI to call functions
             system_instruction = get_system_prompt()
-            gemini = GeminiClient()
+            ai = AIClient()
 
             max_turns = 20
             for turn in range(max_turns):
-                data = gemini.generate(
+                data = ai.generate(
                     contents,
                     system_instruction=system_instruction,
                     tools=gemini_tools or None,
