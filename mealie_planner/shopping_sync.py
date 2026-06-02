@@ -24,10 +24,10 @@ def normalize_ingredient_name(name: str) -> str:
     return name
 
 class ShoppingListSync:
-    def __init__(self, mealie_client, gemini_client):
+    def __init__(self, mealie_client, deepseek_client):
         self.client = mealie_client
-        self.gemini = gemini_client
-        self.crawler = RecipeCrawler(mealie_client, gemini_client)
+        self.deepseek = deepseek_client
+        self.crawler = RecipeCrawler(mealie_client, deepseek_client)
 
     def sync_staples_only(self, low_staples_ids) -> bool:
         """Fast, deterministic sync of staples only. No AI, no clearing of recipes."""
@@ -76,7 +76,7 @@ class ShoppingListSync:
             return False
 
     def sync_shopping_list(self, start_date_str, end_date_str, low_staples_ids=[], progress_callback=None, freezer_items="") -> bool:
-        """Non-destructive sync using Gemini AI to perform semantic matching and checkmark/ID retention."""
+        """Non-destructive sync using DeepSeek AI to perform semantic matching and checkmark/ID retention."""
         print(f"Starting non-destructive sync for {start_date_str} to {end_date_str}...")
         if progress_callback: progress_callback("Sync started...", 90)
         
@@ -148,7 +148,7 @@ class ShoppingListSync:
                 f"Family Dietary Rules: {FAMILY_DIETARY_RULES_PROMPT}\n\n" +
                 "Return ONLY the JSON array of objects as specified in the skill definition."
             )
-            ai_response = self.gemini.call(prompt, response_schema=CompiledShoppingList)
+            ai_response = self.deepseek.call(prompt, response_schema=CompiledShoppingList)
             parsed_list = CompiledShoppingList.model_validate_json(ai_response).root
             final_items = [item.model_dump() for item in parsed_list]
 
@@ -213,6 +213,6 @@ class ShoppingListSync:
 
 def sync_shopping_list(start_date_str, end_date_str, low_staples_ids=[], progress_callback=None, freezer_items=""):
     from .unified_client import UnifiedMealieClient
-    from .gemini_client import GeminiClient
-    client, gemini = UnifiedMealieClient(), GeminiClient()
-    return ShoppingListSync(client, gemini).sync_shopping_list(start_date_str, end_date_str, low_staples_ids, progress_callback, freezer_items)
+    from .deepseek_client import DeepSeekClient
+    client, deepseek = UnifiedMealieClient(), DeepSeekClient()
+    return ShoppingListSync(client, deepseek).sync_shopping_list(start_date_str, end_date_str, low_staples_ids, progress_callback, freezer_items)
