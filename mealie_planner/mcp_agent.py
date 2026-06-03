@@ -17,7 +17,8 @@ from mealie_planner.config import (
     FAMILY_NAMES,
     CHATBOT_GUIDELINES_PROMPT,
     load_skill_md,
-    ACTIVE_CHAT_MODEL
+    ACTIVE_CHAT_MODEL,
+    CHATBOT_SYSTEM_PROMPT_TEMPLATE
 )
 from mealie_planner.ai_client import AIClient
 
@@ -25,18 +26,13 @@ def get_system_prompt():
     tz = pytz.timezone(TIMEZONE)
     now_str = datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S (%A)')
     
-    return f"""You are an expert culinary assistant and personal chef for Nathan & Kristin's Mealie companion app.
-Your job is to help them manage their meal plan and shopping list, and to provide expert advice on ingredients, recipes, and nutrition.
-
-{FAMILY_DIETARY_RULES_PROMPT}
-
-Current Timezone: {TIMEZONE}
-Current Family Names: {FAMILY_NAMES}
-Current Date and Time: {now_str}
-
-=== CHATBOT GUIDELINES ===
-{CHATBOT_GUIDELINES_PROMPT}
-"""
+    return CHATBOT_SYSTEM_PROMPT_TEMPLATE.format(
+        FAMILY_DIETARY_RULES_PROMPT=FAMILY_DIETARY_RULES_PROMPT,
+        TIMEZONE=TIMEZONE,
+        FAMILY_NAMES=FAMILY_NAMES,
+        now_str=now_str,
+        CHATBOT_GUIDELINES_PROMPT=CHATBOT_GUIDELINES_PROMPT
+    )
 
 def clean_schema(schema: dict) -> dict:
     """Prepare FastMCP schema for Gemini by capitalizing type names and stripping unsupported keys."""

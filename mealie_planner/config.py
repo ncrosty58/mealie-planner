@@ -91,6 +91,11 @@ FAMILY_DIETARY_RULES_PROMPT = f"""
 
 CHATBOT_GUIDELINES_PROMPT = load_skill_md('meal-planner', 'CHATBOT_GUIDELINES.md')
 
+# Markdown Prompt Templates
+CHATBOT_SYSTEM_PROMPT_TEMPLATE = load_skill_md('meal-planner', 'CHATBOT_SYSTEM.md')
+SWAP_RECOMMENDATIONS_PROMPT_TEMPLATE = load_skill_md('recipe-finder', 'SWAP_RECOMMENDATIONS.md')
+SEMANTIC_MATCH_PROMPT_TEMPLATE = load_skill_md('recipe-finder', 'SEMANTIC_MATCH.md')
+
 # Skill definitions (exposed for compatibility with test scripts)
 _RECIPE_FINDER_SKILL_DEFINITION = load_skill_md('recipe-finder')
 _MEAL_EXCLUSION_PARSING_SKILL_DEFINITION = load_skill_md('meal-exclusion-parsing')

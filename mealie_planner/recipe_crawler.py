@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import requests
 import json
 
-from .config import load_skill_md, _RECIPE_FINDER_SKILL_DEFINITION, get_banned_recipes, _BLACKSTONE_COMPATIBILITY_SKILL_DEFINITION
+from .config import load_skill_md, _RECIPE_FINDER_SKILL_DEFINITION, get_banned_recipes, _BLACKSTONE_COMPATIBILITY_SKILL_DEFINITION, SEMANTIC_MATCH_PROMPT_TEMPLATE
 from .exceptions import MealieAPIError, SkillParsingError
 
 class RecipeCrawler:
@@ -48,18 +48,10 @@ class RecipeCrawler:
             }
             for r in all_recipes
         ]
-        prompt = f"""You are a culinary search engine. Match the meal plan title or prioritized ingredient to the single most relevant recipe ID from the catalogue.
-
-Target Culinary/Ingredient Term: {ingredient_name}
-
-Recipe Catalogue:
-{json.dumps(catalogue, indent=2)}
-
-Guidelines:
-- Match semantically (e.g. "Fish Tacos" matches "Cod Tacos", "Burgers" matches "Smashed Burgers").
-- Match ingredients to recipe types (e.g., "cod" or "tilapia" should match "Fish Tacos" or "Pan-seared Salmon", "chicken" should match "Skillet Chicken Thighs").
-- If no recipe is a good culinary match or utilizes the ingredient, respond with 'NONE'.
-- Respond with ONLY the matched recipe ID/UUID or 'NONE'."""
+        prompt = SEMANTIC_MATCH_PROMPT_TEMPLATE.format(
+            ingredient_name=ingredient_name,
+            catalogue=json.dumps(catalogue, indent=2)
+        )
         try:
             response = self.ai.call(prompt, expect_json=False).strip()
             if response and response.upper() != 'NONE' and len(response) > 20:
