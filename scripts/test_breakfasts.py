@@ -11,12 +11,18 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from mealie_planner.unified_client import UnifiedMealieClient
 from mealie_planner.plan_generator import PlanGenerator
-from mealie_planner.gemini_client import GeminiClient
+from mealie_planner.ai_client import AIClient
+from mealie_planner.recipe_crawler import RecipeCrawler
+from mealie_planner.shopping_sync import ShoppingListSync
+from mealie_planner.email_notifier import EmailNotifier
 
 def test_plan_breakfasts():
     client = UnifiedMealieClient()
-    gemini = GeminiClient()
-    generator = PlanGenerator(client, gemini)
+    ai = AIClient()
+    crawler = RecipeCrawler(client, ai)
+    shopping = ShoppingListSync(client, ai, crawler)
+    notifier = EmailNotifier(client, ai)
+    generator = PlanGenerator(client, ai, crawler, shopping, notifier)
     
     # Generate dates for next Saturday
     today = datetime.now()
