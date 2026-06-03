@@ -16,7 +16,8 @@ from mealie_planner.config import (
     FAMILY_DIETARY_RULES_PROMPT,
     FAMILY_NAMES,
     CHATBOT_GUIDELINES_PROMPT,
-    load_skill_md
+    load_skill_md,
+    ACTIVE_CHAT_MODEL
 )
 from mealie_planner.ai_client import AIClient
 
@@ -63,7 +64,7 @@ async def run_mcp_chat(history, user_message, model_name=None):
     """
     plan_changed = False
     if model_name is None:
-        model_name = os.getenv('GEMINI_MODEL', 'gemini-3.5-flash')
+        model_name = ACTIVE_CHAT_MODEL
         
     mcp_src_dir = os.path.join(base_dir, "mealie-mcp-server", "src")
     server_params = StdioServerParameters(
@@ -74,7 +75,7 @@ async def run_mcp_chat(history, user_message, model_name=None):
             "MEALIE_BASE_URL": os.getenv("MEALIE_API_URL", "http://mealie:9000"),
             "MEALIE_API_KEY": os.getenv("MEALIE_TOKEN"),
             "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY"),
-            "GEMINI_MODEL": os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
+            "GEMINI_MODEL": ACTIVE_CHAT_MODEL,
             "PATH": os.environ.get("PATH", "")
         }
     )

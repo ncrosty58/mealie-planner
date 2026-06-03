@@ -63,6 +63,24 @@ FAMILY_NAMES = _METADATA.get('family_names', 'Nathan & Kristin')
 TIMEZONE = os.getenv('APP_TIMEZONE', _METADATA.get('timezone', 'America/New_York'))
 APP_URL = os.getenv('MEALIE_PLANNER_APP_URL', _METADATA.get('app_url', 'https://mealie-planner.cosmoslab.dev'))
 
+# --- AI Vendor and Models Configuration ---
+AI_VENDOR = os.getenv("AI_VENDOR", "gemini").lower()  # "gemini" or "openai" or "deepseek"
+
+# Models for each area
+GEMINI_CORE_MODEL = os.getenv("GEMINI_CORE_MODEL", os.getenv("GEMINI_MODEL", "gemini-3.5-flash"))
+GEMINI_CHAT_MODEL = os.getenv("GEMINI_CHAT_MODEL", os.getenv("GEMINI_MODEL", "gemini-3.5-flash"))
+
+OPENAI_CORE_MODEL = os.getenv("OPENAI_CORE_MODEL", os.getenv("AI_MODEL_NAME", "gpt-4o-mini"))
+OPENAI_CHAT_MODEL = os.getenv("OPENAI_CHAT_MODEL", os.getenv("AI_MODEL_NAME", "gpt-4o"))
+
+# Resolve active models based on AI_VENDOR
+if AI_VENDOR == "gemini":
+    ACTIVE_CORE_MODEL = GEMINI_CORE_MODEL
+    ACTIVE_CHAT_MODEL = GEMINI_CHAT_MODEL
+else:
+    ACTIVE_CORE_MODEL = OPENAI_CORE_MODEL
+    ACTIVE_CHAT_MODEL = OPENAI_CHAT_MODEL
+
 raw_emails = os.getenv('FAMILY_RECIPIENT_EMAILS', _METADATA.get('recipient_emails', 'nathan@example.com,kristin@example.com'))
 FAMILY_RECIPIENT_EMAILS = [email.strip() for email in raw_emails.split(',')]
 
