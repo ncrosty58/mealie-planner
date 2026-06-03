@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Today's Culinary Briefing</title>
+</head>
+<body style="font-family: sans-serif; background-color: #F4F0EB; padding: 20px; color: #2C2C2C; margin: 0;">
+  <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #E6DFD5;">
+
+    {# ── Header ──────────────────────────────────────────────── #}
+    <div style="text-align: center; padding: 24px 0; border-bottom: 1px double #D5CEB8; margin-bottom: 24px;">
+      <span style="font-size: 11px; font-weight: 700; color: #C66B3D; text-transform: uppercase; letter-spacing: 2px; display: block; margin-bottom: 6px;">Daily Briefing</span>
+      <h1 style="color: #3C5A54; margin: 0; font-size: 28px;">The Crosty Kitchen</h1>
+      <p style="color: #8C8273; margin: 8px 0 0 0; font-size: 13px;">{{ day_name }} &bull; {{ date_str }}</p>
+    </div>
+
+    {# ── AI Kitchen Summary ───────────────────────────────────── #}
+    {% if ai_summary %}
+    <div style="margin: 24px 0; padding: 0 10px;">
+      <p style="margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 16px; line-height: 1.7; color: #2C2C2C; font-style: italic; text-align: center;">
+        "{{ ai_summary | trim }}"
+      </p>
+    </div>
+    <div style="text-align: center; margin: 20px 0;">
+      <span style="color: #D5CEB8; font-size: 14px;">❖ ❖ ❖</span>
+    </div>
+    {% endif %}
+
+    {# ── Today's Menu ────────────────────────────────────────── #}
+    <div style="margin-bottom: 30px;">
+      <h2 style="font-size: 12px; font-weight: 700; color: #C66B3D; text-transform: uppercase; text-align: center; margin-bottom: 20px;">Today's Menu</h2>
+
+      <div style="text-align: center; margin-bottom: 15px;">
+        <strong>Breakfast:</strong> {{ breakfast }}
+      </div>
+
+      <div style="text-align: center; margin-bottom: 15px;">
+        <strong>Lunch:</strong> {{ lunch }}
+      </div>
+
+      <div style="text-align: center; margin-bottom: 15px;">
+        <strong>Dinner:</strong>
+        {% if dinner_recipe and dinner_recipe.get('slug') %}
+          <a href="{{ mealie_frontend_url }}/g/home/r/{{ dinner_recipe.get('slug') }}"
+             style="color: #3C5A54; text-decoration: none; font-weight: bold; border-bottom: 1px dotted #3C5A54;">
+            {{ dinner_recipe.get('name') }}
+          </a>
+        {% else %}
+          {{ dinner_title }}
+        {% endif %}
+      </div>
+    </div>
+
+    {# ── Prep Tip ─────────────────────────────────────────────── #}
+    {% if ai_prep_note %}
+    <div style="background-color: #FAF9F6; border-left: 2px solid #C66B3D; padding: 16px 20px; border-radius: 4px; margin: 24px 0; font-size: 14px; color: #5C5247; border: 1px solid #EFECE6; font-family: 'Plus Jakarta Sans', sans-serif;">
+      <strong style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 700; color: #C66B3D; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 6px;">
+        Kitchen Preparation
+      </strong>
+      <span style="line-height: 1.5; display: block;">{{ ai_prep_note }}</span>
+    </div>
+    {% elif is_blackstone %}
+    <div style="background-color: #F6FAF9; border-left: 2px solid #3C5A54; padding: 16px 20px; border-radius: 4px; margin: 24px 0; font-size: 14px; color: #354743; border: 1px solid #E6EFEF; font-family: 'Plus Jakarta Sans', sans-serif;">
+      <strong style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 700; color: #3C5A54; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 6px;">
+        Blackstone Griddle Fired Up
+      </strong>
+      <span style="line-height: 1.5; display: block;">
+        Tonight's dinner is compatible with the Blackstone. Consider batch-cooking proteins or vegetables to save prep time later in the week.
+      </span>
+    </div>
+    {% endif %}
+
+    {# ── Daily Nutrition ──────────────────────────────────────── #}
+    {% if nutrients %}
+    <div style="margin-top: 30px; border-top: 1px double #D5CEB8; padding-top: 20px;">
+      <h3 style="font-size: 11px; font-weight: 700; color: #8C8273; text-transform: uppercase; text-align: center; margin-bottom: 16px;">
+        Daily Nutritional Analysis
+      </h3>
+      <div style="text-align: center;">
+        {% for n in nutrients %}
+        <span style="display: inline-block; margin: 4px 6px; background: #FAF9F6; padding: 6px 12px; border-radius: 4px; font-size: 12px; border: 1px solid #EFECE6; color: #5C5247; font-family: 'Plus Jakarta Sans', sans-serif;">
+          <strong style="color: #3C5A54;">{{ n.name | capitalize }}</strong>: {{ n.value }}{{ n.unit }} &bull;
+          <span style="color: {{ n.color }}; font-weight: 700;">{{ n.pct }}%</span>
+        </span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Weekly Content Block (Saturday report only) ───────────── #}
+    {{ weekly_content_html }}
+
+    {# ── Footer ───────────────────────────────────────────────── #}
+    <p style="font-size: 13px; color: #8C8273; text-align: center; margin-top: 35px; border-top: 1px solid #EFECE6; padding-top: 20px;">
+      <a href="{{ app_url }}" style="color: #3C5A54;">Your Dashboard</a>
+    </p>
+
+  </div>
+</body>
+</html>

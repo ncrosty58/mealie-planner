@@ -62,6 +62,7 @@ _METADATA = parse_frontmatter(_SKILL_MD_CONTENT)
 FAMILY_NAMES = _METADATA.get('family_names', 'Nathan & Kristin')
 TIMEZONE = os.getenv('APP_TIMEZONE', _METADATA.get('timezone', 'America/New_York'))
 APP_URL = os.getenv('MEALIE_PLANNER_APP_URL', _METADATA.get('app_url', 'https://mealie-planner.cosmoslab.dev'))
+MEALIE_FRONTEND_URL = os.getenv('MEALIE_FRONTEND_URL', 'https://mealie.cosmoslab.dev')
 
 # --- AI Vendor and Models Configuration ---
 AI_VENDOR = os.getenv("AI_VENDOR", "gemini").lower()  # "gemini" or "openai" or "deepseek"
