@@ -63,7 +63,7 @@ class AIClient:
         prompt: str,
         expect_json: bool = True,
         temperature: float = 0.2,
-        thinking_budget: Optional[int] = None,
+        thinking_budget: int = 0,
         response_schema=None,
     ) -> str:
         """
@@ -76,11 +76,10 @@ class AIClient:
             generation_config = {
                 "temperature": temperature,
                 "responseMimeType": "application/json" if (expect_json or response_schema) else "text/plain",
-            }
-            if thinking_budget is not None and thinking_budget > 0:
-                generation_config["thinkingConfig"] = {
+                "thinkingConfig": {
                     "thinkingBudget": thinking_budget
                 }
+            }
 
             if response_schema:
                 from pydantic import BaseModel
@@ -115,7 +114,7 @@ class AIClient:
 
         else:
             # --- OPENAI/DEEPSEEK BACKEND ---
-            if thinking_budget is not None:
+            if thinking_budget is not None and thinking_budget > 0:
                 logger.warning("thinking_budget is not supported by all vendors; ignoring it.")
 
             # If a schema is provided, add it to the prompt as guidance.
