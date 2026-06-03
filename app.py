@@ -9,11 +9,12 @@ import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from mealie_planner.unified_client import UnifiedMealieClient
-from mealie_planner.gemini_client import GeminiClient
+from mealie_planner.ai_client import AIClient
 from mealie_planner.plan_generator import PlanGenerator
-from mealie_planner.shopping_sync import sync_shopping_list
-from mealie_planner.recipe_nutrition import calculate_nutrition_for_range
-from mealie_planner.recipe_crawler import check_blackstone_compatibility
+from mealie_planner.shopping_sync import ShoppingListSync
+from mealie_planner.recipe_nutrition import RecipeNutrition
+from mealie_planner.recipe_crawler import RecipeCrawler
+from mealie_planner.email_notifier import EmailNotifier, setup_scheduler
 from mealie_planner.config import ACTIVE_LIST_ID, STAPLES_LIST_ID, RDA, TIMEZONE, APP_URL, FAMILY_RECIPIENT_EMAILS, FAMILY_NAMES, SWAP_RECOMMENDATIONS_PROMPT_TEMPLATE
 from mealie_planner.utils import get_active_week_strings, get_planning_week_strings, get_planning_week_range, sanitize_input, extract_ingredient_texts
 from scripts.clear_mealie import wipe_mealie_data
@@ -25,6 +26,16 @@ STATE_FILE = "data/planner_state.json"
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'mealie_companion_secret_9926')
+
+# ---------- Composition Root (DI wiring) ----------
+mealie_client = UnifiedMealieClient()
+ai_client = AIClient()
+crawler = RecipeCrawler(mealie_client, ai_client)
+shopping = ShoppingListSync(mealie_client, ai_client, crawler)
+notifier = EmailNotifier(mealie_client, ai_client)
+nutrition = RecipeNutrition(mealie_client, ai_client)
+plan_generator = PlanGenerator(mealie_client, ai_client, crawler, shopping, notifier)
+# ----------------------------------------------------
 
 def load_state():
     """Load persisted application state."""
@@ -63,7 +74,6 @@ def index():
     if error_msg:
         flash(error_msg, "danger")
         
-    client = UnifiedMealieClient()
     state = load_state()
     current_week_low_staples = state.get('low_staples', [])
     emails_enabled = state.get('emails_enabled', True)
@@ -83,7 +93,7 @@ def index():
     # Fetch meal plans for active week
     meal_plans = []
     try:
-        meal_plans = client.get_meal_plan(active_start_str, active_end_str)
+        meal_plans = mealie_client.get_meal_plan(active_start_str, active_end_str)
     except Exception as e:
         print(f"Error fetching meal plan: {e}")
 
@@ -101,13 +111,13 @@ def index():
     # Get data for UI
     staples = []
     try:
-        staples = client.get_shopping_list_items(STAPLES_LIST_ID)
+        staples = mealie_client.get_shopping_list_items(STAPLES_LIST_ID)
     except Exception as e:
         print(f"Error reading staples list: {e}")
 
     all_recipes = []
     try:
-        all_recipes = client.get_all_recipes()
+        all_recipes = mealie_client.get_all_recipes()
     except Exception as e:
         print(f"Error reading recipes: {e}")
 
@@ -117,13 +127,13 @@ def index():
 
     if is_submitted:
         # Dashboard View - Displays the FULL active week (preserved past + new)
-        daily_nutrition, averages = calculate_nutrition_for_range(active_start_str, active_end_str)
+        daily_nutrition, averages = nutrition.calculate_nutrition_for_range(active_start_str, active_end_str)
         
         for p in meal_plans:
             if p['entryType'] == 'dinner' and p.get('recipeId'):
                 try:
-                    r_details = client.get_recipe_details(p['recipeId'])
-                    p['is_blackstone'] = check_blackstone_compatibility(r_details)
+                    r_details = mealie_client.get_recipe_details(p['recipeId'])
+                    p['is_blackstone'] = crawler.check_blackstone_compatibility(r_details)
                 except:
                     p['is_blackstone'] = False
             else:
@@ -131,7 +141,7 @@ def index():
 
         shopping_list = []
         try:
-            shopping_list = client.get_shopping_list_items_for_list(ACTIVE_LIST_ID)
+            shopping_list = mealie_client.get_shopping_list_items_for_list(ACTIVE_LIST_ID)
             # Sort by label name first (to group them for the UI), then by position
             def get_sort_key(item):
                 label = item.get('label')
@@ -203,24 +213,14 @@ def plan_stream():
     low_staples_ids = state.get('low_staples', [])
 
     def generate():
-        from mealie_planner.recipe_crawler import RecipeCrawler
-        from mealie_planner.shopping_sync import ShoppingListSync
-        from mealie_planner.email_notifier import EmailNotifier
-
-        client = UnifiedMealieClient()
-        gemini = GeminiClient()
-        crawler = RecipeCrawler(client, gemini)
-        shopping = ShoppingListSync(client, gemini, crawler)
-        notifier = EmailNotifier(client, gemini)
-        generator = PlanGenerator(client, gemini, crawler, shopping, notifier)
-
+        # Use the pre-wired global instances
         q = queue.Queue()
         def callback(msg, progress=None):
             q.put({"status": msg, "progress": progress})
 
         start_date_str, end_date_str = get_planning_week_strings()
 
-        thread = threading.Thread(target=generator.generate_weekly_plan, kwargs={
+        thread = threading.Thread(target=plan_generator.generate_weekly_plan, kwargs={
             "start_date_str": start_date_str,
             "end_date_str": end_date_str,
             "exclude_text": exclude_text,
@@ -250,13 +250,7 @@ def update_staples():
         save_state({'low_staples': low_staples})
         
         try:
-            from mealie_planner.shopping_sync import ShoppingListSync
-            from mealie_planner.recipe_crawler import RecipeCrawler
-            client = UnifiedMealieClient()
-            gemini = GeminiClient()
-            crawler = RecipeCrawler(client, gemini)
-            syncer = ShoppingListSync(client, gemini, crawler)
-            syncer.sync_staples_only(low_staples)
+            shopping.sync_staples_only(low_staples)
             flash("Staples updated successfully!", "success")
         except Exception as e:
             flash(f"Error updating staples: {str(e)}", "danger")
@@ -277,7 +271,7 @@ def sync():
         save_state({'low_staples': low_staples})
 
     try:
-        sync_shopping_list(start_date_str, end_date_str, low_staples)
+        shopping.sync_shopping_list(start_date_str, end_date_str, low_staples_ids=low_staples)
         flash("Recalculated active shopping list successfully!", "success")
     except Exception as e:
         flash(f"Error syncing shopping list: {str(e)}", "danger")
@@ -316,8 +310,7 @@ def add_shopping_item():
         if not note:
             return json.dumps({"success": False, "error": "Item name is required"}), 400
 
-        client = UnifiedMealieClient()
-        client.add_shopping_list_item(ACTIVE_LIST_ID, note)
+        mealie_client.add_shopping_list_item(ACTIVE_LIST_ID, note)
         return json.dumps({"success": True})
     except Exception as e:
         print(f"Error adding shopping item: {e}")
@@ -330,15 +323,14 @@ def toggle_shopping_item():
         item_id = data.get('item_id')
         is_checked = data.get('checked')
 
-        client = UnifiedMealieClient()
-        items = client.get_shopping_list_items(ACTIVE_LIST_ID)
+        items = mealie_client.get_shopping_list_items(ACTIVE_LIST_ID)
         target_item = next((item for item in items if item['id'] == item_id), None)
 
         if not target_item:
             return json.dumps({"success": False, "error": "Item not found"}), 404
 
         target_item['checked'] = is_checked
-        client.update_shopping_list_item(item_id, target_item)
+        mealie_client.update_shopping_list_item(item_id, target_item)
 
         return json.dumps({"success": True})
     except Exception as e:
@@ -348,8 +340,7 @@ def toggle_shopping_item():
 def check_all_items():
     """Mark all items in the active shopping list as checked."""
     try:
-        client = UnifiedMealieClient()
-        items = client.get_shopping_list_items_for_list(ACTIVE_LIST_ID)
+        items = mealie_client.get_shopping_list_items_for_list(ACTIVE_LIST_ID)
         
         # Build bulk update payload
         bulk_items = []
@@ -359,7 +350,7 @@ def check_all_items():
                 bulk_items.append(item)
         
         if bulk_items:
-            client.update_shopping_list_items_bulk(bulk_items)
+            mealie_client.update_shopping_list_items_bulk(bulk_items)
             
         return json.dumps({"success": True, "count": len(bulk_items)})
     except Exception as e:
@@ -373,19 +364,18 @@ def change_meal():
         entry_id = request.form.get('entry_id')
         recipe_id = request.form.get('recipe_id')
         
-        client = UnifiedMealieClient()
         if entry_id:
-            client.delete_meal_plan_entry(entry_id)
+            mealie_client.delete_meal_plan_entry(entry_id)
             
         if recipe_id != "SKIP":
-            client.schedule_meal(date_str, "dinner", recipe_id=recipe_id)
+            mealie_client.schedule_meal(date_str, "dinner", recipe_id=recipe_id)
             
         # Trigger shopping list auto-sync so changes reflect immediately
         try:
             start_date_str, end_date_str = get_active_week_strings()
             state = load_state()
             low_staples = state.get('low_staples', [])
-            sync_shopping_list(start_date_str, end_date_str, low_staples)
+            shopping.sync_shopping_list(start_date_str, end_date_str, low_staples_ids=low_staples)
         except Exception as sync_err:
             print(f"[Change Meal Auto-Sync] Error during auto-sync: {sync_err}")
         
@@ -401,13 +391,10 @@ def get_swap_recommendations():
     if not date_str:
         return Response(json.dumps([]), mimetype='application/json')
         
-    client = UnifiedMealieClient()
-    gemini = GeminiClient()
-    
     try:
         # 1. Fetch current week's scheduled meals and recipes
         active_start_str, active_end_str = get_active_week_strings()
-        meal_plans = client.get_meal_plan(active_start_str, active_end_str)
+        meal_plans = mealie_client.get_meal_plan(active_start_str, active_end_str)
         
         # Extract the other dinners planned this week (excluding the target date we are swapping)
         other_dinners = []
@@ -422,14 +409,14 @@ def get_swap_recommendations():
                         other_dinners.append(p['recipe'])
                         
         # 2. Get all recipes from the database
-        all_recipes = client.get_all_recipes()
+        all_recipes = mealie_client.get_all_recipes()
         
         # Compile list of other dinner names/ingredients for context
         other_dinner_context = []
         for r in other_dinners:
             # Fetch details to get ingredients
             try:
-                det = client.get_recipe_details(r['id'])
+                det = mealie_client.get_recipe_details(r['id'])
                 ingredients = extract_ingredient_texts(det)
                 other_dinner_context.append({
                     "name": r['name'],
@@ -454,7 +441,7 @@ def get_swap_recommendations():
                     "tags": [t.get('name', t) if isinstance(t, dict) else t for t in r.get('tags', [])]
                 })
                 
-        # Limit to 35 candidates to avoid exceeding Gemini context constraints
+        # Limit to 35 candidates to avoid exceeding AI context constraints
         import random
         if len(candidates) > 35:
             candidates = random.sample(candidates, 35)
@@ -466,7 +453,7 @@ def get_swap_recommendations():
             candidates=json.dumps(candidates, indent=2)
         )
 
-        raw = gemini.call(prompt, expect_json=True)
+        raw = ai_client.call(prompt, expect_json=True)
         result = json.loads(raw)
         
         # Verify result is a list
@@ -479,7 +466,7 @@ def get_swap_recommendations():
         # Fallback to random 3 recipes from database
         import random
         try:
-            all_recipes = client.get_all_recipes()
+            all_recipes = mealie_client.get_all_recipes()
             fallback = [{"id": r["id"], "name": r["name"]} for r in random.sample(all_recipes, min(3, len(all_recipes)))]
             return Response(json.dumps(fallback), mimetype='application/json')
         except Exception as fallback_err:
@@ -502,7 +489,7 @@ def chat():
                 start_date_str, end_date_str = get_active_week_strings()
                 state = load_state()
                 low_staples = state.get('low_staples', [])
-                sync_shopping_list(start_date_str, end_date_str, low_staples)
+                shopping.sync_shopping_list(start_date_str, end_date_str, low_staples_ids=low_staples)
             except Exception as sync_err:
                 print(f"[Chat Auto-Sync] Error during auto-sync: {sync_err}")
         
@@ -529,10 +516,7 @@ def serve_sw():
 
 if __name__ == '__main__':
     # Start background scheduler if not in debug mode to avoid duplicate jobs
-    from mealie_planner.email_notifier import setup_scheduler
-    client = UnifiedMealieClient()
-    gemini = GeminiClient()
-    setup_scheduler(client, gemini)
+    setup_scheduler(mealie_client, ai_client)
     print("Background scheduler started successfully.")
     
     app.run(host='0.0.0.0', port=9926, debug=False)
