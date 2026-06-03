@@ -5,6 +5,10 @@
 - **Editor mode** carries out the actual code edits.
 - Where tasks are independent, we spin up parallel agents (one per module) to speed up work.
 
+# Repository Constraints
+- `mealie-mcp-server/` is a git submodule. Do **not** modify any files inside it.
+  It may be used for context only. All changes must be in `mealie_planner/`, `scripts/`, etc.
+
 # Revised Phases (with mode guidance)
 
 ## Phase 0 – Replace GeminiClient with AIClient (Editor mode)
