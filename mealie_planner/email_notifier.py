@@ -71,6 +71,20 @@ class EmailNotifier:
             print(f"[Email] Could not fetch Mealie users, falling back to static list: {e}")
             recipients = FAMILY_RECIPIENT_EMAILS
 
+        # Apply per-recipient opt-outs saved by the admin UI
+        try:
+            import json as _json
+            disabled = []
+            if os.path.exists(state_path):
+                with open(state_path, 'r') as _f:
+                    disabled = _json.load(_f).get('disabled_recipient_emails', [])
+            if disabled:
+                before = recipients[:]
+                recipients = [r for r in recipients if r not in disabled]
+                print(f"[Email] Filtered out disabled recipients {disabled}. Sending to: {recipients}")
+        except Exception as e:
+            print(f"[Email] Could not apply recipient opt-outs: {e}")
+
         if not recipients:
             print("No recipient emails found. Cannot send email.")
             return False

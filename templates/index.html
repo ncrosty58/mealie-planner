@@ -569,20 +569,53 @@
                     <p style="font-size: 0.85rem; color: var(--color-muted); margin-bottom: 1.25rem; line-height: 1.5;">
                         Control whether the application sends automated emails, including the Saturday Questionnaire prompt, Saturday Report, and Daily Briefings.
                     </p>
-                    <form action="{{ url_for('update_admin') }}" method="POST" style="display: flex; align-items: center; justify-content: space-between; background: #FAF9F6; padding: 1.25rem; border: 1px solid var(--color-border); border-radius: var(--border-radius); flex-wrap: wrap; gap: 1rem;">
-                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                            <span style="font-weight: 600; font-size: 0.9rem; color: var(--color-primary);">Email Notifications</span>
-                            <span id="email-status-label" style="font-size: 0.8rem; font-weight: 600; color: {% if emails_enabled %}var(--color-primary){% else %}var(--color-danger){% endif %}">
-                                Currently: {% if emails_enabled %}Enabled (Sending){% else %}Disabled (Muted){% endif %}
-                            </span>
+                    <form action="{{ url_for('update_admin') }}" method="POST">
+                        {# ── Email notifications master toggle ── #}
+                        <div style="display: flex; align-items: center; justify-content: space-between; background: #FAF9F6; padding: 1.25rem; border: 1px solid var(--color-border); border-radius: var(--border-radius); flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+                            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                <span style="font-weight: 600; font-size: 0.9rem; color: var(--color-primary);">Email Notifications</span>
+                                <span id="email-status-label" style="font-size: 0.8rem; font-weight: 600; color: {% if emails_enabled %}var(--color-primary){% else %}var(--color-danger){% endif %}">
+                                    Currently: {% if emails_enabled %}Enabled (Sending){% else %}Disabled (Muted){% endif %}
+                                </span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <input type="hidden" name="emails_enabled" id="emails-enabled-hidden" value="{% if emails_enabled %}1{% else %}0{% endif %}">
+                                <button type="button" id="email-toggle-btn" class="btn {% if not emails_enabled %}btn-primary{% else %}btn-secondary{% endif %}" onclick="toggleEmailValue()" style="min-width: 130px; justify-content: center; font-size: 0.85rem;">
+                                    {% if not emails_enabled %}Enable Emails{% else %}Disable Emails{% endif %}
+                                </button>
+                            </div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <input type="hidden" name="emails_enabled" id="emails-enabled-hidden" value="{% if emails_enabled %}1{% else %}0{% endif %}">
-                            <button type="button" id="email-toggle-btn" class="btn {% if not emails_enabled %}btn-primary{% else %}btn-secondary{% endif %}" onclick="toggleEmailValue()" style="min-width: 130px; justify-content: center; font-size: 0.85rem;">
-                                {% if not emails_enabled %}Enable Emails{% else %}Disable Emails{% endif %}
-                            </button>
-                            <button type="submit" class="btn btn-primary" style="padding: 0.6rem 1.25rem; background-color: var(--color-accent); border: none; font-weight: 600; font-size: 0.85rem;">Save Settings</button>
+
+                        {# ── Per-recipient opt-out ── #}
+                        {% set known_emails = mealie_users | map(attribute='email') | select | list %}
+                        {% if known_emails %}
+                        <input type="hidden" name="all_known_emails" value="{{ known_emails | join(',') }}">
+                        <div style="background: #FAF9F6; border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: 1.25rem; margin-bottom: 1.25rem;">
+                            <p style="font-size: 0.8rem; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.9rem 0;">Recipients</p>
+                            <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+                                {% for user in mealie_users %}
+                                {% if user.email %}
+                                {% set is_disabled = user.email in disabled_recipient_emails %}
+                                <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; padding: 0.65rem 0.85rem; border-radius: 6px; border: 1px solid {% if not is_disabled %}var(--color-border){% else %}#FFCDCD{% endif %}; background: {% if not is_disabled %}#fff{% else %}#FFF5F5{% endif %}; transition: background 0.15s, border-color 0.15s;">
+                                    <input type="checkbox" name="enabled_recipients" value="{{ user.email }}"
+                                           {% if not is_disabled %}checked{% endif %}
+                                           onchange="(function(cb){var lbl=cb.closest('label');var badge=lbl.querySelector('.recipient-badge');if(cb.checked){lbl.style.background='#fff';lbl.style.borderColor='var(--color-border)';badge.style.background='#E8F5E9';badge.style.color='#2E7D32';badge.textContent='Receiving';}else{lbl.style.background='#FFF5F5';lbl.style.borderColor='#FFCDCD';badge.style.background='#FFEBEE';badge.style.color='#C62828';badge.textContent='Muted';}})(this)"
+                                           style="width: 16px; height: 16px; accent-color: var(--color-primary); flex-shrink: 0;">
+                                    <div style="display: flex; flex-direction: column; gap: 0.1rem; flex: 1; min-width: 0;">
+                                        <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-primary);">{{ user.fullName or user.username or 'Unknown' }}</span>
+                                        <span style="font-size: 0.75rem; color: var(--color-muted);">{{ user.email }}</span>
+                                    </div>
+                                    <span class="recipient-badge" style="font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: {% if not is_disabled %}#E8F5E9; color: #2E7D32{% else %}#FFEBEE; color: #C62828{% endif %}; flex-shrink: 0; white-space: nowrap;">
+                                        {% if not is_disabled %}Receiving{% else %}Muted{% endif %}
+                                    </span>
+                                </label>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
                         </div>
+                        {% endif %}
+
+                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; font-size: 0.85rem; background-color: var(--color-accent); border: none; font-weight: 600;">Save Settings</button>
                     </form>
                 </div>
 

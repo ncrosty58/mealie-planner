@@ -77,6 +77,14 @@ def index():
     state = load_state()
     current_week_low_staples = state.get('low_staples', [])
     emails_enabled = state.get('emails_enabled', True)
+    disabled_recipient_emails = state.get('disabled_recipient_emails', [])
+
+    # Fetch Mealie users for the recipient management UI
+    mealie_users = []
+    try:
+        mealie_users = mealie_client.get_users()
+    except Exception as e:
+        print(f"Error fetching Mealie users: {e}")
 
     # Get active week range (for Dashboard display)
     active_start_str, active_end_str = get_active_week_strings()
@@ -173,7 +181,9 @@ def index():
             active_list_id=formatted_list_id,
             week_view='current',
             today_str=today_str,
-            emails_enabled=emails_enabled
+            emails_enabled=emails_enabled,
+            mealie_users=mealie_users,
+            disabled_recipient_emails=disabled_recipient_emails,
         )
     else:
         # Questionnaire View - Displays and plans for the REMAINING dates
@@ -185,7 +195,9 @@ def index():
             staples=staples,
             low_staples=current_week_low_staples,
             today_str=today_str,
-            emails_enabled=emails_enabled
+            emails_enabled=emails_enabled,
+            mealie_users=mealie_users,
+            disabled_recipient_emails=disabled_recipient_emails,
         )
 
 @app.route('/plan', methods=['POST'])
@@ -280,10 +292,18 @@ def sync():
 
 @app.route('/update-admin', methods=['POST'])
 def update_admin():
-    """Update general administration settings (like disabling/enabling emails)."""
+    """Update general administration settings (emails toggle + per-recipient opt-outs)."""
     emails_enabled = request.form.get('emails_enabled') == '1'
-    save_state({'emails_enabled': emails_enabled})
-    flash(f"Admin settings updated successfully! Emails are now {'enabled' if emails_enabled else 'disabled'}.", "success")
+    # Collect unchecked emails — the form submits enabled addresses as checkboxes,
+    # so any known address absent from the form is considered disabled.
+    all_known = [u.strip() for u in request.form.get('all_known_emails', '').split(',') if u.strip()]
+    enabled_emails = set(request.form.getlist('enabled_recipients'))
+    disabled_recipient_emails = [e for e in all_known if e not in enabled_emails]
+    save_state({
+        'emails_enabled': emails_enabled,
+        'disabled_recipient_emails': disabled_recipient_emails,
+    })
+    flash(f"Admin settings updated! Emails {'enabled' if emails_enabled else 'disabled'}.", "success")
     return redirect(url_for('index'))
 
 @app.route('/clear', methods=['POST'])
