@@ -1,3 +1,51 @@
+# Execution Strategy
+- All work is broken into phases.
+- Each phase begins in **Ask mode** to clarify any ambiguities.
+- **Architect mode** is used to design interfaces, protocols, or major structural changes before coding.
+- **Editor mode** carries out the actual code edits.
+- Where tasks are independent, we spin up parallel agents (one per module) to speed up work.
+
+# Revised Phases (with mode guidance)
+
+## Phase 0 – Replace GeminiClient with AIClient (Editor mode)
+- Replace all imports of `GeminiClient` with `AIClient` (e.g., in `app.py`).
+- Delete `mealie_planner/gemini_client.py`.
+- *Parallel*: Can run concurrently with Phase 1.
+
+## Phase 1 – Centralize Configuration with Pydantic (Ask → Architect → Editor mode)
+- Create `mealie_planner/settings.py` with a `BaseSettings` class that loads all environment variables.
+- Update existing modules to import from `settings` instead of calling `os.getenv`.
+- *Parallel*: Independent of Phase 0.
+
+## Phase 4 (ordered before 2/3) – Replace MealieFetcher inheritance with composition (Ask → Architect → Editor mode)
+- Refactor `UnifiedMealieClient`:
+  - Switch from `class UnifiedMealieClient(MealieFetcher):` to a wrapper holding `MealieFetcher` as a private instance.
+  - Expose only the needed methods, preserving the public API.
+  - Ensure the singleton pattern continues to work.
+  - Handle internal calls to `_handle_request` (e.g., in `mcp_server.py`) by exposing a public method or adapting.
+- *Note*: Run this before injecting `UnifiedMealieClient` via protocols.
+
+## Phase 2 & 3 – Dependency Injection and Protocols (Architect → Editor mode)
+- Define Protocols:
+  - `MealieClientProtocol`
+  - `AIClientProtocol`
+  - (Optional) `CrawlerProtocol`, `ShoppingSyncProtocol`
+- Refactor service constructors to receive collaborators:
+  - `PlanGenerator(mealie_client, ai_client, crawler, shopping, notifier)`
+  - `ShoppingListSync(mealie_client, ai_client, crawler)`
+  - `EmailNotifier(mealie_client, ai_client, crawler, nutrition)`
+  - `RecipeNutrition(mealie_client, ai_client)`
+- *Parallel*: Make changes in each service file simultaneously.
+- Create a composition root (likely in `app.py`) that wires all concrete instances.
+  - *Mode*: Editor
+
+## Immediate Bug Fix (Editor mode)
+- In `mealie_planner/recipe_nutrition.py`, add `self.ai = ai_client` in `__init__` (line 7) to prevent AttributeError.
+
+## Optional Phase – Add Unit Tests
+- After refactoring, add tests for `PlanGenerator`, `ShoppingListSync`, etc., using mock clients.
+
+# Original Plan (for reference)
 (Phase 0) * The Problem: The app still imports and uses a legacy GeminiClient 
 (from gemini_client.py) in app.py, alongside the newer, provider-agnostic AIClient 
 (from
