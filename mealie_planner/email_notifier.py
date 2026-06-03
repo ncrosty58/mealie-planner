@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import pytz
 
 from .config import (
-    FAMILY_RECIPIENT_EMAILS, RDA, STAPLES_LIST_ID, APP_URL, TIMEZONE,
+    FAMILY_RECIPIENT_EMAILS, RDA, STAPLES_LIST_ID, APP_URL, TIMEZONE, MEALIE_FRONTEND_URL,
     _DAILY_BRIEFING_GENERATION_SKILL_DEFINITION, _WEEKLY_THEMES_SYNOPSIS_SKILL_DEFINITION
 )
 from .utils import get_active_week_strings, get_active_week_range, extract_ingredient_texts
@@ -21,6 +21,14 @@ class EmailNotifier:
         self.ai = ai_client
         self.crawler = RecipeCrawler(mealie_client, ai_client)
         self.nutrition = RecipeNutrition(mealie_client, ai_client)
+
+    def _render_email_template(self, template_name: str, **context) -> str:
+        """Render a Jinja2 email template from the project's templates/ directory."""
+        from jinja2 import Environment, FileSystemLoader
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        templates_dir = os.path.join(base_dir, 'templates')
+        env = Environment(loader=FileSystemLoader(templates_dir), autoescape=False)
+        return env.get_template(template_name).render(**context)
 
     def send_email(self, subject, html_content):
         """Send an email using SMTP settings."""
@@ -176,94 +184,38 @@ Tomorrow's Dinner details:
             return "A diverse week of planned dinners, highlighting fresh ingredients and easy-to-cook recipes."
 
     def build_daily_briefing_html(self, day_name, date_str, bf, ln, dn_title, dn_recipe, ai_prep_note, today_nutrients, ai_summary, weekly_content_html=None):
-        """Build a premium, beautiful HTML email daily briefing."""
+        """Build the daily briefing HTML email using a Jinja2 template."""
         is_blackstone = self.crawler.check_blackstone_compatibility(dn_recipe) if dn_recipe else False
-        
-        dn_html = dn_title
-        if dn_recipe:
-            dn_html = f'<a href="https://mealie.cosmoslab.dev/g/home/r/{dn_recipe.get("slug")}" style="color: #3C5A54; text-decoration: none; font-weight: bold; border-bottom: 1px dotted #3C5A54;">{dn_recipe.get("name")}</a>'
 
-        prep_tip = ""
-        if ai_prep_note:
-            prep_tip = f"""
-            <div style="background-color: #FAF9F6; border-left: 2px solid #C66B3D; padding: 16px 20px; border-radius: 4px; margin: 24px 0; font-size: 14px; color: #5C5247; border: 1px solid #EFECE6; font-family: 'Plus Jakarta Sans', sans-serif;">
-              <strong style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 700; color: #C66B3D; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 6px;">Kitchen Preparation</strong>
-              <span style="line-height: 1.5; display: block;">{ai_prep_note}</span>
-            </div>
-            """
-        elif is_blackstone:
-            prep_tip = """
-            <div style="background-color: #F6FAF9; border-left: 2px solid #3C5A54; padding: 16px 20px; border-radius: 4px; margin: 24px 0; font-size: 14px; color: #354743; border: 1px solid #E6EFEF; font-family: 'Plus Jakarta Sans', sans-serif;">
-              <strong style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 700; color: #3C5A54; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 6px;">Blackstone Griddle Fired Up</strong>
-              <span style="line-height: 1.5; display: block;">Tonight's dinner is compatible with the Blackstone. Consider batch-cooking proteins or vegetables to save prep time later in the week.</span>
-            </div>
-            """
-
-        nut_text = ""
+        # Pre-process nutrients into display-ready dicts so the template stays logic-free
+        nutrients = []
         for k, v in today_nutrients.items():
-            unit = "g"
-            if k == "calories": unit = "kcal"
-            elif k in ["sodium", "cholesterol"]: unit = "mg"
-            
+            unit = "kcal" if k == "calories" else ("mg" if k in ["sodium", "cholesterol"] else "g")
             target = RDA.get(k, 0.0)
             pct = round((v / target) * 100) if target > 0 else 0
             color = "#3C5A54"
-            if k == "sodium" and pct > 100: color = "#EF5350"
-            elif k == "fiber" and pct < 100: color = "#C66B3D"
-            
-            nut_text += f"""
-            <span style="display: inline-block; margin: 4px 6px; background: #FAF9F6; padding: 6px 12px; border-radius: 4px; font-size: 12px; border: 1px solid #EFECE6; color: #5C5247; font-family: 'Plus Jakarta Sans', sans-serif;">
-              <strong style="color: #3C5A54;">{k.capitalize()}</strong>: {v}{unit} &bull; <span style="color: {color}; font-weight: 700;">{pct}%</span>
-            </span>
-            """
+            if k == "sodium" and pct > 100:
+                color = "#EF5350"
+            elif k == "fiber" and pct < 100:
+                color = "#C66B3D"
+            nutrients.append({"name": k, "value": v, "unit": unit, "pct": pct, "color": color})
 
-        ai_summary_html = ""
-        if ai_summary:
-            clean_summary = ai_summary.strip().strip('"').strip("'")
-            ai_summary_html = f"""
-            <div style="margin: 24px 0; padding: 0 10px;">
-              <p style="margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 16px; line-height: 1.7; color: #2C2C2C; font-style: italic; text-align: center;">
-                "{clean_summary}"
-              </p>
-            </div>
-            <div style="text-align: center; margin: 20px 0;"><span style="color: #D5CEB8; font-size: 14px;">❖ ❖ ❖</span></div>
-            """
-
-        html = f"""
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Today's Culinary Briefing</title>
-          </head>
-          <body style="font-family: sans-serif; background-color: #F4F0EB; padding: 20px; color: #2C2C2C; margin: 0;">
-            <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #E6DFD5;">
-              <div style="text-align: center; padding: 24px 0; border-bottom: 1px double #D5CEB8; margin-bottom: 24px;">
-                <span style="font-size: 11px; font-weight: 700; color: #C66B3D; text-transform: uppercase; letter-spacing: 2px; display: block; margin-bottom: 6px;">Daily Briefing</span>
-                <h1 style="color: #3C5A54; margin: 0; font-size: 28px;">The Crosty Kitchen</h1>
-                <p style="color: #8C8273; margin: 8px 0 0 0; font-size: 13px;">{day_name} &bull; {date_str}</p>
-              </div>
-              {ai_summary_html}
-              <div style="margin-bottom: 30px;">
-                <h2 style="font-size: 12px; font-weight: 700; color: #C66B3D; text-transform: uppercase; text-align: center; margin-bottom: 20px;">Today's Menu</h2>
-                <div style="text-align: center; margin-bottom: 15px;"><strong>Breakfast:</strong> {bf}</div>
-                <div style="text-align: center; margin-bottom: 15px;"><strong>Lunch:</strong> {ln}</div>
-                <div style="text-align: center; margin-bottom: 15px;"><strong>Dinner:</strong> {dn_html}</div>
-              </div>
-              {prep_tip}
-              <div style="margin-top: 30px; border-top: 1px double #D5CEB8; padding-top: 20px;">
-                <h3 style="font-size: 11px; font-weight: 700; color: #8C8273; text-transform: uppercase; text-align: center; margin-bottom: 16px;">Daily Nutritional Analysis</h3>
-                <div style="text-align: center;">{nut_text}</div>
-              </div>
-              {weekly_content_html or ""}
-              <p style="font-size: 13px; color: #8C8273; text-align: center; margin-top: 35px; border-top: 1px solid #EFECE6; padding-top: 20px;">
-                <a href="{APP_URL}" style="color: #3C5A54;">Your Dashboard</a>
-              </p>
-            </div>
-          </body>
-        </html>
-        """
-        return html
+        return self._render_email_template(
+            'emails/daily_briefing.html',
+            day_name=day_name,
+            date_str=date_str,
+            ai_summary=(ai_summary or "").strip().strip('"').strip("'"),
+            breakfast=bf,
+            lunch=ln,
+            dinner_title=dn_title,
+            dinner_recipe=dn_recipe,
+            ai_prep_note=ai_prep_note,
+            is_blackstone=is_blackstone,
+            nutrients=nutrients,
+            weekly_content_html=weekly_content_html or "",
+            app_url=APP_URL,
+            mealie_frontend_url=MEALIE_FRONTEND_URL,
+        )
 
     def send_daily_reminder_email(self, date_str=None, weekly_content_html=None, subject_override=None):
         """Generate and send the daily meal briefing email.
@@ -356,54 +308,56 @@ Tomorrow's Dinner details:
             staple_id_map = {item['id'].replace('-', ''): item['note'] for item in staples}
             low_staples_names = [staple_id_map.get(s_id.replace('-', '')) for s_id in low_staples_ids if staple_id_map.get(s_id.replace('-', ''))]
 
-            meal_rows = ""
+            # Build structured meal rows for the template
+            meal_rows = []
             start_date = datetime.strptime(active_start_str, "%Y-%m-%d")
             for i in range(7):
                 curr = start_date + timedelta(days=i)
                 d_str = curr.strftime("%Y-%m-%d")
-                day_name = curr.strftime("%A")
-                
+                day_name_str = curr.strftime("%A")
+
                 bf = next((p['title'] for p in meal_plans if p['date'][:10] == d_str and p['entryType'] == 'breakfast'), "Staples")
                 ln = next((p['title'] for p in meal_plans if p['date'][:10] == d_str and p['entryType'] == 'lunch'), "Leftovers")
-                
+
                 dinner_item = next((p for p in meal_plans if p['date'][:10] == d_str and p['entryType'] == 'dinner'), None)
-                dn = "Eating Out"
+                dinner_name = "Eating Out"
+                dinner_slug = None
                 if dinner_item:
                     if dinner_item.get('recipeId'):
                         try:
                             r = self.client.get_recipe_details(dinner_item['recipeId'])
-                            dn = f'<a href="https://mealie.cosmoslab.dev/g/home/r/{r["slug"]}" style="color: #C66B3D;">{r["name"]}</a>'
-                        except:
-                            dn = "Recipe Details Unavailable"
+                            dinner_name = r['name']
+                            dinner_slug = r.get('slug')
+                        except Exception:
+                            dinner_name = "Recipe Details Unavailable"
                     elif dinner_item.get('title'):
-                        dn = dinner_item['title']
-                        
-                meal_rows += f"<tr><td>{day_name}</td><td>{bf}</td><td>{ln}</td><td>{dn}</td></tr>"
+                        dinner_name = dinner_item['title']
 
-            nut_rows = ""
+                meal_rows.append({
+                    "day_name": day_name_str,
+                    "breakfast": bf,
+                    "lunch": ln,
+                    "dinner_name": dinner_name,
+                    "dinner_slug": dinner_slug,
+                })
+
+            # Build structured nutrition rows for the template
+            nut_rows = []
             for k, rda_val in RDA.items():
                 avg_val = averages.get(k, 0.0)
                 pct = round((avg_val / rda_val) * 100) if rda_val > 0 else 0
-                nut_rows += f"<tr><td>{k}</td><td>{avg_val}</td><td>{rda_val}</td><td>{pct}%</td></tr>"
+                unit = "kcal" if k == "calories" else ("mg" if k in ["sodium", "cholesterol"] else "g")
+                nut_rows.append({"name": k, "avg": avg_val, "rda": rda_val, "pct": pct, "unit": unit})
 
             weekly_themes = self.generate_weekly_themes_summary(meal_plans, active_start_str, active_end_str)
 
-            weekly_content_html = f"""
-            <div style="margin-top: 30px; border-top: 1px solid #DDD;">
-              <h2>Weekly Plan Summary</h2>
-              <p>"{weekly_themes}"</p>
-              <h3>Calendar</h3>
-              <table border="1" cellpadding="5" style="border-collapse: collapse; width: 100%;">
-                <thead><tr><th>Day</th><th>Breakfast</th><th>Lunch</th><th>Dinner</th></tr></thead>
-                <tbody>{meal_rows}</tbody>
-              </table>
-              <h3>Weekly Nutrients</h3>
-              <table border="1" cellpadding="5" style="border-collapse: collapse; width: 100%;">
-                <thead><tr><th>Nutrient</th><th>Avg</th><th>RDA</th><th>%</th></tr></thead>
-                <tbody>{nut_rows}</tbody>
-              </table>
-            </div>
-            """
+            weekly_content_html = self._render_email_template(
+                'emails/weekly_summary_block.html',
+                weekly_themes=weekly_themes,
+                meal_rows=meal_rows,
+                nut_rows=nut_rows,
+                mealie_frontend_url=MEALIE_FRONTEND_URL,
+            )
 
             # Send a single combined email: today's daily briefing (first day of the newly
             # planned subset) followed by the full weekly plan summary built above.
