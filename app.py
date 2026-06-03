@@ -203,9 +203,16 @@ def plan_stream():
     low_staples_ids = state.get('low_staples', [])
 
     def generate():
+        from mealie_planner.recipe_crawler import RecipeCrawler
+        from mealie_planner.shopping_sync import ShoppingListSync
+        from mealie_planner.email_notifier import EmailNotifier
+
         client = UnifiedMealieClient()
         gemini = GeminiClient()
-        generator = PlanGenerator(client, gemini)
+        crawler = RecipeCrawler(client, gemini)
+        shopping = ShoppingListSync(client, gemini, crawler)
+        notifier = EmailNotifier(client, gemini)
+        generator = PlanGenerator(client, gemini, crawler, shopping, notifier)
 
         q = queue.Queue()
         def callback(msg, progress=None):
@@ -244,9 +251,11 @@ def update_staples():
         
         try:
             from mealie_planner.shopping_sync import ShoppingListSync
+            from mealie_planner.recipe_crawler import RecipeCrawler
             client = UnifiedMealieClient()
             gemini = GeminiClient()
-            syncer = ShoppingListSync(client, gemini)
+            crawler = RecipeCrawler(client, gemini)
+            syncer = ShoppingListSync(client, gemini, crawler)
             syncer.sync_staples_only(low_staples)
             flash("Staples updated successfully!", "success")
         except Exception as e:
