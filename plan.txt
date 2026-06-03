@@ -1,0 +1,28 @@
+(Phase 0) * The Problem: The app still imports and uses a legacy GeminiClient 
+(from gemini_client.py) in app.py, alongside the newer, provider-agnostic AIClient 
+(from
+     ai_client.py) which already handles Gemini, OpenAI, and DeepSeek.  * The 
+     Recommendation: Replace all instances of GeminiClient in app.py with 
+     AIClient, then safely delete gemini_client.py.  2. Centralize Configuration 
+     with Pydantic (Phase 1) * The Problem: Environment variables are scattered 
+     across multiple modules (config.py, ai_client.py, unified_client.py, 
+     email_notifier.py) using multiple os.getenv statements.  * The 
+     Recommendation: Create mealie_planner/settings.py using a single Pydantic 
+     BaseSettings class to cohesively load and validate all environment variables.  
+     3. Decouple via Dependency Injection (Phases 2 & 3) * The Problem: Circular 
+     dependencies and tight coupling. EmailNotifier uses lazy imports inside its 
+     __init__ constructor to avoid circular dependency bugs, and classes like 
+     PlanGenerator directly instantiate their own RecipeCrawler and 
+     ShoppingListSync copies inside their __init__ functions.  * The 
+     Recommendation: 1. Define explicit type contracts/Protocols (e.g., 
+     MealieClientProtocol, AIClientProtocol) in a new interfaces.py.  2. Refactor 
+     all service constructors to receive their collaborators rather than 
+     instantiating them internally (e.g., PlanGenerator(mealie_client, ai_client, 
+     crawler, shopping, notifier)).  3. Wire them up in a clean composition root 
+     in app.py.  4. Replace MealieFetcher Inheritance with Composition (Phase 4) * 
+     The Problem: UnifiedMealieClient inherits directly from MealieFetcher 
+     (vendored from mealie-mcp-server), making it fragile to any upstream 
+     server/client updates, and mixes singleton caching structures into the 
+     class-level state.  * The Recommendation: Refactor UnifiedMealieClient into a 
+     clean MealieClient wrapper that uses MealieFetcher via composition (as a 
+     private instance attribute) and delegates only the required methods.
