@@ -44,29 +44,48 @@ This companion app interfaces with your Mealie instance to automate weekly menu 
 ## ⚙️ Setup & Installation
 
 ### 1. Configuration
-Create a `.env` file in the root directory:
+Create a `.env` file in the root directory (refer to `.env.example` as a template):
 
 ```env
-# Flask
+# --- Flask ---
 SECRET_KEY=your_flask_secret_key
 
-# Mealie Configuration
+# --- Mealie Configuration ---
 MEALIE_API_URL=http://mealie:9000
 MEALIE_FRONTEND_URL=https://your-mealie-domain.com
 MEALIE_TOKEN=your_mealie_api_token
+MEALIE_ACTIVE_LIST_ID=your_active_shopping_list_id
+MEALIE_STAPLES_LIST_ID=your_staples_list_id
 
-# AI Gateway
+# --- AI Vendor & Model Configuration ---
+# Active AI Vendor: "gemini" or "openai" or "deepseek" (defaults to "gemini")
+AI_VENDOR=gemini
+
+# --- Google Gemini Settings (for AI_VENDOR=gemini) ---
 GOOGLE_API_KEY=your_google_ai_studio_api_key
-# Optional: override the default Gemini model (defaults to gemini-3.5-flash)
+GEMINI_CORE_MODEL=gemini-3.5-flash
+GEMINI_CHAT_MODEL=gemini-3.5-flash
+# Legacy override fallback
 GEMINI_MODEL=gemini-3.5-flash
 
-# SMTP configuration for reports
+# --- OpenAI / DeepSeek Settings (for AI_VENDOR=openai or deepseek) ---
+AI_API_KEY=your_api_key
+AI_BASE_URL=https://api.deepseek.com
+OPENAI_CORE_MODEL=gpt-4o-mini
+OPENAI_CHAT_MODEL=gpt-4o
+
+# --- SMTP configuration for reports ---
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your_email@gmail.com
 SMTP_PASSWORD=your_app_specific_password
 SMTP_FROM_EMAIL=your_email@gmail.com
 SMTP_FROM_NAME=Mealie Companion
+
+# --- General Preferences ---
+MEALIE_PLANNER_APP_URL=https://mealie-planner.example
+FAMILY_RECIPIENT_EMAILS=person_a@example.com,person_b@example.com
+APP_TIMEZONE=America/New_York
 ```
 
 ### 2. Vendored MCP server (submodule)
