@@ -8,9 +8,11 @@ import pytz
 sys.path.insert(0, '/app')
 
 from mealie_planner.unified_client import UnifiedMealieClient
-from mealie_planner.gemini_client import GeminiClient
+from mealie_planner.ai_client import AIClient
 from mealie_planner.recipe_crawler import RecipeCrawler
 from mealie_planner.plan_generator import PlanGenerator
+from mealie_planner.shopping_sync import ShoppingListSync
+from mealie_planner.email_notifier import EmailNotifier
 from mealie_planner import config
 
 def run_profile():
@@ -34,9 +36,11 @@ def run_profile():
     # 1. Mealie Client Init / Auth
     t_start = time.perf_counter()
     client = UnifiedMealieClient()
-    gemini = GeminiClient()
-    crawler = RecipeCrawler(client, gemini)
-    generator = PlanGenerator(client, gemini)
+    ai = AIClient()
+    crawler = RecipeCrawler(client, ai)
+    shopping = ShoppingListSync(client, ai, crawler)
+    notifier = EmailNotifier(client, ai)
+    generator = PlanGenerator(client, ai, crawler, shopping, notifier)
     timers['Client Init & Token Validation'] = time.perf_counter() - t_start
     print(f"[Phase 1] Client Init & Auth: {timers['Client Init & Token Validation']:.3f}s")
 

@@ -63,7 +63,8 @@ class TestShoppingListSyncMerge(unittest.TestCase):
 
     def _make_syncer(self, active_items, ai_items):
         client = MagicMock()
-        gemini = MagicMock()
+        ai = MagicMock()
+        crawler = MagicMock()
 
         # No scheduled meals / recipes -> focus the test purely on the merge logic.
         client.get_meal_plan.return_value = []
@@ -74,9 +75,9 @@ class TestShoppingListSyncMerge(unittest.TestCase):
         client.get_shopping_list_items_for_list.return_value = active_items
         client.get_labels.return_value = [{"name": "Produce", "id": "lbl-produce"}]
 
-        gemini.call.return_value = json.dumps(ai_items)
+        ai.call.return_value = json.dumps(ai_items)
 
-        syncer = ShoppingListSync(client, gemini)
+        syncer = ShoppingListSync(client, ai, crawler)
         return syncer, client
 
     @patch("mealie_planner.shopping_sync.time.sleep", lambda *a, **k: None)
