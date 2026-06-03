@@ -14,7 +14,7 @@ from mealie_planner.plan_generator import PlanGenerator
 from mealie_planner.shopping_sync import sync_shopping_list
 from mealie_planner.recipe_nutrition import calculate_nutrition_for_range
 from mealie_planner.recipe_crawler import check_blackstone_compatibility
-from mealie_planner.config import ACTIVE_LIST_ID, STAPLES_LIST_ID, RDA, TIMEZONE, APP_URL, FAMILY_RECIPIENT_EMAILS, FAMILY_NAMES
+from mealie_planner.config import ACTIVE_LIST_ID, STAPLES_LIST_ID, RDA, TIMEZONE, APP_URL, FAMILY_RECIPIENT_EMAILS, FAMILY_NAMES, SWAP_RECOMMENDATIONS_PROMPT_TEMPLATE
 from mealie_planner.utils import get_active_week_strings, get_planning_week_strings, get_planning_week_range, sanitize_input, extract_ingredient_texts
 from scripts.clear_mealie import wipe_mealie_data
 
@@ -450,17 +450,12 @@ def get_swap_recommendations():
         if len(candidates) > 35:
             candidates = random.sample(candidates, 35)
                 
-        prompt = f"""You are a culinary planner. Suggest exactly 3 candidate recipes from the catalogue to replace the dinner on {date_str} (currently: "{target_dinner_name or 'None'}").
-        
-The goal is to suggest recipes that share matching ingredients or culinary styles with the other dinners planned for this week to minimize grocery waste.
-
-Other Dinners Planned This Week:
-{json.dumps(other_dinner_context, indent=2)}
-
-Candidate Recipe Catalogue:
-{json.dumps(candidates, indent=2)}
-
-Respond with a JSON array containing exactly 3 objects, each having "id" and "name". Respond with ONLY the JSON array."""
+        prompt = SWAP_RECOMMENDATIONS_PROMPT_TEMPLATE.format(
+            date_str=date_str,
+            target_dinner_name=target_dinner_name or 'None',
+            other_dinner_context=json.dumps(other_dinner_context, indent=2),
+            candidates=json.dumps(candidates, indent=2)
+        )
 
         raw = gemini.call(prompt, expect_json=True)
         result = json.loads(raw)
