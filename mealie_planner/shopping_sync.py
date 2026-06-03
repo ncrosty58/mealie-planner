@@ -24,10 +24,10 @@ def normalize_ingredient_name(name: str) -> str:
     return name
 
 class ShoppingListSync:
-    def __init__(self, mealie_client, ai_client):
+    def __init__(self, mealie_client, ai_client, crawler):
         self.client = mealie_client
         self.ai = ai_client
-        self.crawler = RecipeCrawler(mealie_client, ai_client)
+        self.crawler = crawler
 
     def sync_staples_only(self, low_staples_ids) -> bool:
         """Fast, deterministic sync of staples only. No AI, no clearing of recipes."""
@@ -215,4 +215,5 @@ def sync_shopping_list(start_date_str, end_date_str, low_staples_ids=[], progres
     from .unified_client import UnifiedMealieClient
     from .ai_client import AIClient
     client, ai = UnifiedMealieClient(), AIClient()
-    return ShoppingListSync(client, ai).sync_shopping_list(start_date_str, end_date_str, low_staples_ids, progress_callback, freezer_items)
+    crawler = RecipeCrawler(client, ai)
+    return ShoppingListSync(client, ai, crawler).sync_shopping_list(start_date_str, end_date_str, low_staples_ids, progress_callback, freezer_items)

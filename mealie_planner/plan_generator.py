@@ -7,9 +7,6 @@ from .config import (
     _WEEKLY_MEAL_SELECTION_SKILL_DEFINITION,
     _BANNED_RECIPES_SKILL_DEFINITION
 )
-from .recipe_crawler import RecipeCrawler
-from .shopping_sync import ShoppingListSync
-from .email_notifier import EmailNotifier
 from .parsers import parse_freezer_items, parse_exclusions
 from .exceptions import MealieAPIError, SkillParsingError
 from .models import WeeklyMealPlanResponse
@@ -35,12 +32,12 @@ def classify_early_late_dates(target_date_strings):
 
 
 class PlanGenerator:
-    def __init__(self, mealie_client, ai_client):
+    def __init__(self, mealie_client, ai_client, crawler, shopping, notifier):
         self.client = mealie_client
         self.ai = ai_client
-        self.crawler = RecipeCrawler(mealie_client, ai_client)
-        self.shopping = ShoppingListSync(mealie_client, ai_client)
-        self.notifier = EmailNotifier(mealie_client, ai_client)
+        self.crawler = crawler
+        self.shopping = shopping
+        self.notifier = notifier
 
     def generate_weekly_plan(self, start_date_str, end_date_str, exclude_text="", freezer_items="", special_requests="", low_staples_ids=[], progress_callback=None):
         """Generate weekly plan using an AI-driven intelligent rule-based scoring engine and schedule in Mealie."""
