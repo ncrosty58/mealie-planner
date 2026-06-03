@@ -6,20 +6,16 @@ services:
     ports:
       - "9926:9926"
     volumes:
-      - mealie_mealie-data:/mealie-data:ro
       - ./data:/app/data
-      - ./mealie_planner:/app/mealie_planner:ro
-      - ./mealie-mcp-server:/app/mealie-mcp-server:ro
-      - ./scripts:/app/scripts:ro
+      # Uncomment the bind mounts below only if you are doing active local development
+      # and want to propagate code changes without rebuilds:
+      # - ./mealie_planner:/app/mealie_planner:ro
+      # - ./mealie-mcp-server:/app/mealie-mcp-server:ro
+      # - ./scripts:/app/scripts:ro
     env_file:
       - .env
-    networks:
-      - mealie_default
-
-volumes:
-  mealie_mealie-data:
-    external: true
 
 networks:
-  mealie_default:
+  default:
+    name: mealie_default
     external: true

@@ -11,7 +11,7 @@
     {# ── Header ──────────────────────────────────────────────── #}
     <div style="text-align: center; padding: 24px 0; border-bottom: 1px double #D5CEB8; margin-bottom: 24px;">
       <span style="font-size: 11px; font-weight: 700; color: #C66B3D; text-transform: uppercase; letter-spacing: 2px; display: block; margin-bottom: 6px;">Daily Briefing</span>
-      <h1 style="color: #3C5A54; margin: 0; font-size: 28px;">The Crosty Kitchen</h1>
+      <h1 style="color: #3C5A54; margin: 0; font-size: 28px;">{% if 'Kitchen' in family_names or 'Family' in family_names or 'Kitchens' in family_names %}{{ family_names }}{% else %}The {{ family_names }} Kitchen{% endif %}</h1>
       <p style="color: #8C8273; margin: 8px 0 0 0; font-size: 13px;">{{ day_name }} &bull; {{ date_str }}</p>
     </div>
 

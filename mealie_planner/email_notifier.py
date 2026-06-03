@@ -7,7 +7,8 @@ import pytz
 
 from .config import (
     FAMILY_RECIPIENT_EMAILS, RDA, STAPLES_LIST_ID, APP_URL, TIMEZONE, MEALIE_FRONTEND_URL,
-    _DAILY_BRIEFING_GENERATION_SKILL_DEFINITION, _WEEKLY_THEMES_SYNOPSIS_SKILL_DEFINITION
+    _DAILY_BRIEFING_GENERATION_SKILL_DEFINITION, _WEEKLY_THEMES_SYNOPSIS_SKILL_DEFINITION,
+    FAMILY_NAMES
 )
 from .utils import get_active_week_strings, get_active_week_range, extract_ingredient_texts
 from .exceptions import MealieAPIError, MealiePlannerError
@@ -27,7 +28,9 @@ class EmailNotifier:
         from jinja2 import Environment, FileSystemLoader
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         templates_dir = os.path.join(base_dir, 'templates')
-        env = Environment(loader=FileSystemLoader(templates_dir), autoescape=False)
+        env = Environment(loader=FileSystemLoader(templates_dir))
+        if 'family_names' not in context:
+            context['family_names'] = FAMILY_NAMES
         return env.get_template(template_name).render(**context)
 
     def send_email(self, subject, html_content):

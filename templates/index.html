@@ -379,7 +379,7 @@
     <div id="drawer-overlay" class="drawer-overlay" onclick="toggleDrawer()"></div>
 
     <aside id="sidebar" class="sidebar">
-        <div class="sidebar-brand"><span class="brand-label">Culinary Companion</span><div class="brand-title">Crosty Kitchen</div></div>
+        <div class="sidebar-brand"><span class="brand-label">Culinary Companion</span><div class="brand-title">{% if 'Kitchen' in family_names or 'Family' in family_names or 'Kitchens' in family_names %}{{ family_names }}{% else %}{{ family_names }} Kitchen{% endif %}</div></div>
         <nav class="nav-group">
             <button class="nav-item active" id="nav-menu" onclick="switchTab('menu')">📅 Weekly Menu</button>
             <button class="nav-item" id="nav-shopping" onclick="switchTab('shopping')">🛒 Shopping List</button>
@@ -392,7 +392,7 @@
         <div class="sidebar-footer"><div class="brand-label">Active Week</div><div style="font-size: 0.75rem; color: var(--color-muted); font-weight: 500;">{{ start_date }} &rarr; {{ end_date }}</div></div>
     </aside>
 
-    <header class="mobile-header"><div class="brand-title" style="font-size: 1.1rem;">Crosty Kitchen</div><button class="hamburger-btn" onclick="toggleDrawer()">☰</button></header>
+    <header class="mobile-header"><div class="brand-title" style="font-size: 1.1rem;">{% if 'Kitchen' in family_names or 'Family' in family_names or 'Kitchens' in family_names %}{{ family_names }}{% else %}{{ family_names }} Kitchen{% endif %}</div><button class="hamburger-btn" onclick="toggleDrawer()">☰</button></header>
 
     <main class="main-container">
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -641,7 +641,7 @@
 
         <footer style="margin-top: auto; padding-top: 4rem; text-align: center; opacity: 0.3;">
             <div class="ornament" style="font-size: 0.8rem;">❖ &bull; ❖ &bull; ❖</div>
-            <p style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-top: 1rem;">Crosty Kitchen Culinary Companion</p>
+            <p style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-top: 1rem;">{% if 'Kitchen' in family_names or 'Family' in family_names or 'Kitchens' in family_names %}{{ family_names }}{% else %}{{ family_names }} Kitchen{% endif %} Culinary Companion</p>
         </footer>
     </main>
 

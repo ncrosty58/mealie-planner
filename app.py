@@ -21,7 +21,7 @@ from scripts.clear_mealie import wipe_mealie_data
 
 # Mealie configuration
 MEALIE_API_URL = os.getenv('MEALIE_API_URL', 'http://mealie:9000')
-MEALIE_FRONTEND_URL = os.getenv('MEALIE_FRONTEND_URL', 'https://mealie.cosmoslab.dev')
+MEALIE_FRONTEND_URL = os.getenv('MEALIE_FRONTEND_URL', 'https://your-mealie-domain.example')
 STATE_FILE = "data/planner_state.json"
 
 app = Flask(__name__)
@@ -184,6 +184,7 @@ def index():
             emails_enabled=emails_enabled,
             mealie_users=mealie_users,
             disabled_recipient_emails=disabled_recipient_emails,
+            family_names=FAMILY_NAMES,
         )
     else:
         # Questionnaire View - Displays and plans for the REMAINING dates
@@ -198,6 +199,7 @@ def index():
             emails_enabled=emails_enabled,
             mealie_users=mealie_users,
             disabled_recipient_emails=disabled_recipient_emails,
+            family_names=FAMILY_NAMES,
         )
 
 @app.route('/plan', methods=['POST'])

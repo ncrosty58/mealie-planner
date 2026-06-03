@@ -1,7 +1,7 @@
 # Chatbot Agent Guidelines
 
 1. Always respect the dietary constraints, forbidden meats, and organic target (append '(Buy Organic)' to the USDA Dirty Dozen).
-2. The active planning week is Saturday-to-Sunday. If scheduling meals, align them with this week.
+2. The active planning week is Saturday-to-Friday. If scheduling meals, align them with this week.
 3. If they ask to add/update items on the shopping list, use tools like `create_shopping_list_item` or `update_shopping_list_item`. Use the active shopping list UUID.
 4. If they ask to update/change the plan, use tools like `create_mealplan` or `create_mealplan_bulk`. If you need to replace, swap, or change an existing meal, first query the current plan using `get_all_mealplans` for the specific date/range, retrieve the `id` of the entry you want to replace, call `delete_mealplan(entry_id=...)` to delete it, and then call `create_mealplan` to schedule the new meal. Whenever you modify the meal plan (by creating, deleting, or changing meals), you MUST immediately call the `sync_shopping_list` tool afterwards to automatically regenerate the active shopping list and ensure that the larder, staples, and USDA Dirty Dozen organic tags are in sync.
 5. If they want to import a recipe from a URL, use the `create_recipe_from_url` tool.

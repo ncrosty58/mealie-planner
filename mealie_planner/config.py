@@ -59,10 +59,10 @@ def parse_frontmatter(content):
 _SKILL_MD_CONTENT = load_skill_md('meal-planner', strip_front=False)
 _METADATA = parse_frontmatter(_SKILL_MD_CONTENT)
 
-FAMILY_NAMES = _METADATA.get('family_names', 'Nathan & Kristin')
+FAMILY_NAMES = os.getenv('FAMILY_NAMES', _METADATA.get('family_names', 'Nathan & Kristin'))
 TIMEZONE = os.getenv('APP_TIMEZONE', _METADATA.get('timezone', 'America/New_York'))
-APP_URL = os.getenv('MEALIE_PLANNER_APP_URL', _METADATA.get('app_url', 'https://mealie-planner.cosmoslab.dev'))
-MEALIE_FRONTEND_URL = os.getenv('MEALIE_FRONTEND_URL', 'https://mealie.cosmoslab.dev')
+APP_URL = os.getenv('MEALIE_PLANNER_APP_URL', _METADATA.get('app_url', 'https://mealie-planner.example.com'))
+MEALIE_FRONTEND_URL = os.getenv('MEALIE_FRONTEND_URL', 'https://your-mealie-domain.example')
 
 # --- AI Vendor and Models Configuration ---
 AI_VENDOR = os.getenv("AI_VENDOR", "gemini").lower()  # "gemini" or "openai" or "deepseek"
@@ -85,9 +85,23 @@ else:
 raw_emails = os.getenv('FAMILY_RECIPIENT_EMAILS', _METADATA.get('recipient_emails', 'nathan@example.com,kristin@example.com'))
 FAMILY_RECIPIENT_EMAILS = [email.strip() for email in raw_emails.split(',')]
 
+FAMILY_MEMBERS = os.getenv('FAMILY_MEMBERS', _METADATA.get('family_members', ''))
+
+# Load dietary rules: check for local gitignored file first
+_DIETARY_RULES_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'dietary_rules.txt')
+if os.path.exists(_DIETARY_RULES_FILE):
+    with open(_DIETARY_RULES_FILE, 'r', encoding='utf-8') as _f:
+        rules_content = _f.read().strip()
+else:
+    rules_content = extract_section(_SKILL_MD_CONTENT, 'Household & Dietary Constraints')
+
+# Dynamically construct prompt from family info (env) + rules (txt/md file)
 FAMILY_DIETARY_RULES_PROMPT = f"""
-=== FAMILY DIETARY RULES ===
-{extract_section(_SKILL_MD_CONTENT, 'Household & Dietary Constraints')}
+=== FAMILY MEMBERS ===
+{FAMILY_MEMBERS if FAMILY_MEMBERS else "The Family"}
+
+=== DIETARY RULES & PREFERENCES ===
+{rules_content}
 """
 
 CHATBOT_GUIDELINES_PROMPT = load_skill_md('meal-planner', 'CHATBOT_GUIDELINES.md')
@@ -154,7 +168,18 @@ RDA = {
 }
 
 def get_banned_recipes():
-    """Load the list of banned recipes from the banned-recipes skill."""
+    """Load the list of banned recipes from a local data file or the banned-recipes skill."""
+    # Try local data/banned_recipes.txt first
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    banned_file = os.path.join(base_dir, 'data', 'banned_recipes.txt')
+    if os.path.exists(banned_file):
+        try:
+            with open(banned_file, 'r', encoding='utf-8') as f:
+                return [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
+        except Exception as e:
+            print(f"[config] Error reading local banned recipes: {e}")
+
+    # Fallback to skill definition
     content = load_skill_md('banned-recipes')
     if not content:
         return []
