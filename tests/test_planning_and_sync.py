@@ -142,5 +142,17 @@ class TestShoppingListSyncMerge(unittest.TestCase):
         self.assertEqual(delete_args, ["item-A"])
 
 
+class TestWeekRanges(unittest.TestCase):
+    def test_get_next_week_range(self):
+        from datetime import timedelta
+        from mealie_planner.utils import get_active_week_range, get_next_week_range
+        
+        curr_start, curr_end = get_active_week_range()
+        next_start, next_end = get_next_week_range()
+        
+        self.assertEqual(next_start - curr_start, timedelta(days=7))
+        self.assertEqual(next_end - curr_end, timedelta(days=7))
+
+
 if __name__ == "__main__":
     unittest.main()

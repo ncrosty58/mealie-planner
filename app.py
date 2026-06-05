@@ -23,8 +23,25 @@ from scripts.clear_mealie import wipe_mealie_data
 MEALIE_API_URL = os.getenv('MEALIE_API_URL', 'http://mealie:9000')
 MEALIE_FRONTEND_URL = os.getenv('MEALIE_FRONTEND_URL', 'https://your-mealie-domain.example')
 STATE_FILE = "data/planner_state.json"
+CHAT_HISTORY_FILE = "data/chat_history.json"
 
 app = Flask(__name__)
+
+def load_chat_history():
+    """Load persisted chat history."""
+    if os.path.exists(CHAT_HISTORY_FILE):
+        try:
+            with open(CHAT_HISTORY_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {"history": [], "messages": []}
+    return {"history": [], "messages": []}
+
+def save_chat_history(history, messages):
+    """Save persisted chat history."""
+    os.makedirs(os.path.dirname(CHAT_HISTORY_FILE), exist_ok=True)
+    with open(CHAT_HISTORY_FILE, 'w') as f:
+        json.dump({"history": history, "messages": messages}, f)
 app.secret_key = os.getenv('SECRET_KEY', 'mealie_companion_secret_9926')
 
 # ---------- Composition Root (DI wiring) ----------
@@ -86,13 +103,26 @@ def index():
     except Exception as e:
         print(f"Error fetching Mealie users: {e}")
 
+    # Get active week selection
+    week = request.args.get('week', 'current')
+    if week not in ('current', 'next'):
+        week = 'current'
+
     # Get active week range (for Dashboard display)
-    active_start_str, active_end_str = get_active_week_strings()
-    
-    # Get planning week range (for Questionnaire and planning check)
-    planning_start, planning_end = get_planning_week_range()
-    planning_start_str = planning_start.strftime("%Y-%m-%d")
-    planning_end_str = planning_end.strftime("%Y-%m-%d")
+    if week == 'next':
+        from mealie_planner.utils import get_next_week_range
+        planning_start, planning_end = get_next_week_range()
+        active_start_str = planning_start.strftime("%Y-%m-%d")
+        active_end_str = planning_end.strftime("%Y-%m-%d")
+        planning_start_str = active_start_str
+        planning_end_str = active_end_str
+    else:
+        active_start_str, active_end_str = get_active_week_strings()
+        
+        # Get planning week range (for Questionnaire and planning check)
+        planning_start, planning_end = get_planning_week_range()
+        planning_start_str = planning_start.strftime("%Y-%m-%d")
+        planning_end_str = planning_end.strftime("%Y-%m-%d")
     
     # Current date for graying out past days in UI
     tz = pytz.timezone(TIMEZONE)
@@ -105,16 +135,16 @@ def index():
     except Exception as e:
         print(f"Error fetching meal plan: {e}")
 
-    # Check if there are scheduled dinner entries in the remaining days of the week
-    dinners_remaining = [
+    # Check if there are scheduled dinner entries in the active week
+    dinners_scheduled = [
         p for p in meal_plans 
         if p['entryType'] == 'dinner' 
-        and p['date'][:10] >= planning_start_str 
-        and p['date'][:10] <= planning_end_str 
+        and p['date'][:10] >= active_start_str 
+        and p['date'][:10] <= active_end_str 
         and (p.get('recipeId') or p.get('title') or p.get('text'))
     ]
     
-    is_submitted = bool(dinners_remaining)
+    is_submitted = bool(meal_plans)
 
     # Get data for UI
     staples = []
@@ -123,6 +153,7 @@ def index():
     except Exception as e:
         print(f"Error reading staples list: {e}")
 
+    # All recipes for UI swap options
     all_recipes = []
     try:
         all_recipes = mealie_client.get_all_recipes()
@@ -185,6 +216,7 @@ def index():
             mealie_users=mealie_users,
             disabled_recipient_emails=disabled_recipient_emails,
             family_names=FAMILY_NAMES,
+            week=week,
         )
     else:
         # Questionnaire View - Displays and plans for the REMAINING dates
@@ -200,6 +232,7 @@ def index():
             mealie_users=mealie_users,
             disabled_recipient_emails=disabled_recipient_emails,
             family_names=FAMILY_NAMES,
+            week=week,
         )
 
 @app.route('/plan', methods=['POST'])
@@ -216,6 +249,7 @@ def plan_stream():
     exclude_text = sanitize_input(request.args.get('exclude_text', ''))
     freezer_items = sanitize_input(request.args.get('freezer_items', ''))
     special_requests = sanitize_input(request.args.get('special_requests', ''))
+    week = request.args.get('week', 'current')
     
     save_state({
         "exclude_text": exclude_text,
@@ -232,7 +266,13 @@ def plan_stream():
         def callback(msg, progress=None):
             q.put({"status": msg, "progress": progress})
 
-        start_date_str, end_date_str = get_planning_week_strings()
+        if week == 'next':
+            from mealie_planner.utils import get_next_week_range
+            start_date, end_date = get_next_week_range()
+            start_date_str = start_date.strftime("%Y-%m-%d")
+            end_date_str = end_date.strftime("%Y-%m-%d")
+        else:
+            start_date_str, end_date_str = get_planning_week_strings()
 
         thread = threading.Thread(target=plan_generator.generate_weekly_plan, kwargs={
             "start_date_str": start_date_str,
@@ -274,7 +314,14 @@ def update_staples():
 @app.route('/sync', methods=['POST'])
 def sync():
     """Manual trigger to re-sync the shopping list based on current plans."""
-    start_date_str, end_date_str = get_active_week_strings()
+    week = request.form.get('week', 'current')
+    if week == 'next':
+        from mealie_planner.utils import get_next_week_range
+        next_start, next_end = get_next_week_range()
+        start_date_str = next_start.strftime("%Y-%m-%d")
+        end_date_str = next_end.strftime("%Y-%m-%d")
+    else:
+        start_date_str, end_date_str = get_active_week_strings()
 
     state = load_state()
     low_staples = state.get('low_staples', [])
@@ -290,7 +337,7 @@ def sync():
     except Exception as e:
         flash(f"Error syncing shopping list: {str(e)}", "danger")
 
-    return redirect(url_for('index'))
+    return redirect(url_for('index', week=week))
 
 @app.route('/update-admin', methods=['POST'])
 def update_admin():
@@ -310,18 +357,19 @@ def update_admin():
 
 @app.route('/clear', methods=['POST'])
 def clear_plan_route():
+    week = request.form.get('week', 'current')
     try:
-        wipe_mealie_data()
+        wipe_mealie_data(week=week)
         save_state({
             'low_staples': [],
             'freezer_items': "",
             'exclude_text': "",
             'special_requests': ""
         })
-        flash("Successfully cleared meal plans and reset state!", "success")
+        flash(f"Successfully cleared meal plans for {week} week and reset state!", "success")
     except Exception as e:
         flash(f"Error clearing data: {str(e)}", "danger")
-    return redirect(url_for('index'))
+    return redirect(url_for('index', week=week))
 
 @app.route('/add-shopping-item', methods=['POST'])
 def add_shopping_item():
@@ -385,6 +433,7 @@ def change_meal():
         date_str = request.form.get('date')
         entry_id = request.form.get('entry_id')
         recipe_id = request.form.get('recipe_id')
+        week = request.form.get('week', 'current')
         
         if entry_id:
             mealie_client.delete_meal_plan_entry(entry_id)
@@ -394,7 +443,13 @@ def change_meal():
             
         # Trigger shopping list auto-sync so changes reflect immediately
         try:
-            start_date_str, end_date_str = get_active_week_strings()
+            if week == 'next':
+                from mealie_planner.utils import get_next_week_range
+                next_start, next_end = get_next_week_range()
+                start_date_str = next_start.strftime("%Y-%m-%d")
+                end_date_str = next_end.strftime("%Y-%m-%d")
+            else:
+                start_date_str, end_date_str = get_active_week_strings()
             state = load_state()
             low_staples = state.get('low_staples', [])
             shopping.sync_shopping_list(start_date_str, end_date_str, low_staples_ids=low_staples)
@@ -405,7 +460,7 @@ def change_meal():
     except Exception as e:
         flash(f"Error updating meal: {e}", "danger")
         
-    return redirect(url_for('index'))
+    return redirect(url_for('index', week=week))
 
 @app.route('/get-swap-recommendations')
 def get_swap_recommendations():
@@ -414,8 +469,14 @@ def get_swap_recommendations():
         return Response(json.dumps([]), mimetype='application/json')
         
     try:
-        # 1. Fetch current week's scheduled meals and recipes
-        active_start_str, active_end_str = get_active_week_strings()
+        # 1. Fetch target week's scheduled meals and recipes dynamically based on date_str
+        target_date = datetime.strptime(date_str, "%Y-%m-%d")
+        days_since_saturday = (target_date.weekday() - 5 + 7) % 7
+        start_of_week = target_date - timedelta(days=days_since_saturday)
+        end_of_week = start_of_week + timedelta(days=6)
+        active_start_str = start_of_week.strftime("%Y-%m-%d")
+        active_end_str = end_of_week.strftime("%Y-%m-%d")
+        
         meal_plans = mealie_client.get_meal_plan(active_start_str, active_end_str)
         
         # Extract the other dinners planned this week (excluding the target date we are swapping)
@@ -495,6 +556,17 @@ def get_swap_recommendations():
             print(f"Fallback recipe selection failed: {fallback_err}")
             return Response(json.dumps([]), mimetype='application/json')
 
+@app.route('/chat-history', methods=['GET'])
+def get_chat_history():
+    """Endpoint to fetch the server-side chat history."""
+    return json.dumps(load_chat_history())
+
+@app.route('/chat-clear', methods=['POST'])
+def clear_chat_history():
+    """Endpoint to clear the server-side chat history."""
+    save_chat_history([], [])
+    return json.dumps({"success": True})
+
 @app.route('/chat', methods=['POST'])
 def chat():
     from mealie_planner.mcp_agent import run_mcp_chat
@@ -502,16 +574,39 @@ def chat():
     try:
         data = request.get_json()
         message = data.get('message', '')
-        history = data.get('history', [])
+        week = data.get('week', 'current')
         
-        reply, new_history, plan_changed = asyncio.run(run_mcp_chat(history, message))
+        # Load existing chat history from the server
+        chat_data = load_chat_history()
+        history = chat_data.get("history", [])
+        messages = chat_data.get("messages", [])
+        
+        # Append user message immediately and save
+        messages.append({"s": "user", "t": message})
+        save_chat_history(history, messages)
+        
+        if week == 'next':
+            from mealie_planner.utils import get_next_week_range
+            next_start, next_end = get_next_week_range()
+            week_start_str = next_start.strftime("%Y-%m-%d")
+            week_end_str = next_end.strftime("%Y-%m-%d")
+        else:
+            week_start_str, week_end_str = get_active_week_strings()
+        
+        # Run chat with persistent history
+        reply, new_history, plan_changed = asyncio.run(run_mcp_chat(
+            history, message, week_start_str=week_start_str, week_end_str=week_end_str
+        ))
+        
+        # Append bot reply and save updated history
+        messages.append({"s": "bot", "t": reply})
+        save_chat_history(new_history, messages)
         
         if plan_changed:
             try:
-                start_date_str, end_date_str = get_active_week_strings()
                 state = load_state()
                 low_staples = state.get('low_staples', [])
-                shopping.sync_shopping_list(start_date_str, end_date_str, low_staples_ids=low_staples)
+                shopping.sync_shopping_list(week_start_str, week_end_str, low_staples_ids=low_staples)
             except Exception as sync_err:
                 print(f"[Chat Auto-Sync] Error during auto-sync: {sync_err}")
         
@@ -523,6 +618,12 @@ def chat():
         })
     except Exception as e:
         print(f"Chat error: {e}")
+        # Save a friendly error message to the history so it doesn't leave the UI in an inconsistent state
+        chat_data = load_chat_history()
+        history = chat_data.get("history", [])
+        messages = chat_data.get("messages", [])
+        messages.append({"s": "bot", "t": "Chef is having some technical difficulties. Please try again."})
+        save_chat_history(history, messages)
         return json.dumps({"success": False, "error": str(e)}), 500
 
 @app.route('/manifest.json')

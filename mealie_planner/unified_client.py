@@ -111,6 +111,23 @@ class UnifiedMealieClient(MealieFetcher):
 
         return {rid: self._recipe_details_cache.get(rid) for rid in recipe_ids}
 
+    def get_mealplans(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        page: Optional[int] = None,
+        per_page: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Override get_mealplans to use correct snake_case query parameters for the Mealie API."""
+        param_dict = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "page": page,
+            "per_page": per_page,
+        }
+        params = {k: v for k, v in param_dict.items() if v is not None}
+        return self._handle_request("GET", "/api/households/mealplans", params=params)
+
     def get_meal_plan(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
         """Legacy alias for get_mealplans with simplified return."""
         res = self.get_mealplans(start_date=start_date, end_date=end_date, per_page=100)

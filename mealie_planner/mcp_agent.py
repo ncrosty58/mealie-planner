@@ -22,9 +22,11 @@ from mealie_planner.config import (
 )
 from mealie_planner.ai_client import AIClient
 
-def get_system_prompt():
+def get_system_prompt(week_start_str=None, week_end_str=None):
     tz = pytz.timezone(TIMEZONE)
     now_str = datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S (%A)')
+    if week_start_str and week_end_str:
+        now_str += f"\nThe user is currently viewing/managing the week from {week_start_str} to {week_end_str}."
     
     return CHATBOT_SYSTEM_PROMPT_TEMPLATE.format(
         FAMILY_DIETARY_RULES_PROMPT=FAMILY_DIETARY_RULES_PROMPT,
@@ -52,7 +54,7 @@ def clean_schema(schema: dict) -> dict:
             
     return clean
 
-async def run_mcp_chat(history, user_message, model_name=None):
+async def run_mcp_chat(history, user_message, model_name=None, week_start_str=None, week_end_str=None):
     """
     history is a list of dicts: [{"role": "user"|"model", "content": "..."}]
     user_message is the new message string.
@@ -112,7 +114,7 @@ async def run_mcp_chat(history, user_message, model_name=None):
                 gemini_tools = [{"functionDeclarations": declarations}]
                 
             # Loop for AI to call functions
-            system_instruction = get_system_prompt()
+            system_instruction = get_system_prompt(week_start_str, week_end_str)
             ai = AIClient()
 
             max_turns = 20

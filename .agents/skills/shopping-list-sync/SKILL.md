@@ -31,6 +31,7 @@ This skill takes the raw ingredient strings from dinner recipes, a list of house
     - **Deep Semantic Filtering:** Do not just look for exact name matches. Use culinary knowledge to identify if an ingredient is a form of a staple.
         - *Example:* If "Olive Oil" is a staple, filter out "Extra Virgin Olive Oil", "2 tbsp Olive Oil", "Olive oil for frying", etc.
         - *Example:* If "Garlic" is a staple, filter out "3 cloves Garlic", "Minced Garlic", etc.
+        - *Reverse Variant Matching:* If the recipe calls for a generic ingredient (e.g., "Olive Oil" or "Vinegar") and a specific variety is listed in the `staples` list (e.g., "Extra virgin olive oil" or "Red wine vinegar"), treat it as a match and filter it out.
     - **Exception Rule**: If the matched staple is explicitly listed in `low_staples` or is already on `active_shopping_list`, you MUST include it.
     - **Inventory Rule**: If an ingredient matches an `inventory_item`, filter it out.
     - **Rule of Thumb**: If Nathan and Kristin already have it (Staple) or want to use it up (Inventory), and it's NOT low (Low Staples), do not put it on the shopping list.

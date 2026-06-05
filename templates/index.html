@@ -380,16 +380,32 @@
 
     <aside id="sidebar" class="sidebar">
         <div class="sidebar-brand"><span class="brand-label">Culinary Companion</span><div class="brand-title">{% if 'Kitchen' in family_names or 'Family' in family_names or 'Kitchens' in family_names %}{{ family_names }}{% else %}{{ family_names }} Kitchen{% endif %}</div></div>
+        
+        <!-- Week Selector Pill Group -->
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: #FAF9F6; padding: 4px; border: 1px solid var(--color-border); border-radius: 4px;">
+            <a href="{{ url_for('index', week='current') }}" style="flex: 1; text-align: center; text-decoration: none; font-size: 0.75rem; font-weight: 700; padding: 0.5rem; border-radius: 3px; color: {% if week == 'current' %}white{% else %}var(--color-muted){% endif %}; background: {% if week == 'current' %}var(--color-primary){% else %}transparent{% endif %}; transition: all 0.2s;">
+                Current Week
+            </a>
+            <a href="{{ url_for('index', week='next') }}" style="flex: 1; text-align: center; text-decoration: none; font-size: 0.75rem; font-weight: 700; padding: 0.5rem; border-radius: 3px; color: {% if week == 'next' %}white{% else %}var(--color-muted){% endif %}; background: {% if week == 'next' %}var(--color-primary){% else %}transparent{% endif %}; transition: all 0.2s;">
+                Next Week
+            </a>
+        </div>
         <nav class="nav-group">
             <button class="nav-item active" id="nav-menu" onclick="switchTab('menu')">📅 Weekly Menu</button>
-            <button class="nav-item" id="nav-shopping" onclick="switchTab('shopping')">🛒 Shopping List</button>
-            <button class="nav-item" id="nav-prep" onclick="switchTab('prep')">👨‍🍳 Prep Guide</button>
+            <button class="nav-item" id="nav-shopping" onclick="switchTab('shopping')" {% if not is_submitted %}disabled style="opacity: 0.5; cursor: not-allowed;" title="Plan the week first to view the shopping list."{% endif %}>🛒 Shopping List</button>
+            <button class="nav-item" id="nav-prep" onclick="switchTab('prep')" {% if not is_submitted %}disabled style="opacity: 0.5; cursor: not-allowed;" title="Plan the week first to view the prep guide."{% endif %}>👨‍🍳 Prep Guide</button>
             <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;"><span class="brand-label">Management</span></div>
             <button class="nav-item" onclick="openStaplesModal()">📋 Manage Staples</button>
-            <form action="{{ url_for('sync') }}" method="POST" onsubmit="showLoading('Recalculating Groceries', 'The chef is re-optimizing your shopping list…')"><button type="submit" class="nav-item">🔄 Refresh List</button></form>
+            <form action="{{ url_for('sync') }}" method="POST" onsubmit="showLoading('Recalculating Groceries', 'The chef is re-optimizing your shopping list…')">
+                <input type="hidden" name="week" value="{{ week }}">
+                <button type="submit" class="nav-item" {% if not is_submitted %}disabled style="opacity: 0.5; cursor: not-allowed;" title="Plan the week first to refresh the list."{% endif %}>🔄 Refresh List</button>
+            </form>
             <button class="nav-item" id="nav-admin" onclick="switchTab('admin')">⚙️ Admin Settings</button>
         </nav>
-        <div class="sidebar-footer"><div class="brand-label">Active Week</div><div style="font-size: 0.75rem; color: var(--color-muted); font-weight: 500;">{{ start_date }} &rarr; {{ end_date }}</div></div>
+        <div class="sidebar-footer">
+            <div class="brand-label">{% if week == 'next' %}Next Week{% else %}Active Week{% endif %}</div>
+            <div style="font-size: 0.75rem; color: var(--color-muted); font-weight: 500;">{{ start_date }} &rarr; {{ end_date }}</div>
+        </div>
     </aside>
 
     <header class="mobile-header"><div class="brand-title" style="font-size: 1.1rem;">{% if 'Kitchen' in family_names or 'Family' in family_names or 'Kitchens' in family_names %}{{ family_names }}{% else %}{{ family_names }} Kitchen{% endif %}</div><button class="hamburger-btn" onclick="toggleDrawer()">☰</button></header>
@@ -408,6 +424,7 @@
             <div class="card" style="width: 100%; max-width: 600px; margin: auto;">
                 <div class="card-header"><h2 class="card-title">Plan New Week</h2></div>
                 <form id="plan-form" onsubmit="submitPlanForm(event)">
+                    <input type="hidden" name="week" value="{{ week }}">
                     <div style="margin-bottom: 1.25rem;"><label class="brand-label">Exclusions</label><textarea class="textarea-input" name="exclude_text" placeholder="Skip meals..."></textarea></div>
                     <div style="margin-bottom: 1.25rem;"><label class="brand-label">Inventory</label><textarea class="textarea-input" name="freezer_items" placeholder="Salmon, frozen peas..."></textarea></div>
                     <div style="margin-bottom: 1.25rem;"><label class="brand-label">Requests</label><textarea class="textarea-input" name="special_requests" placeholder="Mexican, high fiber..."></textarea></div>
@@ -451,6 +468,7 @@
                                 <form action="{{ url_for('change_meal') }}" method="POST">
                                     <input type="hidden" name="date" value="{{ d_str }}">
                                     <input type="hidden" name="entry_id" value="{{ dinner_entry[0].id if dinner_entry else '' }}">
+                                    <input type="hidden" name="week" value="{{ week }}">
                                     <select name="recipe_id" class="select-recipe" data-date="{{ d_str }}" onclick="loadSwapRecommendations(this)" onchange="onSwapSelected(this)">
                                         <option value="">Swap Dinner...</option>
                                         <option value="SKIP">🚫 Eating Out</option>
@@ -626,10 +644,11 @@
                     </p>
                     <div style="background: #FFF5F5; border: 1px solid #FFCDCD; border-radius: var(--border-radius); padding: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                            <span style="font-weight: 600; font-size: 0.9rem; color: #D32F2F;">Clear Current Week</span>
+                            <span style="font-weight: 600; font-size: 0.9rem; color: #D32F2F;">Clear {% if week == 'next' %}Next{% else %}Current{% endif %} Week</span>
                             <span style="font-size: 0.8rem; color: #5D5D5D;">This action cannot be undone.</span>
                         </div>
-                        <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you absolutely sure you want to permanently clear the current week and reset state?')">
+                        <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you absolutely sure you want to permanently clear the {% if week == 'next' %}next{% else %}current{% endif %} week and reset state?')">
+                            <input type="hidden" name="week" value="{{ week }}">
                             <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.85rem; border-radius: 4px; cursor: pointer;">
                                 Clear Week
                             </button>
@@ -697,10 +716,14 @@
         function toggleDrawer() { document.getElementById('sidebar').classList.toggle('active'); document.getElementById('drawer-overlay').classList.toggle('active'); }
         function toggleChat() { document.getElementById('chat-window').classList.toggle('open'); }
         function switchTab(id) {
+            let view = document.getElementById('tab-' + id);
+            if (!view) {
+                id = 'menu';
+            }
             document.querySelectorAll('.tab-view').forEach(v => v.style.display = 'none');
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            const view = document.getElementById('tab-' + id);
-            if (view) view.style.display = 'block';
+            const actualView = document.getElementById('tab-' + id);
+            if (actualView) actualView.style.display = 'block';
             const nav = document.getElementById('nav-' + id);
             if (nav) nav.classList.add('active');
             localStorage.setItem('activeTab', id);
@@ -868,14 +891,14 @@
                 const d = JSON.parse(ev.data);
                 if (d.status === 'complete') {
                     es.close();
-                    window.location.href = '/?success_msg=Menu Ready';
+                    window.location.href = '/?week={{ week }}&success_msg=Menu Ready';
                 } else {
                     document.getElementById('loading-log').innerText = d.status || '';
                 }
             };
             es.onerror = () => {
                 es.close();
-                window.location.href = '/?error_msg=Agent Error';
+                window.location.href = '/?week={{ week }}&error_msg=Agent Error';
             };
         }
 
@@ -891,8 +914,8 @@
             const cin = document.getElementById('chat-input');
             const csend = document.getElementById('chat-send');
             const cmessages = document.getElementById('chat-messages');
-            let history = JSON.parse(localStorage.getItem('mealie_chat_history') || '[]');
-            let messages = JSON.parse(localStorage.getItem('mealie_chat_messages') || '[]');
+            let history = [];
+            let messages = [];
 
             function addMsg(s, t, save=true) {
                 const d = document.createElement('div');
@@ -902,7 +925,6 @@
                 cmessages.scrollTop = cmessages.scrollHeight;
                 if (save) {
                     messages.push({s, t});
-                    localStorage.setItem('mealie_chat_messages', JSON.stringify(messages));
                 }
             }
 
@@ -919,16 +941,41 @@
                 const d = document.getElementById('typing-indicator');
                 if (d) d.remove();
             }
-            
-            messages.forEach(m => addMsg(m.s, m.t, false));
 
-            document.getElementById('chat-clear').onclick = () => {
+            async function loadHistoryFromServer() {
+                try {
+                    const r = await fetch('/chat-history');
+                    if (r.ok) {
+                        const data = await r.json();
+                        history = data.history || [];
+                        messages = data.messages || [];
+                        cmessages.innerHTML = '';
+                        messages.forEach(m => addMsg(m.s, m.t, false));
+                    }
+                } catch (e) {
+                    console.error("Error loading chat history from server", e);
+                }
+            }
+
+            // Load history on page load
+            loadHistoryFromServer();
+
+            // Auto-sync history when tab becomes visible or gets focus (e.g. phone wakes up)
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    loadHistoryFromServer();
+                }
+            });
+            window.addEventListener('focus', () => {
+                loadHistoryFromServer();
+            });
+
+            document.getElementById('chat-clear').onclick = async () => {
                 if (confirm("Clear history?")) {
                     history = [];
                     messages = [];
-                    localStorage.removeItem('mealie_chat_history');
-                    localStorage.removeItem('mealie_chat_messages');
                     cmessages.innerHTML = '';
+                    await fetch('/chat-clear', { method: 'POST' });
                 }
             };
 
@@ -953,22 +1000,22 @@
                     const r = await fetch('/chat', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({message: t, history})
+                        body: JSON.stringify({message: t, week: '{{ week }}'})
                     });
                     const res = await r.json();
                     if (res.success) {
-                        addMsg('bot', res.reply);
-                        history = res.history;
-                        localStorage.setItem('mealie_chat_history', JSON.stringify(history));
+                        await loadHistoryFromServer();
                         if (res.plan_changed) {
                             showLoading('Refreshing Kitchen', 'Updating your menu and shopping list…');
-                            setTimeout(() => { window.location.reload(); }, 1200);
+                            setTimeout(() => { window.location.href = '/?week={{ week }}'; }, 1200);
                         }
                     } else {
                         addMsg('bot', 'Chef is having some technical difficulties. Please try again.');
                     }
                 } catch (e) {
-                    addMsg('bot', 'Lost connection to the kitchen. Please check the server.');
+                    console.warn("POST /chat timed out or disconnected, trying to sync from server history...");
+                    // Try to sync history in case it succeeded in the background on the server
+                    await loadHistoryFromServer();
                 } finally {
                     hideTyping();
                     if (!chatVisible) aiIdle();

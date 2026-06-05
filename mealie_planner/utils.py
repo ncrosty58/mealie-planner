@@ -24,6 +24,16 @@ def get_active_week_range():
     
     return start_date, end_date
 
+def get_next_week_range():
+    """
+    Calculate the next week range.
+    Starts on the upcoming Saturday and ends the following Friday.
+    """
+    start_date, end_date = get_active_week_range()
+    next_start = start_date + timedelta(days=7)
+    next_end = end_date + timedelta(days=7)
+    return next_start, next_end
+
 def get_active_week_strings():
     """Return YYYY-MM-DD strings for start and end dates."""
     start, end = get_active_week_range()

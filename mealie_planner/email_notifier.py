@@ -408,9 +408,25 @@ def send_daily_reminder_email(date_str=None):
 def send_saturday_qa_email():
     from .unified_client import UnifiedMealieClient
     from .ai_client import AIClient
+    from .utils import get_active_week_strings
     client = UnifiedMealieClient()
     ai = AIClient()
     notifier = EmailNotifier(client, ai)
+
+    # Check if a plan already exists for the active week starting today (Saturday)
+    try:
+        start_str, end_str = get_active_week_strings()
+        plans = client.get_meal_plan(start_str, end_str)
+        dinners = [
+            p for p in plans 
+            if p['entryType'] == 'dinner' 
+            and (p.get('recipeId') or p.get('title') or p.get('text'))
+        ]
+        if dinners:
+            print(f"[Email] Plan already exists for Saturday ({start_str} to {end_str}). Skipping Saturday Q/A email.")
+            return True
+    except Exception as e:
+        print(f"[Email] Error checking plan existence for Saturday: {e}")
 
     subject = "📋 Weekly Meal Plan Questionnaire"
     body = f"""
@@ -435,17 +451,17 @@ def setup_scheduler(mealie_client, ai_client):
     def saturday_qa_job():
         send_saturday_qa_email()
 
-    # 1. Saturday Q/A email at 8:00 AM
+    # 1. Saturday Q/A email at 8:00 AM (only sends if no plan exists)
     scheduler.add_job(
         saturday_qa_job,
         CronTrigger(day_of_week='sat', hour=8, minute=0),
         id='saturday_qa_email'
     )
     
-    # 2. Daily Reminder email Monday-Friday and Sunday at 7:00 AM
+    # 2. Daily Reminder email Monday-Sunday at 7:00 AM (on Saturday, only sends if plan exists)
     scheduler.add_job(
         daily_reminder_job,
-        CronTrigger(day_of_week='mon-fri,sun', hour=7, minute=0),
+        CronTrigger(day_of_week='mon-sun', hour=7, minute=0),
         id='daily_reminder_email'
     )
     
