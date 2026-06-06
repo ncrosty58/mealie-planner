@@ -454,14 +454,14 @@ def setup_scheduler(mealie_client, ai_client):
     # 1. Saturday Q/A email at 8:00 AM (only sends if no plan exists)
     scheduler.add_job(
         saturday_qa_job,
-        CronTrigger(day_of_week='sat', hour=8, minute=0),
+        CronTrigger(day_of_week='sat', hour=8, minute=0, timezone=TIMEZONE),
         id='saturday_qa_email'
     )
     
     # 2. Daily Reminder email Monday-Sunday at 7:00 AM (on Saturday, only sends if plan exists)
     scheduler.add_job(
         daily_reminder_job,
-        CronTrigger(day_of_week='mon-sun', hour=7, minute=0),
+        CronTrigger(day_of_week='mon-sun', hour=7, minute=0, timezone=TIMEZONE),
         id='daily_reminder_email'
     )
     
