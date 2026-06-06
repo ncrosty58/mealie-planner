@@ -441,22 +441,11 @@ def change_meal():
         if recipe_id != "SKIP":
             mealie_client.schedule_meal(date_str, "dinner", recipe_id=recipe_id)
             
-        # Trigger shopping list auto-sync so changes reflect immediately
-        try:
-            if week == 'next':
-                from mealie_planner.utils import get_next_week_range
-                next_start, next_end = get_next_week_range()
-                start_date_str = next_start.strftime("%Y-%m-%d")
-                end_date_str = next_end.strftime("%Y-%m-%d")
-            else:
-                start_date_str, end_date_str = get_active_week_strings()
-            state = load_state()
-            low_staples = state.get('low_staples', [])
-            shopping.sync_shopping_list(start_date_str, end_date_str, low_staples_ids=low_staples)
-        except Exception as sync_err:
-            print(f"[Change Meal Auto-Sync] Error during auto-sync: {sync_err}")
+        # Auto-sync is intentionally disabled here to prevent slow page reloads during consecutive swaps.
+        # The user can manually click the "Refresh List" button once they've finished making changes.
+        pass
         
-        flash(f"Successfully updated meal for {date_str} and synchronized shopping list!", "success")
+        flash(f"Successfully updated meal for {date_str}! (Remember to click 'Refresh List' in the sidebar to sync your groceries when done.)", "success")
     except Exception as e:
         flash(f"Error updating meal: {e}", "danger")
         

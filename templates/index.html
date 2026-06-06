@@ -869,10 +869,10 @@
             }
         }
 
-        // Selecting a swap/skip triggers a server-side AI shopping-list re-sync, then a reload.
+        // Selecting a swap/skip triggers a server-side meal plan update, then a reload.
         function onSwapSelected(sel) {
             if (!sel.value) return;  // ignore the "Swap Dinner…" placeholder
-            showLoading('Updating Menu', 'Re-syncing your shopping list with the chef…');
+            showLoading('Updating Menu', 'Saving your selection…');
             sel.form.submit();
         }
 
