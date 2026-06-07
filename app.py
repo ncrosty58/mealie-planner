@@ -321,7 +321,8 @@ def sync():
         start_date_str = next_start.strftime("%Y-%m-%d")
         end_date_str = next_end.strftime("%Y-%m-%d")
     else:
-        start_date_str, end_date_str = get_active_week_strings()
+        from mealie_planner.utils import get_planning_week_strings
+        start_date_str, end_date_str = get_planning_week_strings()
 
     state = load_state()
     low_staples = state.get('low_staples', [])
@@ -604,7 +605,8 @@ def chat():
             week_start_str = next_start.strftime("%Y-%m-%d")
             week_end_str = next_end.strftime("%Y-%m-%d")
         else:
-            week_start_str, week_end_str = get_active_week_strings()
+            from mealie_planner.utils import get_planning_week_strings
+            week_start_str, week_end_str = get_planning_week_strings()
         
         # Run chat with persistent history
         reply, new_history, plan_changed = asyncio.run(run_mcp_chat(
