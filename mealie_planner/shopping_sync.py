@@ -157,6 +157,11 @@ class ShoppingListSync:
             
             to_add, to_update, matched_ids = [], [], set()
 
+            # Preserve manual items (items without a category label) from being deleted
+            for item in active_items:
+                if item.get('labelId') is None:
+                    matched_ids.add(item['id'])
+
             for idx, ai_item in enumerate(final_items):
                 active_idx = ai_item.get('active_item_index')
                 name = ai_item.get('name', 'Unknown')

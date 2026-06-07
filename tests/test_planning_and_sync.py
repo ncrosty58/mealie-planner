@@ -84,7 +84,7 @@ class TestShoppingListSyncMerge(unittest.TestCase):
     def test_match_updates_new_adds_unmatched_deletes(self):
         active_items = [
             {"id": "item-A", "note": "Old Spinach", "checked": True, "labelId": "lbl-existing"},
-            {"id": "item-B", "note": "Stale Thing", "checked": False},
+            {"id": "item-B", "note": "Stale Thing", "checked": False, "labelId": "lbl-stale"},
         ]
         ai_items = [
             # matches active index 0 -> update item-A, preserve its checked state
@@ -124,7 +124,7 @@ class TestShoppingListSyncMerge(unittest.TestCase):
     def test_out_of_range_index_is_treated_as_new_not_a_crash(self):
         # If the LLM emits an index outside the active list, it must be added as a new
         # item rather than indexing out of bounds or silently corrupting another row.
-        active_items = [{"id": "item-A", "note": "Eggs", "checked": False}]
+        active_items = [{"id": "item-A", "note": "Eggs", "checked": False, "labelId": "lbl-existing"}]
         ai_items = [
             {"active_item_index": 99, "name": "Tofu", "quantity": 1.0,
              "unit": None, "checked": False, "category": "Produce"},
@@ -140,6 +140,32 @@ class TestShoppingListSyncMerge(unittest.TestCase):
         # item-A was never matched -> deleted
         delete_args = client.delete_shopping_list_items_bulk.call_args[0][0]
         self.assertEqual(delete_args, ["item-A"])
+
+    @patch("mealie_planner.shopping_sync.time.sleep", lambda *a, **k: None)
+    def test_manual_items_without_label_are_preserved(self):
+        active_items = [
+            {"id": "item-A", "note": "Old Spinach", "checked": True, "labelId": "lbl-existing"},
+            {"id": "item-manual", "note": "Toilet Paper", "checked": False, "labelId": None},
+        ]
+        ai_items = [
+            {"active_item_index": 0, "name": "Spinach", "quantity": 2.0,
+             "unit": "oz", "checked": True, "category": "Produce"},
+        ]
+        syncer, client = self._make_syncer(active_items, ai_items)
+
+        result = syncer.sync_shopping_list("2026-05-30", "2026-06-05")
+        self.assertTrue(result)
+
+        # item-A updated
+        update_args = client.update_shopping_list_items_bulk.call_args[0][0]
+        self.assertEqual(len(update_args), 1)
+        self.assertEqual(update_args[0]["id"], "item-A")
+
+        # item-manual is NOT deleted because its labelId is None
+        delete_call = client.delete_shopping_list_items_bulk.call_args
+        if delete_call:
+            delete_args = delete_call[0][0]
+            self.assertNotIn("item-manual", delete_args)
 
 
 class TestWeekRanges(unittest.TestCase):
