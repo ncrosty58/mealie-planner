@@ -380,7 +380,29 @@ def _add_item_to_list(list_id: str, item_type: str):
         if not note:
             return json.dumps({"success": False, "error": f"{item_type} name is required"}), 400
 
-        mealie_client.add_shopping_list_item(list_id, note)
+        # Auto-categorize the item using AI
+        label_id = None
+        try:
+            import re
+            from mealie_planner.ai_client import AIClient
+            ai = AIClient()
+            labels = mealie_client.get_labels()
+            if labels:
+                label_names = [l['name'] for l in labels]
+                prompt = (
+                    f"Categorize the grocery item '{note}' into one of these categories:\n"
+                    f"{json.dumps(label_names)}\n\n"
+                    "Reply with ONLY the exact category name from the list, nothing else."
+                )
+                category = ai.call(prompt).strip()
+                category_clean = re.sub(r'["\']', '', category).strip().lower()
+                matched_label = next((l for l in labels if l['name'].lower().strip() == category_clean), None)
+                if matched_label:
+                    label_id = matched_label['id']
+        except Exception as e:
+            print(f"Error auto-categorizing item: {e}")
+
+        mealie_client.add_shopping_list_item(list_id, note, label_id=label_id)
         return json.dumps({"success": True})
     except Exception as e:
         print(f"Error adding {item_type.lower()}: {e}")
@@ -398,14 +420,41 @@ def add_staple():
 
 @app.route('/delete-staple', methods=['POST'])
 def delete_staple():
-    """Delete a staple item from the staples shopping list."""
+    """Delete a staple item from the staples shopping list and remove from active list if present."""
     try:
         data = request.get_json()
         item_id = data.get('item_id')
         if not item_id:
             return json.dumps({"success": False, "error": "Item ID is required"}), 400
 
+        # Fetch staple note before deleting
+        staple_note = None
+        try:
+            staples = mealie_client.get_shopping_list_items(STAPLES_LIST_ID)
+            staple_item = next((item for item in staples if item['id'] == item_id), None)
+            if staple_item:
+                staple_note = staple_item['note']
+        except Exception as e:
+            print(f"Error fetching staple name before delete: {e}")
+
         mealie_client.delete_shopping_list_item(item_id)
+
+        # If we successfully retrieved the note, find and delete the item from the active list too
+        if staple_note:
+            try:
+                from mealie_planner.shopping_sync import normalize_ingredient_name
+                staple_norm = normalize_ingredient_name(staple_note)
+                active_items = mealie_client.get_shopping_list_items_for_list(ACTIVE_LIST_ID)
+                matching_active_ids = [
+                    item['id'] for item in active_items
+                    if normalize_ingredient_name(item['note']) == staple_norm
+                ]
+                if matching_active_ids:
+                    print(f"Deleting matching active items: {matching_active_ids}")
+                    mealie_client.delete_shopping_list_items_bulk(matching_active_ids)
+            except Exception as e:
+                print(f"Error deleting matching active item: {e}")
+
         return json.dumps({"success": True})
     except Exception as e:
         print(f"Error deleting staple: {e}")
