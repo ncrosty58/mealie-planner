@@ -365,6 +365,75 @@
         .ai-pill .ai-dots span:nth-child(3) { animation-delay: 0.4s; }
         /* mark a <select> as busy while the chef fetches suggestions */
         .select-recipe.ai-busy { opacity: 0.7; cursor: progress; }
+
+        @media print {
+            body, html {
+                background: #FFFFFF !important;
+                color: #000000 !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            #sidebar, .mobile-header, .mobile-header *, .btn, .nav-group, 
+            .card-header .btn, #quick-add-input, button,
+            #tab-menu, #tab-prep, #tab-admin,
+            .card-header div {
+                display: none !important;
+            }
+            .main-container {
+                margin-left: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            .tab-view {
+                display: block !important;
+            }
+            #tab-shopping {
+                display: block !important;
+            }
+            .card {
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                background: transparent !important;
+            }
+            .card-title {
+                font-size: 20pt !important;
+                margin-bottom: 20px !important;
+                border-bottom: 2px solid #000000 !important;
+                padding-bottom: 5px !important;
+            }
+            .shopping-item:has(.item-checkbox:checked) {
+                display: none !important;
+            }
+            .shopping-item {
+                border-bottom: 1px solid #CCCCCC !important;
+                padding: 8px 0 !important;
+                page-break-inside: avoid !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+            .item-checkbox {
+                display: none !important;
+            }
+            .item-text {
+                font-size: 12pt !important;
+                color: #000000 !important;
+            }
+            .category-group {
+                margin-bottom: 25px !important;
+                page-break-inside: avoid !important;
+            }
+            .category-title {
+                font-size: 14pt !important;
+                font-weight: 700 !important;
+                border-bottom: 1px solid #000000 !important;
+                margin-bottom: 10px !important;
+                padding-bottom: 3px !important;
+                color: #000000 !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -517,6 +586,7 @@
                     <div style="display: flex; gap: 0.5rem;">
                         <button class="btn btn-secondary" onclick="checkAllItems(this)">Check All</button>
                         <button class="btn btn-secondary" onclick="copyShoppingList(this)">Copy List</button>
+                        <button class="btn btn-secondary" onclick="printShoppingList()">Print List</button>
                     </div>
                 </div>
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
@@ -867,6 +937,10 @@
             navigator.clipboard.writeText(lines.join('\n')).then(() => {
                 const old = btn.innerText; btn.innerText = "Copied!"; setTimeout(() => btn.innerText = old, 2000);
             });
+        }
+
+        function printShoppingList() {
+            window.print();
         }
 
         async function quickAddShoppingItem() {
