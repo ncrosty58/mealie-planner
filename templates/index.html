@@ -376,18 +376,19 @@
         @media print {
             @page {
                 size: portrait;
-                margin: 0.2in 0.25in;
+                margin: 0 !important;
             }
             body, html {
                 background: #FFFFFF !important;
                 color: #000000 !important;
                 height: auto !important;
                 overflow: visible !important;
+                padding: 0.2in 0.25in !important;
             }
             #sidebar, .mobile-header, .mobile-header *, .btn, .nav-group, 
             .card-header .btn, #quick-add-input, button,
             #tab-menu, #tab-prep, #tab-admin,
-            .card-header div {
+            .card-header div, footer {
                 display: none !important;
             }
             .main-container {
@@ -661,8 +662,8 @@
 
         <div id="tab-shopping" class="tab-view" style="display: none;">
             <div class="card">
-                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                    <h2 class="card-title">Shopping List <span class="print-date-subtitle">({{ start_date }} &rarr; {{ end_date }})</span></h2>
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                    <h2 class="card-title" style="margin-bottom: 0;">Shopping List <span class="print-date-subtitle">({{ start_date }} &rarr; {{ end_date }})</span></h2>
                     <div style="display: flex; gap: 0.5rem;">
                         <button class="btn btn-secondary" onclick="checkAllItems(this)">Check All</button>
                         <button class="btn btn-secondary" onclick="copyShoppingList(this)">Copy List</button>
