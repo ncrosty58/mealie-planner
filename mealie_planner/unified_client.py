@@ -165,6 +165,10 @@ class UnifiedMealieClient(MealieFetcher):
     def add_shopping_list_items_bulk(self, items: List[Dict[str, Any]]):
         """Alias for create_shopping_list_items_bulk."""
         return self.create_shopping_list_items_bulk(items)
+
+    def add_shopping_list_item(self, list_id: str, note: str):
+        """Legacy alias for create_shopping_list_item."""
+        return self.create_shopping_list_item(shopping_list_id=list_id, note=note)
     
     def get_shopping_list_items(self, *args, **kwargs) -> Any:
         """

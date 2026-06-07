@@ -822,8 +822,18 @@
         async function quickAddShoppingItem() {
             const val = document.getElementById('quick-add-input').value.trim();
             if (!val) return;
-            const res = await fetch('/add-shopping-item', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({note: val}) });
-            if (res.ok) window.location.reload();
+            try {
+                const res = await fetch('/add-shopping-item', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({note: val}) });
+                if (res.ok) {
+                    window.location.reload();
+                } else {
+                    const data = await res.json().catch(() => ({}));
+                    alert("Error adding item: " + (data.error || "Unknown error"));
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Connection error.");
+            }
         }
 
         async function loadSwapRecommendations(selectEl) {
