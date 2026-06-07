@@ -13,6 +13,7 @@ This skill takes the raw ingredient strings from dinner recipes, a list of house
     - `staples`: A list of staple names already in the house (e.g. `["salt", "pepper"]`).
     - `inventory_items`: A list of specific items the user wants to "use up" from their freezer/pantry/fridge (e.g. `["1 lb chicken thighs", "pesto sauce"]`).
     - `low_staples`: A list of staple names that are currently running low and MUST be added (e.g. `["garlic"]`).
+    - `manual_items`: A list of manually added item names that must be preserved and categorized (e.g. `["toilet paper", "toothpaste"]`).
     - `available_labels`: A list of actual category labels from the user's Mealie instance (e.g. `["1. Produce: Vegetables & Greens", "2. Bakery & Bread"]`).
     - `active_shopping_list`: A list of objects representing the current active shopping list:
         - `index`: Integer, the array index of the item.
@@ -72,6 +73,7 @@ This skill takes the raw ingredient strings from dinner recipes, a list of house
         - Set `active_item_index` to null.
         - Set `checked` to false.
     - **Staples Preservation Rule**: If there is an item in `active_shopping_list` that matches a staple in `staples` (using semantic matching), you MUST include it in the final output (with `unit: null`, setting `active_item_index` to its `index` and preserving its `checked` status) even if it is not required by any recipe.
+    - **Manual Items Preservation Rule**: If there is an item in `active_shopping_list` that matches an item in `manual_items` (using semantic matching), you MUST include it in the final output (with its name cleaned, categorized into the appropriate `available_labels` zone, setting `active_item_index` to its `index` and preserving its `checked` status) even if it is not required by any recipe.
     - **Low Staples Rule**: Any staple in `low_staples` MUST be in the final output. If already in `active_shopping_list`, reuse its `index` and `checked` status. Otherwise, set `active_item_index` to null and `checked` to false.
     - **Staples Exclude Rule**: If a recipe ingredient matches a staple, filter it out and do NOT include it in the final output, unless it is explicitly listed in `low_staples` or is already on the `active_shopping_list`.
     - Do not include any other items from `active_shopping_list` in the output that do not belong to the compiled shopping list anymore.

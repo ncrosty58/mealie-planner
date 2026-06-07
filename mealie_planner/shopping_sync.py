@@ -124,11 +124,17 @@ class ShoppingListSync:
             all_labels = self.client.get_labels()
             label_name_to_id = {l['name']: l['id'] for l in all_labels}
 
+            manual_items = []
+            for item in active_items:
+                if not item.get('extras', {}).get('is_synced', False):
+                    manual_items.append(item['note'])
+
             payload = {
                 "ingredients": raw_recipe_ingredients,
                 "staples": [s['note'] for s in staples],
                 "inventory_items": [i.strip() for i in freezer_items.split(",")] if freezer_items else [],
                 "low_staples": low_staples_notes,
+                "manual_items": manual_items,
                 "available_labels": [l['name'] for l in all_labels],
                 "active_shopping_list": [
                     {
@@ -157,11 +163,6 @@ class ShoppingListSync:
             
             to_add, to_update, matched_ids = [], [], set()
 
-            # Preserve manual items (items without a category label) from being deleted
-            for item in active_items:
-                if item.get('labelId') is None:
-                    matched_ids.add(item['id'])
-
             for idx, ai_item in enumerate(final_items):
                 active_idx = ai_item.get('active_item_index')
                 name = ai_item.get('name', 'Unknown')
@@ -184,12 +185,14 @@ class ShoppingListSync:
 
                 if original:
                     matched_ids.add(original['id'])
+                    is_manual = not original.get('extras', {}).get('is_synced', False)
                     updated = original.copy()
                     updated.update({
                         "note": full_note,
                         "quantity": qty,
                         "checked": checked,
-                        "labelId": original.get('labelId') or label_id
+                        "labelId": original.get('labelId') or label_id,
+                        "extras": {} if is_manual else {"is_synced": True}
                     })
                     to_update.append(updated)
                 else:
@@ -199,7 +202,8 @@ class ShoppingListSync:
                         "quantity": qty,
                         "checked": checked,
                         "labelId": label_id,
-                        "position": idx
+                        "position": idx,
+                        "extras": {"is_synced": True}
                     })
 
             to_delete = [i['id'] for i in active_items if i['id'] not in matched_ids]
