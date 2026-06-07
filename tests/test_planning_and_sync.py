@@ -218,6 +218,50 @@ class TestShoppingListSyncMerge(unittest.TestCase):
             add_args = add_call[0][0]
             self.assertEqual(len(add_args), 0)
 
+    @patch("mealie_planner.shopping_sync.time.sleep", lambda *a, **k: None)
+    def test_low_staples_preserved_when_ai_omits_them(self):
+        # Active items has Eggs (synced, checked=False)
+        active_items = [
+            {"id": "item-eggs", "note": "Eggs", "checked": False, "labelId": "lbl-produce", "extras": {"is_synced": True}},
+        ]
+        # AI returns nothing (omitted both Eggs and Milk!)
+        ai_items = []
+        syncer, client = self._make_syncer(active_items, ai_items)
+        
+        # Mock staples: Eggs and Milk
+        client.get_shopping_list_items.return_value = [
+            {"id": "staple-eggs", "note": "Eggs", "quantity": 1.0, "labelId": "lbl-produce"},
+            {"id": "staple-milk", "note": "Milk", "quantity": 1.0, "labelId": "lbl-produce"}
+        ]
+        
+        # Sync with Eggs and Milk as low staples
+        result = syncer.sync_shopping_list(
+            "2026-05-30", "2026-06-05", 
+            low_staples_ids=["staple-eggs", "staple-milk"]
+        )
+        self.assertTrue(result)
+        
+        # 1. Eggs should NOT be updated (it's not modified, just preserved because it's on active list)
+        update_call = client.update_shopping_list_items_bulk.call_args
+        if update_call:
+            update_args = update_call[0][0]
+            self.assertEqual(len(update_args), 0)
+        
+        # 2. Milk (staple-milk) is a low staple NOT on the active list -> should be added
+        add_call = client.add_shopping_list_items_bulk.call_args
+        self.assertIsNotNone(add_call)
+        add_args = add_call[0][0]
+        self.assertEqual(len(add_args), 1)
+        self.assertEqual(add_args[0]["note"], "Milk")
+        self.assertEqual(add_args[0]["extras"], {"is_synced": True})
+        
+        # 3. Eggs should NOT be deleted
+        delete_call = client.delete_shopping_list_items_bulk.call_args
+        if delete_call:
+            delete_args = delete_call[0][0]
+            self.assertNotIn("item-eggs", delete_args)
+            self.assertEqual(len(delete_args), 0)
+
 
 class TestWeekRanges(unittest.TestCase):
     def test_get_next_week_range(self):

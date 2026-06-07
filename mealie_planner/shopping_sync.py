@@ -222,13 +222,44 @@ class ShoppingListSync:
                     })
 
             to_delete = []
+            low_staples_norm = {normalize_ingredient_name(note) for note in low_staples_notes}
             for i in active_items:
                 if i['id'] not in matched_ids:
                     is_manual = not i.get('extras', {}).get('is_synced', False)
+                    i_norm = normalize_ingredient_name(i['note'])
+                    is_low_staple = i_norm in low_staples_norm
                     if is_manual:
                         print(f"[Sync] Preserving unmatched manual item: {i['note']}")
+                    elif is_low_staple:
+                        print(f"[Sync] Preserving unmatched low staple: {i['note']}")
+                        # Also add to matched_ids so it isn't processed twice or deleted
+                        matched_ids.add(i['id'])
                     else:
                         to_delete.append(i['id'])
+
+            # Ensure all low staples are either matched/updated, added, or kept in the active list
+            kept_active_notes_norm = {
+                normalize_ingredient_name(item['note'])
+                for item in active_items
+                if item['id'] not in to_delete
+            }
+            processed_notes_norm = {normalize_ingredient_name(item['note']) for item in to_update}
+            processed_notes_norm.update({normalize_ingredient_name(item['note']) for item in to_add})
+            processed_notes_norm.update(kept_active_notes_norm)
+            
+            for s in staples:
+                if s['id'].replace('-', '').lower() in low_ids_clean:
+                    s_norm = normalize_ingredient_name(s['note'])
+                    if s_norm not in processed_notes_norm:
+                        print(f"[Sync] Adding missing low staple in Python: {s['note']}")
+                        to_add.append({
+                            "shoppingListId": ACTIVE_LIST_ID,
+                            "note": s['note'],
+                            "quantity": s.get('quantity', 1.0),
+                            "checked": False,
+                            "labelId": s.get('labelId'),
+                            "extras": {"is_synced": True}
+                        })
 
             # 5. Apply changes to Mealie
             if to_delete: self.client.delete_shopping_list_items_bulk(to_delete)
