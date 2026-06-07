@@ -386,6 +386,36 @@ def add_shopping_item():
         print(f"Error adding shopping item: {e}")
         return json.dumps({"success": False, "error": str(e)}), 500
 
+@app.route('/add-staple', methods=['POST'])
+def add_staple():
+    """Add a new staple item to the staples shopping list."""
+    try:
+        data = request.get_json()
+        note = sanitize_input(data.get('note', ''))
+        if not note:
+            return json.dumps({"success": False, "error": "Staple name is required"}), 400
+
+        mealie_client.add_shopping_list_item(STAPLES_LIST_ID, note)
+        return json.dumps({"success": True})
+    except Exception as e:
+        print(f"Error adding staple item: {e}")
+        return json.dumps({"success": False, "error": str(e)}), 500
+
+@app.route('/delete-staple', methods=['POST'])
+def delete_staple():
+    """Delete a staple item from the staples shopping list."""
+    try:
+        data = request.get_json()
+        item_id = data.get('item_id')
+        if not item_id:
+            return json.dumps({"success": False, "error": "Item ID is required"}), 400
+
+        mealie_client.delete_shopping_list_item(item_id)
+        return json.dumps({"success": True})
+    except Exception as e:
+        print(f"Error deleting staple: {e}")
+        return json.dumps({"success": False, "error": str(e)}), 500
+
 @app.route('/toggle-shopping-item', methods=['POST'])
 def toggle_shopping_item():
     try:

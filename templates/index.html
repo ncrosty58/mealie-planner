@@ -670,13 +670,20 @@
             <div class="card-header"><h2 class="card-title">Manage Staples</h2></div>
             <form id="staples-form" action="{{ url_for('update_staples') }}" method="POST" onsubmit="showLoading('Updating Provisions...', 'Refreshing larder inventory...')">
                 <input type="hidden" name="staples_submitted" value="1">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; max-height: 350px; overflow-y: auto; background: #FAF9F6; padding: 1rem; margin-bottom: 1.25rem; border: 1px solid var(--color-border);">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; max-height: 300px; overflow-y: auto; background: #FAF9F6; padding: 1rem; margin-bottom: 1.25rem; border: 1px solid var(--color-border);">
                     {% for item in staples %}
-                        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; cursor: pointer;">
-                            <input type="checkbox" name="low_staples" value="{{ item.id }}" class="item-checkbox" {% if item.id in low_staples or item.id.replace('-', '') in low_staples %}checked{% endif %}>
-                            {{ item.note }}
-                        </label>
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; padding: 0.3rem 0.5rem; background: white; border: 1px solid #eee; border-radius: 4px;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; flex-grow: 1; margin: 0; min-width: 0;">
+                                <input type="checkbox" name="low_staples" value="{{ item.id }}" class="item-checkbox" {% if item.id in low_staples or item.id.replace('-', '') in low_staples %}checked{% endif %}>
+                                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; color: var(--color-text);">{{ item.note }}</span>
+                            </label>
+                            <button type="button" onclick="deleteStaple('{{ item.id }}', this)" style="background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 1.1rem; padding: 0 0.2rem; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'" title="Delete staple">×</button>
+                        </div>
                     {% endfor %}
+                </div>
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem;">
+                    <input type="text" id="new-staple-input" class="textarea-input" style="padding: 0.5rem 0.75rem; flex-grow: 1;" placeholder="Add new staple item..." onkeypress="if(event.key === 'Enter') { event.preventDefault(); addStaple(); }">
+                    <button type="button" class="btn btn-secondary" onclick="addStaple()" style="padding: 0.5rem 1rem; white-space: nowrap;">Add Staple</button>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Update List</button>
             </form>
@@ -731,6 +738,49 @@
         }
         function openStaplesModal() { document.getElementById('staples-modal').style.display = 'flex'; }
         function closeStaplesModal() { document.getElementById('staples-modal').style.display = 'none'; }
+
+        async function deleteStaple(itemId, btn) {
+            if (!confirm("Are you sure you want to delete this staple from your larder list?")) return;
+            try {
+                const res = await fetch('/delete-staple', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({item_id: itemId})
+                });
+                if (res.ok) {
+                    btn.closest('div').remove();
+                } else {
+                    const data = await res.json().catch(() => ({}));
+                    alert("Error deleting staple: " + (data.error || "Unknown error"));
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Connection error.");
+            }
+        }
+
+        async function addStaple() {
+            const input = document.getElementById('new-staple-input');
+            const val = input.value.trim();
+            if (!val) return;
+            try {
+                const res = await fetch('/add-staple', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({note: val})
+                });
+                if (res.ok) {
+                    sessionStorage.setItem('open_staples_modal', 'true');
+                    window.location.reload();
+                } else {
+                    const data = await res.json().catch(() => ({}));
+                    alert("Error adding staple: " + (data.error || "Unknown error"));
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Connection error.");
+            }
+        }
         
         function toggleEmailValue() {
             const hiddenInput = document.getElementById('emails-enabled-hidden');
@@ -913,6 +963,10 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            if (sessionStorage.getItem('open_staples_modal') === 'true') {
+                sessionStorage.removeItem('open_staples_modal');
+                openStaplesModal();
+            }
             switchTab(localStorage.getItem('activeTab') || 'menu');
             document.querySelectorAll('.shopping-list-checkbox').forEach(cb => {
                 cb.onchange = async function() {
