@@ -1,6 +1,11 @@
+<p align="center">
+  <img src="static/images/github_banner.png" alt="Mealie AI Companion Planner Banner" width="100%">
+</p>
+
 # Mealie AI Companion Planner 🍽️
 
 An intelligent, AI-powered weekly menu planner, shopping list syncer, and email briefing companion for **[Mealie](https://mealie.io)**.
+
 
 This companion app interfaces with your Mealie instance to automate weekly menu curation, sequence meals by ingredient perishability, run Blackstone griddle compatibility checks, sync shopping lists, and send automated kitchen briefings. It also ships an interactive AI chatbot for on-the-fly plan adjustments.
 
