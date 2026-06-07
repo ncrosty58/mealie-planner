@@ -366,7 +366,18 @@
         /* mark a <select> as busy while the chef fetches suggestions */
         .select-recipe.ai-busy { opacity: 0.7; cursor: progress; }
 
+        .print-meal-plan {
+            display: none;
+        }
+        .print-date-subtitle {
+            display: none;
+        }
+
         @media print {
+            @page {
+                size: portrait;
+                margin: 0.3in 0.4in;
+            }
             body, html {
                 background: #FFFFFF !important;
                 color: #000000 !important;
@@ -399,18 +410,78 @@
                 background: transparent !important;
             }
             .card-title {
-                font-size: 20pt !important;
-                margin-bottom: 20px !important;
-                border-bottom: 2px solid #000000 !important;
-                padding-bottom: 5px !important;
+                font-size: 14pt !important;
+                margin-bottom: 10px !important;
+                border-bottom: 2px solid var(--color-primary) !important;
+                padding-bottom: 3px !important;
+            }
+            .print-date-subtitle {
+                font-size: 9.5pt !important;
+                color: var(--color-muted) !important;
+                font-weight: normal !important;
+                margin-left: 8px !important;
+                display: inline !important;
+            }
+            .print-meal-plan {
+                display: block !important;
+                margin-bottom: 15px !important;
+            }
+            .print-meal-plan-title {
+                font-size: 11pt !important;
+                font-weight: 700 !important;
+                border-bottom: 2px solid var(--color-primary) !important;
+                margin-bottom: 8px !important;
+                padding-bottom: 2px !important;
+                color: var(--color-primary) !important;
+            }
+            .print-meal-plan-grid {
+                display: grid !important;
+                grid-template-columns: repeat(7, 1fr) !important;
+                gap: 5px !important;
+            }
+            .print-meal-plan-day {
+                border: 1px solid var(--color-border) !important;
+                padding: 5px !important;
+                border-radius: 4px !important;
+                background: #FAF9F6 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 3px !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+            .print-meal-plan-day-name {
+                font-weight: 700 !important;
+                color: var(--color-primary) !important;
+                border-bottom: 1px solid var(--color-divider) !important;
+                padding-bottom: 2px !important;
+                margin-bottom: 3px !important;
+                font-size: 8pt !important;
+                text-transform: uppercase !important;
+            }
+            .print-meal-line {
+                font-size: 7.5pt !important;
+                line-height: 1.25 !important;
+                color: #2C2C2C !important;
+                word-break: break-word !important;
+            }
+            .print-meal-line strong {
+                color: var(--color-accent) !important;
+                font-weight: 700 !important;
+            }
+            .shopping-list-grid {
+                display: block !important;
+                column-count: 2 !important;
+                column-gap: 20px !important;
             }
             .shopping-item:has(.item-checkbox:checked) {
                 display: none !important;
             }
             .shopping-item {
-                border-bottom: 1px solid #CCCCCC !important;
-                padding: 8px 0 !important;
+                border-bottom: 1px solid var(--color-border) !important;
+                padding: 3px 0 !important;
                 page-break-inside: avoid !important;
+                break-inside: avoid !important;
                 display: flex !important;
                 align-items: center !important;
             }
@@ -418,20 +489,23 @@
                 display: none !important;
             }
             .item-text {
-                font-size: 12pt !important;
+                font-size: 9pt !important;
                 color: #000000 !important;
             }
             .category-group {
-                margin-bottom: 25px !important;
+                margin-bottom: 12px !important;
+                break-inside: avoid-column !important;
                 page-break-inside: avoid !important;
+                display: inline-block !important;
+                width: 100% !important;
             }
             .category-title {
-                font-size: 14pt !important;
+                font-size: 10pt !important;
                 font-weight: 700 !important;
-                border-bottom: 1px solid #000000 !important;
-                margin-bottom: 10px !important;
-                padding-bottom: 3px !important;
-                color: #000000 !important;
+                border-bottom: 1px solid var(--color-divider) !important;
+                margin-bottom: 6px !important;
+                padding-bottom: 2px !important;
+                color: var(--color-primary) !important;
             }
         }
     </style>
@@ -582,11 +656,35 @@
         <div id="tab-shopping" class="tab-view" style="display: none;">
             <div class="card">
                 <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                    <h2 class="card-title">Shopping List</h2>
+                    <h2 class="card-title">Shopping List <span class="print-date-subtitle">({{ start_date }} &rarr; {{ end_date }})</span></h2>
                     <div style="display: flex; gap: 0.5rem;">
                         <button class="btn btn-secondary" onclick="checkAllItems(this)">Check All</button>
                         <button class="btn btn-secondary" onclick="copyShoppingList(this)">Copy List</button>
                         <button class="btn btn-secondary" onclick="printShoppingList()">Print List</button>
+                    </div>
+                </div>
+                <div class="print-meal-plan">
+                    <h3 class="print-meal-plan-title">Weekly Menu</h3>
+                    <div class="print-meal-plan-grid">
+                        {% for d_str in planning_dates %}
+                            {% set day = d_str | select_day_name %}
+                            {% set meals = {'breakfast': 'Skipped', 'lunch': 'Skipped', 'dinner': 'Skipped'} %}
+                            {% for item in meal_plans %}{% if item.date[:10] == d_str %}
+                                {% if item.entryType == 'breakfast' %} {% set _ = meals.update({'breakfast': item.title or 'Staples'}) %}
+                                {% elif item.entryType == 'lunch' %} {% set _ = meals.update({'lunch': item.title or 'Leftovers'}) %}
+                                {% elif item.entryType == 'dinner' %}
+                                    {% if item.recipeId %} {% set _ = meals.update({'dinner': item.recipe.name if item.recipe else 'Recipe Missing'}) %}
+                                    {% elif item.title %} {% set _ = meals.update({'dinner': item.title}) %}
+                                    {% endif %}
+                                {% endif %}
+                            {% endif %}{% endfor %}
+                            <div class="print-meal-plan-day">
+                                <div class="print-meal-plan-day-name">{{ day[:3] }}</div>
+                                <div class="print-meal-line"><strong>B:</strong> {{ meals.breakfast }}</div>
+                                <div class="print-meal-line"><strong>L:</strong> {{ meals.lunch }}</div>
+                                <div class="print-meal-line"><strong>D:</strong> {{ meals.dinner }}</div>
+                            </div>
+                        {% endfor %}
                     </div>
                 </div>
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
