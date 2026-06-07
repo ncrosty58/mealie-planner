@@ -197,10 +197,12 @@ mealie-planner/
 ├── templates/               # Jinja2 dashboard template
 ├── static/                  # PWA assets (manifest.json, sw.js, favicon)
 ├── scripts/                 # CLI utilities (see scripts/README.md)
+├── tests/                   # Core unit tests
 ├── data/                    # Persistent app state (planner_state.json)
 ├── .agents/skills/          # AI agent skill definitions (see below)
 ├── docker-compose.yml
 ├── Dockerfile
+├── pytest.ini               # Pytest configuration
 └── .env.example
 ```
 
@@ -237,6 +239,21 @@ python -m scripts.list_plans
 
 ---
 
+## 🧪 Running Tests
+
+To run the unit tests, install development/test dependencies and execute `pytest` from the project root:
+
+```bash
+pip install -r requirements.txt
+pytest
+```
+
+> [!NOTE]
+> Debug and profiling scripts in the `scripts/` folder (such as `scripts/test_breakfasts.py`) require a live Mealie instance, but the core unit tests in `tests/` are fully mocked and run offline.
+
+---
+
 ## 📄 License
 
 MIT
+
