@@ -151,7 +151,7 @@ class TestShoppingListSyncMerge(unittest.TestCase):
             {"active_item_index": 0, "name": "Spinach", "quantity": 2.0,
              "unit": "oz", "checked": True, "category": "Produce"},
             {"active_item_index": 1, "name": "Toilet Paper", "quantity": 1.0,
-             "unit": None, "checked": False, "category": "Produce"},
+             "unit": "default", "checked": False, "category": "Produce"},
         ]
         syncer, client = self._make_syncer(active_items, ai_items)
 
@@ -162,8 +162,9 @@ class TestShoppingListSyncMerge(unittest.TestCase):
         update_args = client.update_shopping_list_items_bulk.call_args[0][0]
         self.assertEqual(len(update_args), 2)
         
-        # item-manual preserves its empty/non-synced extras and gets properly categorized
+        # item-manual preserves its empty/non-synced extras, filters out 'default' unit, and gets properly categorized
         item_manual_update = next(item for item in update_args if item["id"] == "item-manual")
+        self.assertEqual(item_manual_update["note"], "Toilet Paper")
         self.assertEqual(item_manual_update["extras"], {})
         self.assertEqual(item_manual_update["labelId"], "lbl-produce")
 

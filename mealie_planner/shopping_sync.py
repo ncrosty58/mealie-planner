@@ -171,6 +171,9 @@ class ShoppingListSync:
                 checked = ai_item.get('checked', False)
                 cat_name = ai_item.get('category')
                 
+                if unit.lower().strip() in {'default', 'unit', 'none', 'null'}:
+                    unit = ''
+                
                 full_note = f"{unit.strip()} {name}".strip() if unit else name
                 label_id = label_name_to_id.get(cat_name)
 
