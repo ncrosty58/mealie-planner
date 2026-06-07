@@ -371,7 +371,7 @@ def sync_shopping_list(
         str: Status message of the sync.
     """
     try:
-        from mealie_planner.utils import get_active_week_strings
+        from mealie_planner.utils import get_planning_week_strings
         from mealie_planner.shopping_sync import sync_shopping_list as run_sync
         
         # Load state for low staples and freezer items
@@ -390,7 +390,7 @@ def sync_shopping_list(
                 pass
 
         if not start_date or not end_date:
-            active_start, active_end = get_active_week_strings()
+            active_start, active_end = get_planning_week_strings()
             start_date = start_date or active_start
             end_date = end_date or active_end
 
