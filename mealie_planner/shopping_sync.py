@@ -56,7 +56,8 @@ class ShoppingListSync:
                             "note": s['note'],
                             "quantity": s.get('quantity', 1.0),
                             "checked": False,
-                            "labelId": s.get('labelId')
+                            "labelId": s.get('labelId'),
+                            "extras": {"is_synced": True}
                         })
 
             to_delete_ids = []
@@ -182,9 +183,20 @@ class ShoppingListSync:
                     try:
                         active_idx = int(active_idx)
                         if 0 <= active_idx < len(active_items):
-                            original = active_items[active_idx]
+                            candidate = active_items[active_idx]
+                            if candidate['id'] not in matched_ids:
+                                original = candidate
                     except (ValueError, TypeError):
                         pass
+
+                if not original:
+                    # Fallback semantic name matching
+                    name_norm = normalize_ingredient_name(name)
+                    for item in active_items:
+                        if item['id'] not in matched_ids:
+                            if normalize_ingredient_name(item['note']) == name_norm:
+                                original = item
+                                break
 
                 if original:
                     matched_ids.add(original['id'])
@@ -209,7 +221,14 @@ class ShoppingListSync:
                         "extras": {"is_synced": True}
                     })
 
-            to_delete = [i['id'] for i in active_items if i['id'] not in matched_ids]
+            to_delete = []
+            for i in active_items:
+                if i['id'] not in matched_ids:
+                    is_manual = not i.get('extras', {}).get('is_synced', False)
+                    if is_manual:
+                        print(f"[Sync] Preserving unmatched manual item: {i['note']}")
+                    else:
+                        to_delete.append(i['id'])
 
             # 5. Apply changes to Mealie
             if to_delete: self.client.delete_shopping_list_items_bulk(to_delete)
