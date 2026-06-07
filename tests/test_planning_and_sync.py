@@ -174,6 +174,50 @@ class TestShoppingListSyncMerge(unittest.TestCase):
             delete_args = delete_call[0][0]
             self.assertEqual(len(delete_args), 0)
 
+    @patch("mealie_planner.shopping_sync.time.sleep", lambda *a, **k: None)
+    def test_manual_items_preserved_when_ai_omits_or_misses_index(self):
+        active_items = [
+            {"id": "item-A", "note": "Old Spinach", "checked": True, "labelId": "lbl-existing", "extras": {"is_synced": True}},
+            {"id": "item-manual-1", "note": "Toilet Paper", "checked": False, "labelId": None, "extras": {}},
+            {"id": "item-manual-2", "note": "Shampoo", "checked": False, "labelId": None, "extras": {}},
+        ]
+        ai_items = [
+            {"active_item_index": 0, "name": "Spinach", "quantity": 2.0,
+             "unit": "oz", "checked": True, "category": "Produce"},
+            # AI returns Toilet Paper but misses index (sets it to None)
+            {"active_item_index": None, "name": "Toilet Paper", "quantity": 1.0,
+             "unit": None, "checked": False, "category": "Produce"},
+            # AI completely omits Shampoo
+        ]
+        syncer, client = self._make_syncer(active_items, ai_items)
+
+        result = syncer.sync_shopping_list("2026-05-30", "2026-06-05")
+        self.assertTrue(result)
+
+        # Toilet Paper should be matched via name/semantic fallback in python and updated, keeping is_manual=True
+        # Spinach is updated
+        # Shampoo is omitted by AI but preserved in python (not deleted, not added as new synced item)
+        update_args = client.update_shopping_list_items_bulk.call_args[0][0]
+        self.assertEqual(len(update_args), 2)  # Spinach and Toilet Paper are updated
+        
+        # Toilet Paper was matched semantically
+        toilet_paper_update = next(item for item in update_args if item["id"] == "item-manual-1")
+        self.assertEqual(toilet_paper_update["note"], "Toilet Paper")
+        self.assertEqual(toilet_paper_update["extras"], {})  # preserved manual status!
+
+        # Check that Shampoo (item-manual-2) was NOT deleted
+        delete_call = client.delete_shopping_list_items_bulk.call_args
+        if delete_call:
+            delete_args = delete_call[0][0]
+            self.assertNotIn("item-manual-2", delete_args)
+            self.assertEqual(len(delete_args), 0)
+
+        # Check that no duplicate Toilet Paper or Shampoo was added as new
+        add_call = client.add_shopping_list_items_bulk.call_args
+        if add_call:
+            add_args = add_call[0][0]
+            self.assertEqual(len(add_args), 0)
+
 
 class TestWeekRanges(unittest.TestCase):
     def test_get_next_week_range(self):
