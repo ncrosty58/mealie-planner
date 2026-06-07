@@ -206,7 +206,7 @@ class ShoppingListSync:
                         "note": full_note,
                         "quantity": qty,
                         "checked": checked,
-                        "labelId": original.get('labelId') or label_id,
+                        "labelId": label_id if not is_manual else (original.get('labelId') or label_id),
                         "extras": {} if is_manual else {"is_synced": True}
                     })
                     to_update.append(updated)

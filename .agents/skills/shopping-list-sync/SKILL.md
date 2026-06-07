@@ -53,6 +53,7 @@ This skill takes the raw ingredient strings from dinner recipes, a list of house
 6.  **Physical Layout Categorization (Grocery Store Path Logic):**
     - Categorize items into exactly one of the provided `available_labels`.
     - **Layout Logic**: Group items using standard grocery store layouts. The provided labels are ordered 1-9 to reflect a standard walking path.
+        - *Produce*: (e.g. Lettuce, Spinach, Salad Greens, Salad Kit, Cucumbers, Tomatoes, Red Onion, Carrots, Sweet Potatoes, Avocados, Lemons/Limes, Mushrooms, and all fresh fruits/vegetables) MUST be categorized under "1. Produce: Vegetables & Greens", NOT pantry or other sections.
         - *Fresh Herbs*: (e.g. Thyme, Rosemary, Parsley, Cilantro, Basil) MUST be categorized under "1. Produce: Vegetables & Greens", NOT spices.
         - *Jarred/Canned Goods/Condiments*: (e.g. Artichoke Hearts, Olives, Dijon Mustard, Tahini, Balsamic Glaze, Chicken Broth, Rice) MUST be categorized under "5. Pantry & Grains".
         - *Spices/Baking/Oils*: Only dried spices, baking ingredients, and cooking oils (e.g. Olive Oil, Paprika, Red Pepper Flakes, Onion Powder) should be categorized under "6. Baking, Spices & Oils".
