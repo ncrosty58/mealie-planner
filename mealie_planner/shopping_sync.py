@@ -84,6 +84,10 @@ class ShoppingListSync:
         try:
             time.sleep(1.0)
             
+            # Invalidate cached recipes to ensure we fetch fresh ingredients from Mealie
+            if hasattr(self.client, 'invalidate_recipe_cache'):
+                self.client.invalidate_recipe_cache()
+            
             # 1. Fetch current data
             meal_plans = self.client.get_meal_plan(start_date_str, end_date_str)
             staples = self.client.get_shopping_list_items(STAPLES_LIST_ID)
