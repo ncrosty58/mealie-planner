@@ -371,35 +371,29 @@ def clear_plan_route():
         flash(f"Error clearing data: {str(e)}", "danger")
     return redirect(url_for('index', week=week))
 
-@app.route('/add-shopping-item', methods=['POST'])
-def add_shopping_item():
-    """Add a single manual item to the active shopping list."""
+def _add_item_to_list(list_id: str, item_type: str):
+    """Helper function to add an item to a specific Mealie shopping list."""
     try:
         data = request.get_json()
         note = sanitize_input(data.get('note', ''))
         if not note:
-            return json.dumps({"success": False, "error": "Item name is required"}), 400
+            return json.dumps({"success": False, "error": f"{item_type} name is required"}), 400
 
-        mealie_client.add_shopping_list_item(ACTIVE_LIST_ID, note)
+        mealie_client.add_shopping_list_item(list_id, note)
         return json.dumps({"success": True})
     except Exception as e:
-        print(f"Error adding shopping item: {e}")
+        print(f"Error adding {item_type.lower()}: {e}")
         return json.dumps({"success": False, "error": str(e)}), 500
+
+@app.route('/add-shopping-item', methods=['POST'])
+def add_shopping_item():
+    """Add a single manual item to the active shopping list."""
+    return _add_item_to_list(ACTIVE_LIST_ID, "Item")
 
 @app.route('/add-staple', methods=['POST'])
 def add_staple():
     """Add a new staple item to the staples shopping list."""
-    try:
-        data = request.get_json()
-        note = sanitize_input(data.get('note', ''))
-        if not note:
-            return json.dumps({"success": False, "error": "Staple name is required"}), 400
-
-        mealie_client.add_shopping_list_item(STAPLES_LIST_ID, note)
-        return json.dumps({"success": True})
-    except Exception as e:
-        print(f"Error adding staple item: {e}")
-        return json.dumps({"success": False, "error": str(e)}), 500
+    return _add_item_to_list(STAPLES_LIST_ID, "Staple")
 
 @app.route('/delete-staple', methods=['POST'])
 def delete_staple():
