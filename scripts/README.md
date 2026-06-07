@@ -19,6 +19,7 @@ Routine/data operations against the live Mealie instance.
 | `recreate_sandwiches.py` | Data fix for sandwich/lunch entries. |
 | `list_plans.py` | Print scheduled meal plans for inspection. |
 | `check_current_ingredients.py` | Print the ingredients currently driving the shopping list. |
+| `reconstruct_prep_notes.py` | Reconstruct and update dinner preparation notes/guides using AI. |
 
 ## Debug / profiling (throwaway)
 Ad-hoc investigation scripts; not part of normal operation and may be stale.

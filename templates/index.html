@@ -731,10 +731,12 @@
         <div id="tab-prep" class="tab-view" style="display: none;">
             <div class="card">
                 <div class="card-header"><h2 class="card-title">Prep Guide</h2></div>
+                {% set ns = namespace(has_any=false) %}
                 {% for d_str in planning_dates %}
                     {% set day_prep = [] %}
                     {% for item in meal_plans %}{% if item.date[:10] == d_str and item.text %}{% set _ = day_prep.append(item) %}{% endif %}{% endfor %}
                     {% if day_prep %}
+                        {% set ns.has_any = true %}
                         <div style="margin-bottom: 1.5rem;" class="{% if d_str < today_str %}past-day{% endif %}">
                             <div class="category-title" style="color: var(--color-primary);">{{ d_str | select_day_name }} &bull; {{ d_str }}</div>
                             {% for entry in day_prep %}
@@ -746,8 +748,12 @@
                         </div>
                     {% endif %}
                 {% endfor %}
+                {% if not ns.has_any %}
+                    <p style="font-size: 0.9rem; color: var(--color-muted); margin: 1rem 0; line-height: 1.5;">No preparation notes or batch cooking tips scheduled for this week's dinners. You are all set!</p>
+                {% endif %}
             </div>
         </div>
+
         {% endif %}
 
         <div id="tab-admin" class="tab-view" style="display: none;">
