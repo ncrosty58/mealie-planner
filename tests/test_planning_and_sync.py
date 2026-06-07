@@ -106,8 +106,8 @@ class TestShoppingListSyncMerge(unittest.TestCase):
         self.assertEqual(updated["id"], "item-A")
         self.assertEqual(updated["note"], "oz Spinach")
         self.assertTrue(updated["checked"])
-        # existing labelId is preserved over the AI-suggested category label
-        self.assertEqual(updated["labelId"], "lbl-existing")
+        # existing labelId is updated to the AI-suggested category label for synced items
+        self.assertEqual(updated["labelId"], "lbl-produce")
 
         # new item added with the resolved category label
         add_args = client.add_shopping_list_items_bulk.call_args[0][0]
