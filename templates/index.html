@@ -481,7 +481,8 @@
                 column-count: 3 !important;
                 column-gap: 15px !important;
             }
-            .shopping-item:has(.item-checkbox:checked) {
+            .shopping-item:has(.item-checkbox:checked),
+            #checked-items-container {
                 display: none !important;
             }
             .shopping-item {
@@ -705,13 +706,13 @@
 
                         {% if current_label_name != ns.last_label %}
                             {% if not loop.first %}</div></div>{% endif %}
-                            <div class="category-group">
+                            <div class="category-group" data-category="{{ current_label_name }}">
                             <div class="category-title">{{ 'General Items' if current_label_name == 'Uncategorized' else current_label_name }}</div>
                             <div class="category-items">
                             {% set ns.last_label = current_label_name %}
                         {% endif %}
 
-                        <div class="shopping-item">
+                        <div class="shopping-item" data-category="{{ current_label_name }}">
 
                             <input type="checkbox" class="item-checkbox shopping-list-checkbox" data-id="{{ item.id }}" {% if item.checked %}checked{% endif %}>
                             <div class="item-text {% if item.checked %}checked{% endif %}">
@@ -724,6 +725,14 @@
                         </div>
                         {% if loop.last %}</div></div>{% endif %}
                     {% endfor %}
+                </div>
+
+                <!-- Checked items section -->
+                <div id="checked-items-container" class="category-group" style="margin-top: 1.5rem; display: none;">
+                    <div class="category-title" style="color: var(--text-muted);">Checked Items</div>
+                    <div class="category-items" id="checked-items-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.6rem 1.5rem;">
+                        <!-- Checked items will be moved here by JS -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -983,6 +992,49 @@
             }
         }
         
+        function updateShoppingListLayout() {
+            const checkedContainer = document.getElementById('checked-items-container');
+            const checkedList = document.getElementById('checked-items-list');
+            if (!checkedContainer || !checkedList) return;
+
+            document.querySelectorAll('.shopping-item').forEach(item => {
+                const cb = item.querySelector('.item-checkbox');
+                if (cb && cb.checked) {
+                    if (item.parentElement !== checkedList) {
+                        checkedList.appendChild(item);
+                    }
+                } else {
+                    const catName = item.getAttribute('data-category');
+                    const group = document.querySelector(`.category-group[data-category="${catName}"]`);
+                    if (group) {
+                        const itemsDiv = group.querySelector('.category-items');
+                        if (itemsDiv && item.parentElement !== itemsDiv) {
+                            itemsDiv.appendChild(item);
+                        }
+                    }
+                }
+            });
+
+            // Hide or show category groups depending on if they have items left
+            document.querySelectorAll('.category-group[data-category]').forEach(group => {
+                const itemsDiv = group.querySelector('.category-items');
+                const hasVisible = itemsDiv && itemsDiv.querySelector('.shopping-item');
+                if (hasVisible) {
+                    group.style.display = '';
+                } else {
+                    group.style.display = 'none';
+                }
+            });
+
+            // Hide or show checked container
+            const hasChecked = checkedList.querySelector('.shopping-item');
+            if (hasChecked) {
+                checkedContainer.style.display = '';
+            } else {
+                checkedContainer.style.display = 'none';
+            }
+        }
+
         function checkAllItems(btn) {
             if (!confirm("Check off all items on this list?")) return;
             
@@ -1000,6 +1052,7 @@
                             const textSpan = cb.parentElement.querySelector('.item-text');
                             if (textSpan) textSpan.classList.add('checked');
                         });
+                        updateShoppingListLayout();
                         btn.innerText = "All Checked!";
                         setTimeout(() => { 
                             btn.innerText = originalText;
@@ -1021,7 +1074,7 @@
 
         function copyShoppingList(btn) {
             const lines = [];
-            const groups = document.querySelectorAll('.category-group');
+            const groups = document.querySelectorAll('.category-group[data-category]');
             
             groups.forEach(group => {
                 const title = group.querySelector('.category-title');
@@ -1156,9 +1209,11 @@
             document.querySelectorAll('.shopping-list-checkbox').forEach(cb => {
                 cb.onchange = async function() {
                     this.parentElement.querySelector('.item-text').classList.toggle('checked', this.checked);
+                    updateShoppingListLayout();
                     await fetch('/toggle-shopping-item', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({item_id: this.dataset.id, checked: this.checked}) });
                 };
             });
+            updateShoppingListLayout();
             
             const cin = document.getElementById('chat-input');
             const csend = document.getElementById('chat-send');
