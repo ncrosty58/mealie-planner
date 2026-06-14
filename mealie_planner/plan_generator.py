@@ -55,6 +55,10 @@ class PlanGenerator:
             parsed_items = parse_freezer_items(self.ai, freezer_items)
             
             for item in parsed_items:
+                if not item.get("is_main_dish", True):
+                    print(f"[Plan Generation] Skipping recipe lookup/import for non-main-dish item: '{item.get('raw')}'")
+                    continue
+                
                 core = item.get("core_ingredient", item.get("raw", ""))
                 raw = item.get("raw", core)
                 
@@ -323,7 +327,11 @@ class PlanGenerator:
             except MealieAPIError as e:
                 print(f"Error scheduling meal {m}: {e}")
             
-        self.shopping.sync_shopping_list(start_date_str, end_date_str, low_staples_ids, progress_callback=progress_callback, freezer_items=freezer_items)
+        sync_ok = self.shopping.sync_shopping_list(start_date_str, end_date_str, low_staples_ids, progress_callback=progress_callback, freezer_items=freezer_items)
+        if not sync_ok:
+            print("[Plan Generation] WARNING: Shopping list sync returned False — list may be empty.")
+            if progress_callback:
+                progress_callback("⚠️ Shopping list could not be generated. Try 'Refresh List' from the sidebar.", 98)
         
         if progress_callback:
             progress_callback("Sending weekly plan report email to family...", 99)

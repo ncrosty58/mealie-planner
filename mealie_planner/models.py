@@ -6,6 +6,7 @@ class ParsedIngredient(BaseModel):
     raw: str
     core_ingredient: str
     has_meat: bool
+    is_main_dish: bool = True
 
 class ParsedIngredientList(RootModel[List[ParsedIngredient]]):
     pass
@@ -53,6 +54,12 @@ class CompiledShoppingItem(BaseModel):
 
 class CompiledShoppingList(RootModel[List[CompiledShoppingItem]]):
     pass
+
+# Gemini-compatible wrapper: Gemini's structured output does not reliably enforce
+# bare JSON-array root schemas produced by RootModel.  Wrapping in a plain object
+# with an `items` field produces a schema Gemini honours consistently.
+class CompiledShoppingListWrapper(BaseModel):
+    items: List[CompiledShoppingItem]
 
 # 6. Standardize Ingredients (standardize_ingredients_with_ai)
 class StandardizedIngredients(RootModel[List[str]]):

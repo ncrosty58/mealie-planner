@@ -8,7 +8,7 @@ from .config import (
 )
 from .recipe_crawler import RecipeCrawler
 from .exceptions import MealieAPIError, SkillParsingError
-from .models import CompiledShoppingList
+from .models import CompiledShoppingList, CompiledShoppingListWrapper
 
 def normalize_ingredient_name(name: str) -> str:
     """Normalize ingredient name for matching by stripping quantity, unit, descriptors, and organic tag."""
@@ -137,7 +137,7 @@ class ShoppingListSync:
             payload = {
                 "ingredients": raw_recipe_ingredients,
                 "staples": [s['note'] for s in staples],
-                "inventory_items": [i.strip() for i in freezer_items.split(",")] if freezer_items else [],
+                "inventory_items": [i.strip() for i in re.split(r'[,\n]+', freezer_items) if i.strip()] if freezer_items else [],
                 "low_staples": low_staples_notes,
                 "manual_items": manual_items,
                 "available_labels": [l['name'] for l in all_labels],
@@ -157,11 +157,11 @@ class ShoppingListSync:
                 "\n\n### CONTEXT FOR THIS INVOCATION:\n" +
                 f"Payload: {json.dumps(payload)}\n" +
                 f"Family Dietary Rules: {FAMILY_DIETARY_RULES_PROMPT}\n\n" +
-                "Return ONLY the JSON array of objects as specified in the skill definition."
+                "Return ONLY a JSON object with a single key 'items' whose value is the JSON array of objects as specified in the skill definition. Example: {\"items\": [...]}"
             )
-            ai_response = self.ai.call(prompt, response_schema=CompiledShoppingList)
-            parsed_list = CompiledShoppingList.model_validate_json(ai_response).root
-            final_items = [item.model_dump() for item in parsed_list]
+            ai_response = self.ai.call(prompt, response_schema=CompiledShoppingListWrapper)
+            wrapper = CompiledShoppingListWrapper.model_validate_json(ai_response)
+            final_items = [item.model_dump() for item in wrapper.items]
 
             # 4. Merge changes in Mealie
             if progress_callback: progress_callback("Merging changes...", 98)
