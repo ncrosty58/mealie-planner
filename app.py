@@ -285,14 +285,19 @@ def plan_stream():
         })
         thread.start()
 
+        last_status = None
         while thread.is_alive() or not q.empty():
             try:
                 data = q.get(timeout=1)
+                last_status = data.get("status")
                 yield f"data: {json.dumps(data)}\n\n"
             except queue.Empty:
                 continue
 
-        yield f"data: {json.dumps({'status': 'complete'})}\n\n"
+        complete_event = {"status": "complete"}
+        if last_status and last_status.startswith("⚠️"):
+            complete_event["warning"] = last_status
+        yield f"data: {json.dumps(complete_event)}\n\n"
 
     return Response(generate(), mimetype='text/event-stream')
 
@@ -333,8 +338,11 @@ def sync():
         save_state({'low_staples': low_staples})
 
     try:
-        shopping.sync_shopping_list(start_date_str, end_date_str, low_staples_ids=low_staples)
-        flash("Recalculated active shopping list successfully!", "success")
+        sync_ok = shopping.sync_shopping_list(start_date_str, end_date_str, low_staples_ids=low_staples)
+        if sync_ok:
+            flash("Recalculated active shopping list successfully!", "success")
+        else:
+            flash("Shopping list sync failed: the AI did not return a valid list. Please try again.", "danger")
     except Exception as e:
         flash(f"Error syncing shopping list: {str(e)}", "danger")
 

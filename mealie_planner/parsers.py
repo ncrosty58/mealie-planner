@@ -19,16 +19,10 @@ def parse_freezer_items(ai_client, text: str) -> list:
         "Return ONLY the JSON array as specified in the skill definition."
     )
     
-    try:
-        raw = ai_client.call(prompt, response_schema=ParsedIngredientList)
-        # Parse and validate with Pydantic
-        result = ParsedIngredientList.model_validate_json(raw).root
-        return [item.model_dump() for item in result]
-    except Exception as e:
-        print(f"[AI] parse_freezer_items failed: {e} — falling back to simple split")
-        # Fallback: simple comma split if AI fails
-        return [{"raw": i.strip(), "core_ingredient": i.strip(), "has_meat": False} 
-                for i in text.split(",") if i.strip()]
+    raw = ai_client.call(prompt, response_schema=ParsedIngredientList)
+    # Parse and validate with Pydantic
+    result = ParsedIngredientList.model_validate_json(raw).root
+    return [item.model_dump() for item in result]
 
 def parse_exclusions(ai_client, text: str, start_date, end_date) -> dict:
     """Use AI to interpret a free-text description of which meals to skip."""
@@ -55,16 +49,12 @@ def parse_exclusions(ai_client, text: str, start_date, end_date) -> dict:
         "Return ONLY the JSON object as specified in the skill definition."
     )
 
-    try:
-        raw = ai_client.call(prompt, response_schema=MealExclusions)
-        result = MealExclusions.model_validate_json(raw).root
-        
-        # Filter days and meals based on the pydantic model output
-        exclusions = {}
-        for day, meals in result.items():
-            if meals:
-                exclusions[day] = meals
-        return exclusions
-    except Exception as e:
-        print(f"[AI] parse_exclusions failed: {e} — no exclusions applied")
-        return {}
+    raw = ai_client.call(prompt, response_schema=MealExclusions)
+    result = MealExclusions.model_validate_json(raw).root
+
+    # Filter days and meals based on the pydantic model output
+    exclusions = {}
+    for day, meals in result.items():
+        if meals:
+            exclusions[day] = meals
+    return exclusions
