@@ -3,7 +3,7 @@ import random
 from datetime import datetime, timedelta
 
 from .config import (
-    FAMILY_DIETARY_RULES_PROMPT, BREAKFAST_PROFILES, get_banned_recipes,
+    FAMILY_DIETARY_RULES_PROMPT, get_banned_recipes,
     _WEEKLY_MEAL_SELECTION_SKILL_DEFINITION,
     _BANNED_RECIPES_SKILL_DEFINITION
 )
@@ -52,8 +52,14 @@ class PlanGenerator:
         item_to_recipe_map = {}
         if freezer_items:
             # Use AI to parse free-text items into structured ingredients
-            parsed_items = parse_freezer_items(self.ai, freezer_items)
-            
+            try:
+                parsed_items = parse_freezer_items(self.ai, freezer_items)
+            except Exception as e:
+                print(f"[Plan Generation] parse_freezer_items failed: {e}")
+                if progress_callback:
+                    progress_callback(f"⚠️ Meal plan generation failed: AI could not understand your freezer/pantry/fridge items ({e}). No changes were made to your existing plan.", 100)
+                return
+
             for item in parsed_items:
                 if not item.get("is_main_dish", True):
                     print(f"[Plan Generation] Skipping recipe lookup/import for non-main-dish item: '{item.get('raw')}'")
@@ -124,13 +130,13 @@ class PlanGenerator:
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
         end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
         num_days = (end_date - start_date).days + 1
-        exclusions = parse_exclusions(self.ai, exclude_text, start_date, end_date)
-        dinner_days = [
-            (start_date + timedelta(days=i)).strftime("%A")
-            for i in range(num_days)
-            if 'dinner' not in exclusions.get((start_date + timedelta(days=i)).strftime("%A"), [])
-        ]
-        num_dinners = len(dinner_days)
+        try:
+            exclusions = parse_exclusions(self.ai, exclude_text, start_date, end_date)
+        except Exception as e:
+            print(f"[Plan Generation] parse_exclusions failed: {e}")
+            if progress_callback:
+                progress_callback(f"⚠️ Meal plan generation failed: AI could not understand your meal exclusion notes ({e}). No changes were made to your existing plan.", 100)
+            return
         target_date_strings = [(start_date + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(num_days)]
 
         # Fetch recently planned recipes (preceding 7 days) to avoid repeating them
@@ -264,45 +270,11 @@ class PlanGenerator:
                 
             print(f"[AI] Successfully generated structured 7-day plan.")
         except Exception as e:
-            print(f"[AI] Full plan generation failed: {e} — falling back to basic logic")
+            print(f"[AI] Plan generation failed: {e}")
             if progress_callback:
-                progress_callback(f"Selection failed ({str(e)}), falling back to basic selection...", 65)
-            
-            # --- BASIC FALLBACK LOGIC ---
-            random.shuffle(allowed_recipes)
-            selected_ids = [r["id"] for r in allowed_recipes[:num_dinners]]
-            id_to_recipe = {r["id"]: r for r in allowed_recipes}
-            clean_recipes = [id_to_recipe[rid] for rid in selected_ids if rid in id_to_recipe]
-            
-            meals = []
-            current_date = start_date
-            recipe_index = 0
-            breakfasts = list(BREAKFAST_PROFILES.keys())
-            while current_date <= end_date:
-                d_str = current_date.strftime("%Y-%m-%d")
-                day_name = current_date.strftime("%A")
-                day_exclusions = exclusions.get(day_name, [])
-                
-                if 'breakfast' in day_exclusions:
-                    meals.append({"date": d_str, "entryType": "breakfast", "title": "Skipped", "recipeId": None})
-                else:
-                    meals.append({"date": d_str, "entryType": "breakfast", "title": breakfasts[current_date.weekday() % len(breakfasts)], "recipeId": None})
-                    
-                if 'lunch' in day_exclusions:
-                    meals.append({"date": d_str, "entryType": "lunch", "title": "Skipped", "recipeId": None})
-                else:
-                    meals.append({"date": d_str, "entryType": "lunch", "title": "Leftovers", "recipeId": None})
-                
-                if 'dinner' in day_exclusions:
-                    meals.append({"date": d_str, "entryType": "dinner", "title": "Eating Out", "recipeId": None})
-                else:
-                    if clean_recipes and recipe_index < len(clean_recipes):
-                        meals.append({"date": d_str, "entryType": "dinner", "title": "", "recipeId": clean_recipes[recipe_index]['id']})
-                        recipe_index += 1
-                    else:
-                        meals.append({"date": d_str, "entryType": "dinner", "title": "TBD", "recipeId": None})
-                current_date += timedelta(days=1)
-            
+                progress_callback(f"⚠️ Meal plan generation failed: AI error ({e}). No changes were made to your existing plan. Please try again.", 100)
+            return
+
         if progress_callback:
             progress_callback("Clearing old scheduled meals in Mealie calendar...", 70)
         
@@ -330,13 +302,14 @@ class PlanGenerator:
         sync_ok = self.shopping.sync_shopping_list(start_date_str, end_date_str, low_staples_ids, progress_callback=progress_callback, freezer_items=freezer_items)
         if not sync_ok:
             print("[Plan Generation] WARNING: Shopping list sync returned False — list may be empty.")
-            if progress_callback:
-                progress_callback("⚠️ Shopping list could not be generated. Try 'Refresh List' from the sidebar.", 98)
-        
+
         if progress_callback:
             progress_callback("Sending weekly plan report email to family...", 99)
         self.notifier.send_saturday_report_email(start_date_str, end_date_str, exclude_text, freezer_items, low_staples_ids, special_requests)
-        
+
         if progress_callback:
-            progress_callback("Meal plan generation complete!", 100)
+            if sync_ok:
+                progress_callback("Meal plan generation complete!", 100)
+            else:
+                progress_callback("⚠️ Meal plan generated, but the shopping list sync failed (AI error). Click 'Refresh List' in the sidebar to retry.", 100)
         print(f"Rule-based plan successfully generated and scheduled for {start_date_str} to {end_date_str}.")

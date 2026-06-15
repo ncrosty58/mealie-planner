@@ -24,6 +24,7 @@ Return a JSON array of objects. Each object has:
 - `raw`: The original text for this item, trimmed.
 - `core_ingredient`: The essential food term for recipe matching (e.g., "chicken thighs", "cilantro", "black beans").
 - `has_meat`: Boolean — true if this item contains meat, poultry, or seafood.
+- `is_main_dish`: Boolean — true if this item is a main dish, entree, or primary protein/meal component (e.g. "chicken thighs", "beef", "salmon"). False if it is a sauce, condiment, dip, dressing, herb, side dish, or basic base ingredient (e.g. "Tzatziki sauce", "hummus", "pesto", "sour cream", "cilantro", "romaine lettuce").
 
 ## Example
 
@@ -32,9 +33,9 @@ Return a JSON array of objects. Each object has:
 **Output:**
 ```json
 [
-  {"raw": "1lb frozen chicken thighs", "core_ingredient": "chicken thighs", "has_meat": true},
-  {"raw": "fresh cilantro bunch", "core_ingredient": "cilantro", "has_meat": false},
-  {"raw": "pesto sauce", "core_ingredient": "pesto", "has_meat": false},
-  {"raw": "2 cans black beans", "core_ingredient": "black beans", "has_meat": false}
+  {"raw": "1lb frozen chicken thighs", "core_ingredient": "chicken thighs", "has_meat": true, "is_main_dish": true},
+  {"raw": "fresh cilantro bunch", "core_ingredient": "cilantro", "has_meat": false, "is_main_dish": false},
+  {"raw": "pesto sauce", "core_ingredient": "pesto", "has_meat": false, "is_main_dish": false},
+  {"raw": "2 cans black beans", "core_ingredient": "black beans", "has_meat": false, "is_main_dish": false}
 ]
 ```

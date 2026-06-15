@@ -22,6 +22,12 @@ class TestPydanticIntegration(unittest.TestCase):
         self.assertEqual(len(parsed), 1)
         self.assertEqual(parsed[0].raw, "1lb beef")
         self.assertEqual(parsed[0].has_meat, True)
+        self.assertEqual(parsed[0].is_main_dish, True)  # defaults to True
+
+        # Test explicit is_main_dish: False
+        condiment_json = '[{"raw": "Tzatziki sauce", "core_ingredient": "Tzatziki", "has_meat": false, "is_main_dish": false}]'
+        parsed_condiment = ParsedIngredientList.model_validate_json(condiment_json).root
+        self.assertEqual(parsed_condiment[0].is_main_dish, False)
         
         # Invalid payload should raise ValidationError
         invalid_json = '[{"raw": "1lb beef", "has_meat": "not_a_boolean"}]'
@@ -169,6 +175,53 @@ class TestPydanticIntegration(unittest.TestCase):
         self.assertEqual(normalize_ingredient_name("chicken raw breast"), "chicken breast")
         self.assertEqual(normalize_ingredient_name("3 cloves   garlic"), "garlic")
         self.assertEqual(normalize_ingredient_name("1/2 cup organic spinach"), "spinach")
+
+    def test_parse_freezer_items_empty_text_short_circuits(self):
+        ai = MagicMock()
+        self.assertEqual(parse_freezer_items(ai, ""), [])
+        self.assertEqual(parse_freezer_items(ai, "   "), [])
+        ai.call.assert_not_called()
+
+    def test_parse_freezer_items_raises_on_ai_failure(self):
+        # AI-first: a failed AI call must propagate as an exception so the caller
+        # can abort with a clear error, not silently fall back to naive parsing.
+        ai = MagicMock()
+        ai.call.side_effect = RuntimeError("AI service unavailable")
+        with self.assertRaises(RuntimeError):
+            parse_freezer_items(ai, "leftover chicken thighs, half an onion")
+
+    def test_parse_freezer_items_raises_on_invalid_ai_response(self):
+        ai = MagicMock()
+        ai.call.return_value = "not valid json"
+        with self.assertRaises(ValidationError):
+            parse_freezer_items(ai, "leftover chicken thighs")
+
+    def test_parse_exclusions_empty_text_short_circuits(self):
+        from datetime import datetime
+        ai = MagicMock()
+        start = datetime(2026, 5, 30)
+        end = datetime(2026, 6, 5)
+        self.assertEqual(parse_exclusions(ai, "", start, end), {})
+        self.assertEqual(parse_exclusions(ai, "   ", start, end), {})
+        ai.call.assert_not_called()
+
+    def test_parse_exclusions_raises_on_ai_failure(self):
+        from datetime import datetime
+        ai = MagicMock()
+        ai.call.side_effect = RuntimeError("AI service unavailable")
+        start = datetime(2026, 5, 30)
+        end = datetime(2026, 6, 5)
+        with self.assertRaises(RuntimeError):
+            parse_exclusions(ai, "skip dinner on Friday", start, end)
+
+    def test_parse_exclusions_raises_on_invalid_ai_response(self):
+        from datetime import datetime
+        ai = MagicMock()
+        ai.call.return_value = "not valid json"
+        start = datetime(2026, 5, 30)
+        end = datetime(2026, 6, 5)
+        with self.assertRaises(ValidationError):
+            parse_exclusions(ai, "skip dinner on Friday", start, end)
 
     @patch("httpx.Client")
     def test_unified_mealie_client_singleton(self, mock_httpx_client):

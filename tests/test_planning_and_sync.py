@@ -75,7 +75,7 @@ class TestShoppingListSyncMerge(unittest.TestCase):
         client.get_shopping_list_items_for_list.return_value = active_items
         client.get_labels.return_value = [{"name": "Produce", "id": "lbl-produce"}]
 
-        ai.call.return_value = json.dumps(ai_items)
+        ai.call.return_value = json.dumps({"items": ai_items})
 
         syncer = ShoppingListSync(client, ai, crawler)
         return syncer, client
@@ -261,6 +261,116 @@ class TestShoppingListSyncMerge(unittest.TestCase):
             delete_args = delete_call[0][0]
             self.assertNotIn("item-eggs", delete_args)
             self.assertEqual(len(delete_args), 0)
+
+
+    @patch("mealie_planner.shopping_sync.time.sleep", lambda *a, **k: None)
+    def test_sync_returns_false_and_warns_when_ai_call_fails(self):
+        # If the AI sync call itself raises, sync_shopping_list must abort cleanly
+        # (no partial Mealie writes) and report a clear ⚠️ error via progress_callback.
+        active_items = [
+            {"id": "item-A", "note": "Eggs", "checked": False, "labelId": "lbl-existing", "extras": {"is_synced": True}},
+        ]
+        syncer, client = self._make_syncer(active_items, [])
+        syncer.ai.call.side_effect = RuntimeError("AI service unavailable")
+
+        messages = []
+        result = syncer.sync_shopping_list(
+            "2026-05-30", "2026-06-05",
+            progress_callback=lambda msg, progress=None: messages.append(msg),
+        )
+
+        self.assertFalse(result)
+        self.assertTrue(any(m.startswith("⚠️ Shopping list sync failed") for m in messages), messages)
+        client.update_shopping_list_items_bulk.assert_not_called()
+        client.add_shopping_list_items_bulk.assert_not_called()
+        client.delete_shopping_list_items_bulk.assert_not_called()
+
+    @patch("mealie_planner.shopping_sync.time.sleep", lambda *a, **k: None)
+    def test_sync_returns_false_and_warns_on_invalid_ai_response(self):
+        # If the AI returns something that doesn't match CompiledShoppingListWrapper,
+        # validation fails and must surface as the same kind of warning, not a crash.
+        active_items = [
+            {"id": "item-A", "note": "Eggs", "checked": False, "labelId": "lbl-existing", "extras": {"is_synced": True}},
+        ]
+        syncer, client = self._make_syncer(active_items, [])
+        syncer.ai.call.return_value = json.dumps([{"not": "the expected wrapper shape"}])
+
+        messages = []
+        result = syncer.sync_shopping_list(
+            "2026-05-30", "2026-06-05",
+            progress_callback=lambda msg, progress=None: messages.append(msg),
+        )
+
+        self.assertFalse(result)
+        self.assertTrue(any(m.startswith("⚠️ Shopping list sync failed") for m in messages), messages)
+
+
+class TestPlanGeneratorAIFailureAborts(unittest.TestCase):
+    """AI-first behavior: if any AI step in plan generation fails, the whole
+    operation aborts with a clear ⚠️ message and leaves the existing plan/list
+    untouched (no clearing, scheduling, syncing, or emailing)."""
+
+    def _make_generator(self):
+        from mealie_planner.plan_generator import PlanGenerator
+
+        client = MagicMock()
+        ai = MagicMock()
+        crawler = MagicMock()
+        shopping = MagicMock()
+        notifier = MagicMock()
+
+        crawler.get_recipes_from_db.return_value = []
+        client.get_detailed_meal_plan.return_value = []
+
+        gen = PlanGenerator(client, ai, crawler, shopping, notifier)
+        return gen, client, ai, crawler, shopping, notifier
+
+    def _assert_no_side_effects(self, client, shopping, notifier):
+        client.delete_meal_plan_entry.assert_not_called()
+        client.schedule_meal.assert_not_called()
+        shopping.sync_shopping_list.assert_not_called()
+        notifier.send_saturday_report_email.assert_not_called()
+
+    def test_freezer_item_parsing_failure_aborts(self):
+        gen, client, ai, crawler, shopping, notifier = self._make_generator()
+        ai.call.side_effect = RuntimeError("AI service unavailable")
+
+        messages = []
+        gen.generate_weekly_plan(
+            "2026-05-30", "2026-06-05",
+            freezer_items="leftover chicken thighs",
+            progress_callback=lambda msg, progress=None: messages.append(msg),
+        )
+
+        self.assertTrue(any(m.startswith("⚠️ Meal plan generation failed: AI could not understand your freezer/pantry/fridge items") for m in messages), messages)
+        self._assert_no_side_effects(client, shopping, notifier)
+
+    def test_exclusion_parsing_failure_aborts(self):
+        gen, client, ai, crawler, shopping, notifier = self._make_generator()
+        ai.call.side_effect = RuntimeError("AI service unavailable")
+
+        messages = []
+        gen.generate_weekly_plan(
+            "2026-05-30", "2026-06-05",
+            exclude_text="skip dinner on Friday",
+            progress_callback=lambda msg, progress=None: messages.append(msg),
+        )
+
+        self.assertTrue(any(m.startswith("⚠️ Meal plan generation failed: AI could not understand your meal exclusion notes") for m in messages), messages)
+        self._assert_no_side_effects(client, shopping, notifier)
+
+    def test_main_selection_failure_aborts(self):
+        gen, client, ai, crawler, shopping, notifier = self._make_generator()
+        ai.call.side_effect = RuntimeError("AI service unavailable")
+
+        messages = []
+        gen.generate_weekly_plan(
+            "2026-05-30", "2026-06-05",
+            progress_callback=lambda msg, progress=None: messages.append(msg),
+        )
+
+        self.assertTrue(any(m.startswith("⚠️ Meal plan generation failed: AI error") for m in messages), messages)
+        self._assert_no_side_effects(client, shopping, notifier)
 
 
 class TestWeekRanges(unittest.TestCase):

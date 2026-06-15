@@ -481,9 +481,10 @@
                 column-count: 3 !important;
                 column-gap: 15px !important;
             }
-            .shopping-item:has(.item-checkbox:checked),
-            #checked-items-container {
-                display: none !important;
+            #checked-items-list {
+                display: block !important;
+                column-count: 3 !important;
+                column-gap: 15px !important;
             }
             .shopping-item {
                 border-bottom: 1px solid var(--color-border) !important;
@@ -620,15 +621,14 @@
                                     <input type="hidden" name="date" value="{{ d_str }}">
                                     <input type="hidden" name="entry_id" value="{{ dinner_entry[0].id if dinner_entry else '' }}">
                                     <input type="hidden" name="week" value="{{ week }}">
-                                    <select name="recipe_id" class="select-recipe" data-date="{{ d_str }}" onclick="loadSwapRecommendations(this)" onchange="onSwapSelected(this)">
-                                        <option value="">Swap Dinner...</option>
-                                        <option value="SKIP">🚫 Eating Out</option>
-                                        <optgroup class="ai-recs-group" label="💡 AI Recommended (Loading...)" style="display: none;">
-                                        </optgroup>
-                                        <optgroup label="All Recipes">
-                                            {% for rec in all_recipes %}<option value="{{ rec.id }}">{{ rec.name }}</option>{% endfor %}
-                                        </optgroup>
-                                    </select>
+                                    <input type="hidden" name="recipe_id" class="select-recipe-id">
+                                    <input type="text" class="select-recipe" list="recipe-options-{{ d_str }}" data-date="{{ d_str }}"
+                                           placeholder="Swap Dinner..." autocomplete="off"
+                                           onfocus="loadSwapRecommendations(this)" onchange="onSwapSelected(this)">
+                                    <datalist id="recipe-options-{{ d_str }}">
+                                        <option value="🚫 Eating Out"></option>
+                                        {% for rec in all_recipes %}<option value="{{ rec.name }}"></option>{% endfor %}
+                                    </datalist>
                                 </form>
                             {% endif %}</div>
                         </div>
@@ -1124,54 +1124,54 @@
             }
         }
 
-        async function loadSwapRecommendations(selectEl) {
-            if (selectEl.dataset.loaded) return;
-            selectEl.dataset.loaded = "true";
+        // Maps recipe display names (typed/picked in the swap box) to their recipe id.
+        const recipeMap = {'🚫 Eating Out': 'SKIP'};
+        {% for rec in all_recipes %}recipeMap[{{ rec.name | tojson }}] = {{ rec.id | tojson }};
+        {% endfor %}
 
-            const date = selectEl.dataset.date;
-            const recsGroup = selectEl.querySelector('.ai-recs-group');
-            recsGroup.style.display = 'block';
-            recsGroup.label = '✨ Chef is choosing pairings…';
+        async function loadSwapRecommendations(inputEl) {
+            if (inputEl.dataset.loaded) return;
+            inputEl.dataset.loaded = "true";
 
-            // Visible "AI is working" cues: a placeholder option + the global pill + busy select.
-            recsGroup.innerHTML = '<option disabled>Consulting the chef…</option>';
-            selectEl.classList.add('ai-busy');
+            const date = inputEl.dataset.date;
+            const datalist = document.getElementById(`recipe-options-${date}`);
+
+            inputEl.classList.add('ai-busy');
             aiBusy('Finding tasty swaps…');
 
             try {
                 const res = await fetch(`/get-swap-recommendations?date=${date}`);
                 if (res.ok) {
                     const data = await res.json();
-                    recsGroup.innerHTML = '';
                     if (data && data.length > 0) {
-                        recsGroup.label = '💡 AI Recommended Substitutes';
                         data.forEach(rec => {
+                            const label = `⭐ ${rec.name}`;
+                            recipeMap[label] = rec.id;
                             const opt = document.createElement('option');
-                            opt.value = rec.id;
-                            opt.textContent = rec.name;
-                            recsGroup.appendChild(opt);
+                            opt.value = label;
+                            datalist.insertBefore(opt, datalist.firstChild);
                         });
-                    } else {
-                        recsGroup.style.display = 'none';
                     }
-                } else {
-                    recsGroup.style.display = 'none';
                 }
             } catch (err) {
                 console.error("Error loading swap recommendations", err);
-                recsGroup.style.display = 'none';
-                selectEl.dataset.loaded = "";  // allow a retry on next click
+                inputEl.dataset.loaded = "";  // allow a retry on next focus
             } finally {
-                selectEl.classList.remove('ai-busy');
+                inputEl.classList.remove('ai-busy');
                 aiIdle();
             }
         }
 
         // Selecting a swap/skip triggers a server-side meal plan update, then a reload.
-        function onSwapSelected(sel) {
-            if (!sel.value) return;  // ignore the "Swap Dinner…" placeholder
+        function onSwapSelected(inputEl) {
+            const recipeId = recipeMap[inputEl.value];
+            if (!recipeId) {
+                inputEl.value = '';  // unrecognized entry; clear it back to the placeholder
+                return;
+            }
+            inputEl.form.querySelector('.select-recipe-id').value = recipeId;
             showLoading('Updating Menu', 'Saving your selection…');
-            sel.form.submit();
+            inputEl.form.submit();
         }
 
         function showLoading(msg, sub='') {
@@ -1189,7 +1189,11 @@
                 const d = JSON.parse(ev.data);
                 if (d.status === 'complete') {
                     es.close();
-                    window.location.href = '/?week={{ week }}&success_msg=Menu Ready';
+                    if (d.warning) {
+                        window.location.href = '/?week={{ week }}&error_msg=' + encodeURIComponent(d.warning);
+                    } else {
+                        window.location.href = '/?week={{ week }}&success_msg=Menu Ready';
+                    }
                 } else {
                     document.getElementById('loading-log').innerText = d.status || '';
                 }

@@ -274,7 +274,8 @@ class ShoppingListSync:
             return True
         except Exception as e:
             print(f"Error during AI shopping list sync: {e}")
-            if progress_callback: progress_callback(f"Error: {str(e)}", 100)
+            if progress_callback:
+                progress_callback(f"⚠️ Shopping list sync failed: AI error ({e}). The shopping list was not updated.", 100)
             return False
 
 def sync_shopping_list(start_date_str, end_date_str, low_staples_ids=[], progress_callback=None, freezer_items=""):
