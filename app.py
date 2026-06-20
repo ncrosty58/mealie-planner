@@ -15,7 +15,7 @@ from mealie_planner.shopping_sync import ShoppingListSync
 from mealie_planner.recipe_nutrition import RecipeNutrition
 from mealie_planner.recipe_crawler import RecipeCrawler
 from mealie_planner.email_notifier import EmailNotifier, setup_scheduler
-from mealie_planner.config import ACTIVE_LIST_ID, STAPLES_LIST_ID, RDA, TIMEZONE, APP_URL, FAMILY_RECIPIENT_EMAILS, FAMILY_NAMES, SWAP_RECOMMENDATIONS_PROMPT_TEMPLATE
+from mealie_planner.config import ACTIVE_LIST_ID, NEXT_LIST_ID, STAPLES_LIST_ID, RDA, TIMEZONE, APP_URL, FAMILY_RECIPIENT_EMAILS, FAMILY_NAMES, SWAP_RECOMMENDATIONS_PROMPT_TEMPLATE
 from mealie_planner.utils import get_active_week_strings, get_planning_week_strings, get_planning_week_range, sanitize_input, extract_ingredient_texts
 from scripts.clear_mealie import wipe_mealie_data
 
@@ -71,6 +71,10 @@ def save_state(updates):
     os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
     with open(STATE_FILE, 'w') as f:
         json.dump(state, f)
+
+def get_list_id_for_week(week):
+    """Return the Mealie shopping list ID associated with the given week."""
+    return NEXT_LIST_ID if week == 'next' else ACTIVE_LIST_ID
 
 # Template filters
 @app.template_filter('select_day_name')
@@ -160,9 +164,10 @@ def index():
     except Exception as e:
         print(f"Error reading recipes: {e}")
 
-    formatted_list_id = ACTIVE_LIST_ID
-    if len(ACTIVE_LIST_ID) == 32:
-        formatted_list_id = f"{ACTIVE_LIST_ID[:8]}-{ACTIVE_LIST_ID[8:12]}-{ACTIVE_LIST_ID[12:16]}-{ACTIVE_LIST_ID[16:20]}-{ACTIVE_LIST_ID[20:]}"
+    active_list_id = get_list_id_for_week(week)
+    formatted_list_id = active_list_id
+    if len(active_list_id) == 32:
+        formatted_list_id = f"{active_list_id[:8]}-{active_list_id[8:12]}-{active_list_id[12:16]}-{active_list_id[16:20]}-{active_list_id[20:]}"
 
     if is_submitted:
         # Dashboard View - Displays the FULL active week (preserved past + new)
@@ -180,13 +185,31 @@ def index():
 
         shopping_list = []
         try:
-            shopping_list = mealie_client.get_shopping_list_items_for_list(ACTIVE_LIST_ID)
+            shopping_list = mealie_client.get_shopping_list_items_for_list(active_list_id)
+
+            # Mealie sometimes returns items with an empty `note` and a null `label`
+            # (e.g. items added via the recipe-to-shoppinglist API). Fall back to the
+            # computed `display` text and resolve the label via labelId so these items
+            # don't render as bare numbers under "General Items".
+            try:
+                labels_map = {l['id']: l.get('name') for l in mealie_client.get_labels()}
+            except Exception as label_err:
+                print(f"Error reading shopping list labels: {label_err}")
+                labels_map = {}
+
+            for item in shopping_list:
+                if not (item.get('note') or '').strip():
+                    item['note'] = item.get('display') or ''
+                    item['quantity'] = 0
+                if not item.get('label') and item.get('labelId') in labels_map:
+                    item['label'] = {'name': labels_map[item['labelId']]}
+
             # Sort by label name first (to group them for the UI), then by position
             def get_sort_key(item):
                 label = item.get('label')
                 name = label.get('name') if isinstance(label, dict) else 'Uncategorized'
                 return (name if name != 'Uncategorized' else 'ZZZ', item.get('position', 0), item.get('note', ''))
-            
+
             shopping_list.sort(key=get_sort_key)
         except Exception as e:
             print(f"Error reading active shopping list: {e}")
@@ -281,7 +304,8 @@ def plan_stream():
             "freezer_items": freezer_items,
             "special_requests": special_requests,
             "low_staples_ids": low_staples_ids,
-            "progress_callback": callback
+            "progress_callback": callback,
+            "list_id": get_list_id_for_week(week)
         })
         thread.start()
 
@@ -292,6 +316,9 @@ def plan_stream():
                 last_status = data.get("status")
                 yield f"data: {json.dumps(data)}\n\n"
             except queue.Empty:
+                # Send a comment as a keep-alive so proxies/tunnels don't time out
+                # the connection during long AI calls with no progress updates.
+                yield ": heartbeat\n\n"
                 continue
 
         complete_event = {"status": "complete"}
@@ -304,17 +331,18 @@ def plan_stream():
 @app.route('/update-staples', methods=['POST'])
 def update_staples():
     """Fast endpoint specifically for the staples modal."""
+    week = request.form.get('week', 'current')
     if request.form.get('staples_submitted'):
         low_staples = request.form.getlist('low_staples')
         save_state({'low_staples': low_staples})
-        
+
         try:
-            shopping.sync_staples_only(low_staples)
+            shopping.sync_staples_only(low_staples, list_id=get_list_id_for_week(week))
             flash("Staples updated successfully!", "success")
         except Exception as e:
             flash(f"Error updating staples: {str(e)}", "danger")
 
-    return redirect(url_for('index'))
+    return redirect(url_for('index', week=week))
 
 @app.route('/sync', methods=['POST'])
 def sync():
@@ -338,7 +366,7 @@ def sync():
         save_state({'low_staples': low_staples})
 
     try:
-        sync_ok = shopping.sync_shopping_list(start_date_str, end_date_str, low_staples_ids=low_staples)
+        sync_ok = shopping.sync_shopping_list(start_date_str, end_date_str, low_staples_ids=low_staples, list_id=get_list_id_for_week(week))
         if sync_ok:
             flash("Recalculated active shopping list successfully!", "success")
         else:
@@ -367,15 +395,22 @@ def update_admin():
 @app.route('/clear', methods=['POST'])
 def clear_plan_route():
     week = request.form.get('week', 'current')
+    what = request.form.get('what', 'both')
     try:
-        wipe_mealie_data(week=week)
-        save_state({
-            'low_staples': [],
-            'freezer_items': "",
-            'exclude_text': "",
-            'special_requests': ""
-        })
-        flash(f"Successfully cleared meal plans for {week} week and reset state!", "success")
+        wipe_mealie_data(week=week, what=what)
+        if what in ('plan', 'both'):
+            save_state({
+                'low_staples': [],
+                'freezer_items': "",
+                'exclude_text': "",
+                'special_requests': ""
+            })
+        if what == 'plan':
+            flash(f"Successfully cleared the meal plan for the {week} week!", "success")
+        elif what == 'shopping':
+            flash(f"Successfully cleared the shopping list for the {week} week!", "success")
+        else:
+            flash(f"Successfully cleared meal plans for {week} week and reset state!", "success")
     except Exception as e:
         flash(f"Error clearing data: {str(e)}", "danger")
     return redirect(url_for('index', week=week))
@@ -419,7 +454,8 @@ def _add_item_to_list(list_id: str, item_type: str):
 @app.route('/add-shopping-item', methods=['POST'])
 def add_shopping_item():
     """Add a single manual item to the active shopping list."""
-    return _add_item_to_list(ACTIVE_LIST_ID, "Item")
+    week = (request.get_json() or {}).get('week', 'current')
+    return _add_item_to_list(get_list_id_for_week(week), "Item")
 
 @app.route('/add-staple', methods=['POST'])
 def add_staple():
@@ -447,16 +483,19 @@ def delete_staple():
 
         mealie_client.delete_shopping_list_item(item_id)
 
-        # If we successfully retrieved the note, find and delete the item from the active list too
+        # If we successfully retrieved the note, find and delete the item from the active/next lists too
         if staple_note:
             try:
                 from mealie_planner.shopping_sync import normalize_ingredient_name
                 staple_norm = normalize_ingredient_name(staple_note)
-                active_items = mealie_client.get_shopping_list_items_for_list(ACTIVE_LIST_ID)
-                matching_active_ids = [
-                    item['id'] for item in active_items
-                    if normalize_ingredient_name(item['note']) == staple_norm
-                ]
+                list_ids = {ACTIVE_LIST_ID, NEXT_LIST_ID}
+                matching_active_ids = []
+                for list_id in list_ids:
+                    active_items = mealie_client.get_shopping_list_items_for_list(list_id)
+                    matching_active_ids.extend(
+                        item['id'] for item in active_items
+                        if normalize_ingredient_name(item['note']) == staple_norm
+                    )
                 if matching_active_ids:
                     print(f"Deleting matching active items: {matching_active_ids}")
                     mealie_client.delete_shopping_list_items_bulk(matching_active_ids)
@@ -474,8 +513,9 @@ def toggle_shopping_item():
         data = request.get_json()
         item_id = data.get('item_id')
         is_checked = data.get('checked')
+        week = data.get('week', 'current')
 
-        items = mealie_client.get_shopping_list_items(ACTIVE_LIST_ID)
+        items = mealie_client.get_shopping_list_items(get_list_id_for_week(week))
         target_item = next((item for item in items if item['id'] == item_id), None)
 
         if not target_item:
@@ -492,7 +532,8 @@ def toggle_shopping_item():
 def check_all_items():
     """Mark all items in the active shopping list as checked."""
     try:
-        items = mealie_client.get_shopping_list_items_for_list(ACTIVE_LIST_ID)
+        week = (request.get_json(silent=True) or {}).get('week', 'current')
+        items = mealie_client.get_shopping_list_items_for_list(get_list_id_for_week(week))
         
         # Build bulk update payload
         bulk_items = []
@@ -678,7 +719,7 @@ def chat():
             try:
                 state = load_state()
                 low_staples = state.get('low_staples', [])
-                shopping.sync_shopping_list(week_start_str, week_end_str, low_staples_ids=low_staples)
+                shopping.sync_shopping_list(week_start_str, week_end_str, low_staples_ids=low_staples, list_id=get_list_id_for_week(week))
             except Exception as sync_err:
                 print(f"[Chat Auto-Sync] Error during auto-sync: {sync_err}")
         

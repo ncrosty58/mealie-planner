@@ -2,6 +2,7 @@ import os
 
 # Mealie API List IDs
 ACTIVE_LIST_ID = os.getenv('MEALIE_ACTIVE_LIST_ID', '9a1e2d1e33f24f27a01fef55c89a92de')
+NEXT_LIST_ID = os.getenv('MEALIE_NEXT_LIST_ID', ACTIVE_LIST_ID)
 STAPLES_LIST_ID = os.getenv('MEALIE_STAPLES_LIST_ID', '1196f23a527b42a9a75b1c3850251948')
 
 # Skill parsing logic
