@@ -10,23 +10,30 @@ This companion app interfaces with your Mealie instance to automate weekly menu 
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Docker Compose)
 
-Get up and running in two simple steps:
+Get up and running with standard Docker commands:
 
-### 1. Run the Setup Script
-Run the interactive setup script to configure your environment variables (`.env`) and initialize the required Mealie MCP submodule:
-```bash
-python setup.py
-```
-*Note: If you want to skip prompts and use default settings, run `python setup.py --auto`.*
+1. **Configure Environment:**
+   Copy the example environment file and edit it to fill in your Mealie details and AI credentials:
+   ```bash
+   cp .env.example .env
+   ```
 
-### 2. Launch with Docker Compose
-Start the app and its background workers:
-```bash
-docker compose up -d --build
-```
-The planner dashboard will be accessible at **`http://localhost:9926`**.
+2. **Launch the Container:**
+   Start the application and its background workers:
+   ```bash
+   docker compose up -d --build
+   ```
+   *Note: If the git submodule or data configuration templates are missing, the Docker build and container startup will automatically fetch and initialize them.*
+
+The dashboard will be accessible at **`http://localhost:9926`**.
+
+> [!TIP]
+> **Optional Interactive Setup:** If you prefer an interactive walkthrough to configure your `.env` variables and initialize the submodule manually on your host machine, you can run the helper script:
+> ```bash
+> python setup.py
+> ```
 
 ---
 
