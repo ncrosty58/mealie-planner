@@ -665,7 +665,15 @@
             <div class="card">
                 <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
                     <h2 class="card-title" style="margin-bottom: 0;">Shopping List <span class="print-date-subtitle">({{ start_date }} &rarr; {{ end_date }})</span></h2>
-                    <div style="display: flex; gap: 0.5rem;">
+                    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                        <div style="display: flex; gap: 4px; background: #FAF9F6; padding: 4px; border: 1px solid var(--color-border); border-radius: 4px;">
+                            <a href="{{ url_for('index', week='current') }}" style="text-align: center; text-decoration: none; font-size: 0.75rem; font-weight: 700; padding: 0.4rem 0.75rem; border-radius: 3px; color: {% if week == 'current' %}white{% else %}var(--color-muted){% endif %}; background: {% if week == 'current' %}var(--color-primary){% else %}transparent{% endif %}; transition: all 0.2s;">
+                                This Week
+                            </a>
+                            <a href="{{ url_for('index', week='next') }}" style="text-align: center; text-decoration: none; font-size: 0.75rem; font-weight: 700; padding: 0.4rem 0.75rem; border-radius: 3px; color: {% if week == 'next' %}white{% else %}var(--color-muted){% endif %}; background: {% if week == 'next' %}var(--color-primary){% else %}transparent{% endif %}; transition: all 0.2s;">
+                                Next Week
+                            </a>
+                        </div>
                         <button class="btn btn-secondary" onclick="checkAllItems(this)">Check All</button>
                         <button class="btn btn-secondary" onclick="copyShoppingList(this)">Copy List</button>
                         <button class="btn btn-secondary" onclick="printShoppingList()">Print List</button>
@@ -830,19 +838,54 @@
                 <div>
                     <h3 style="font-size: 1rem; color: var(--color-danger); border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem; margin-bottom: 1rem;">🗑️ Danger Zone</h3>
                     <p style="font-size: 0.85rem; color: var(--color-muted); margin-bottom: 1.25rem; line-height: 1.5;">
-                        Clearing the week will permanently erase all scheduled breakfasts, lunches, and dinners from Mealie, as well as clear active shopping list items and questionnaire inputs.
+                        These actions affect the {% if week == 'next' %}Next{% else %}Current{% endif %} Week and cannot be undone.
                     </p>
-                    <div style="background: #FFF5F5; border: 1px solid #FFCDCD; border-radius: var(--border-radius); padding: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                            <span style="font-weight: 600; font-size: 0.9rem; color: #D32F2F;">Clear {% if week == 'next' %}Next{% else %}Current{% endif %} Week</span>
-                            <span style="font-size: 0.8rem; color: #5D5D5D;">This action cannot be undone.</span>
+                    <div style="background: #FFF5F5; border: 1px solid #FFCDCD; border-radius: var(--border-radius); padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                <span style="font-weight: 600; font-size: 0.9rem; color: #D32F2F;">Clear Meal Plan Only</span>
+                                <span style="font-size: 0.8rem; color: #5D5D5D;">Erase scheduled breakfasts, lunches, and dinners. Shopping list is left untouched.</span>
+                            </div>
+                            <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you sure you want to permanently clear the meal plan for the {% if week == 'next' %}next{% else %}current{% endif %} week?')">
+                                <input type="hidden" name="week" value="{{ week }}">
+                                <input type="hidden" name="what" value="plan">
+                                <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.85rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">
+                                    Clear Meal Plan
+                                </button>
+                            </form>
                         </div>
-                        <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you absolutely sure you want to permanently clear the {% if week == 'next' %}next{% else %}current{% endif %} week and reset state?')">
-                            <input type="hidden" name="week" value="{{ week }}">
-                            <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.85rem; border-radius: 4px; cursor: pointer;">
-                                Clear Week
-                            </button>
-                        </form>
+
+                        <div style="border-top: 1px solid #FFCDCD;"></div>
+
+                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                <span style="font-weight: 600; font-size: 0.9rem; color: #D32F2F;">Clear Shopping List Only</span>
+                                <span style="font-size: 0.8rem; color: #5D5D5D;">Empty the shopping list. Meal plan is left untouched.</span>
+                            </div>
+                            <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you sure you want to permanently clear the shopping list for the {% if week == 'next' %}next{% else %}current{% endif %} week?')">
+                                <input type="hidden" name="week" value="{{ week }}">
+                                <input type="hidden" name="what" value="shopping">
+                                <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.85rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">
+                                    Clear Shopping List
+                                </button>
+                            </form>
+                        </div>
+
+                        <div style="border-top: 1px solid #FFCDCD;"></div>
+
+                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                <span style="font-weight: 600; font-size: 0.9rem; color: #D32F2F;">Clear {% if week == 'next' %}Next{% else %}Current{% endif %} Week (Everything)</span>
+                                <span style="font-size: 0.8rem; color: #5D5D5D;">Erase the meal plan, shopping list, and questionnaire inputs for this week.</span>
+                            </div>
+                            <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you absolutely sure you want to permanently clear the {% if week == 'next' %}next{% else %}current{% endif %} week and reset state?')">
+                                <input type="hidden" name="week" value="{{ week }}">
+                                <input type="hidden" name="what" value="both">
+                                <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.85rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">
+                                    Clear Week
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -860,6 +903,7 @@
             <div class="card-header"><h2 class="card-title">Manage Staples</h2></div>
             <form id="staples-form" action="{{ url_for('update_staples') }}" method="POST" onsubmit="showLoading('Updating Provisions...', 'Refreshing larder inventory...')">
                 <input type="hidden" name="staples_submitted" value="1">
+                <input type="hidden" name="week" value="{{ week }}">
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem; max-height: 300px; overflow-y: auto; background: #FAF9F6; padding: 0.75rem; margin-bottom: 1.25rem; border: 1px solid var(--color-border);">
                     {% for item in staples %}
                         <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; padding: 0.35rem 0.5rem; background: white; border: 1px solid #eee; border-radius: 4px; min-width: 0;">
@@ -897,6 +941,10 @@
     <button class="chat-trigger" onclick="toggleChat()">💬</button>
 
     <script>
+        // The week currently being viewed ('current' or 'next') - determines which
+        // shopping list shopping-list actions read from/write to on the backend.
+        const currentWeek = "{{ week }}";
+
         // --- AI activity indicator (non-blocking pill) ---
         // Counter-based so overlapping AI requests keep the pill visible until the last finishes.
         let _aiBusyCount = 0;
@@ -1042,7 +1090,7 @@
             btn.innerText = "Checking...";
             btn.disabled = true;
 
-            fetch('/check-all-items', { method: 'POST' })
+            fetch('/check-all-items', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({week: currentWeek}) })
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
@@ -1111,7 +1159,7 @@
             const val = document.getElementById('quick-add-input').value.trim();
             if (!val) return;
             try {
-                const res = await fetch('/add-shopping-item', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({note: val}) });
+                const res = await fetch('/add-shopping-item', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({note: val, week: currentWeek}) });
                 if (res.ok) {
                     window.location.reload();
                 } else {
@@ -1214,7 +1262,7 @@
                 cb.onchange = async function() {
                     this.parentElement.querySelector('.item-text').classList.toggle('checked', this.checked);
                     updateShoppingListLayout();
-                    await fetch('/toggle-shopping-item', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({item_id: this.dataset.id, checked: this.checked}) });
+                    await fetch('/toggle-shopping-item', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({item_id: this.dataset.id, checked: this.checked, week: currentWeek}) });
                 };
             });
             updateShoppingListLayout();

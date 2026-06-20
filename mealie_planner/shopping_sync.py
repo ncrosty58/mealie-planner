@@ -29,12 +29,12 @@ class ShoppingListSync:
         self.ai = ai_client
         self.crawler = crawler
 
-    def sync_staples_only(self, low_staples_ids) -> bool:
+    def sync_staples_only(self, low_staples_ids, list_id=ACTIVE_LIST_ID) -> bool:
         """Fast, deterministic sync of staples only. No AI, no clearing of recipes."""
         print("[Sync] Performing fast staples-only update...")
         try:
             staples = self.client.get_shopping_list_items(STAPLES_LIST_ID)
-            active_items = self.client.get_shopping_list_items_for_list(ACTIVE_LIST_ID)
+            active_items = self.client.get_shopping_list_items_for_list(list_id)
             low_ids_clean = {s_id.replace('-', '').lower() for s_id in low_staples_ids}
             staple_names = {normalize_ingredient_name(s['note']): s for s in staples}
             
@@ -52,7 +52,7 @@ class ShoppingListSync:
                 if s['id'].replace('-', '').lower() in low_ids_clean:
                     if s_norm not in active_notes_set:
                         to_add.append({
-                            "shoppingListId": ACTIVE_LIST_ID,
+                            "shoppingListId": list_id,
                             "note": s['note'],
                             "quantity": s.get('quantity', 1.0),
                             "checked": False,
@@ -76,7 +76,7 @@ class ShoppingListSync:
             print(f"Error during fast staples sync: {e}")
             return False
 
-    def sync_shopping_list(self, start_date_str, end_date_str, low_staples_ids=[], progress_callback=None, freezer_items="") -> bool:
+    def sync_shopping_list(self, start_date_str, end_date_str, low_staples_ids=[], progress_callback=None, freezer_items="", list_id=ACTIVE_LIST_ID) -> bool:
         """Non-destructive sync using AI to perform semantic matching and checkmark/ID retention."""
         print(f"Starting non-destructive sync for {start_date_str} to {end_date_str}...")
         if progress_callback: progress_callback("Sync started...", 90)
@@ -91,7 +91,7 @@ class ShoppingListSync:
             # 1. Fetch current data
             meal_plans = self.client.get_meal_plan(start_date_str, end_date_str)
             staples = self.client.get_shopping_list_items(STAPLES_LIST_ID)
-            active_items = self.client.get_shopping_list_items_for_list(ACTIVE_LIST_ID)
+            active_items = self.client.get_shopping_list_items_for_list(list_id)
             
             low_ids_clean = {sid.replace('-', '').lower() for sid in low_staples_ids}
             low_staples_notes = [s['note'] for s in staples if s['id'].replace('-', '').lower() in low_ids_clean]
@@ -216,7 +216,7 @@ class ShoppingListSync:
                     to_update.append(updated)
                 else:
                     to_add.append({
-                        "shoppingListId": ACTIVE_LIST_ID,
+                        "shoppingListId": list_id,
                         "note": full_note,
                         "quantity": qty,
                         "checked": checked,
@@ -257,7 +257,7 @@ class ShoppingListSync:
                     if s_norm not in processed_notes_norm:
                         print(f"[Sync] Adding missing low staple in Python: {s['note']}")
                         to_add.append({
-                            "shoppingListId": ACTIVE_LIST_ID,
+                            "shoppingListId": list_id,
                             "note": s['note'],
                             "quantity": s.get('quantity', 1.0),
                             "checked": False,

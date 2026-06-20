@@ -5,7 +5,8 @@ from datetime import datetime, timedelta
 from .config import (
     FAMILY_DIETARY_RULES_PROMPT, get_banned_recipes,
     _WEEKLY_MEAL_SELECTION_SKILL_DEFINITION,
-    _BANNED_RECIPES_SKILL_DEFINITION
+    _BANNED_RECIPES_SKILL_DEFINITION,
+    ACTIVE_LIST_ID
 )
 from .parsers import parse_freezer_items, parse_exclusions
 from .exceptions import MealieAPIError, SkillParsingError
@@ -39,7 +40,7 @@ class PlanGenerator:
         self.shopping = shopping
         self.notifier = notifier
 
-    def generate_weekly_plan(self, start_date_str, end_date_str, exclude_text="", freezer_items="", special_requests="", low_staples_ids=[], progress_callback=None):
+    def generate_weekly_plan(self, start_date_str, end_date_str, exclude_text="", freezer_items="", special_requests="", low_staples_ids=[], progress_callback=None, list_id=ACTIVE_LIST_ID):
         """Generate weekly plan using an AI-driven intelligent rule-based scoring engine and schedule in Mealie."""
         if progress_callback:
             progress_callback("Analyzing inputs and processing freezer/pantry/fridge items...", 5)
@@ -299,7 +300,7 @@ class PlanGenerator:
             except MealieAPIError as e:
                 print(f"Error scheduling meal {m}: {e}")
             
-        sync_ok = self.shopping.sync_shopping_list(start_date_str, end_date_str, low_staples_ids, progress_callback=progress_callback, freezer_items=freezer_items)
+        sync_ok = self.shopping.sync_shopping_list(start_date_str, end_date_str, low_staples_ids, progress_callback=progress_callback, freezer_items=freezer_items, list_id=list_id)
         if not sync_ok:
             print("[Plan Generation] WARNING: Shopping list sync returned False — list may be empty.")
 
