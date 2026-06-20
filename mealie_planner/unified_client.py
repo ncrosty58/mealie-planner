@@ -5,6 +5,10 @@ import time
 import logging
 from typing import List, Dict, Any, Optional
 
+# Verify and auto-initialize the submodule if necessary
+from .submodule_check import verify_submodule
+verify_submodule()
+
 # Add mealie-mcp-server/src to the python path to import MealieFetcher
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 mcp_src_dir = os.path.join(base_dir, "mealie-mcp-server", "src")

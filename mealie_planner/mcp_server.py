@@ -5,6 +5,10 @@ from typing import Dict, Any, List, Optional
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
+# Verify and auto-initialize the submodule if necessary
+from .submodule_check import verify_submodule
+verify_submodule()
+
 # Add mealie-mcp-server/src to the python path to import vendored tools and client
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 mcp_src_dir = os.path.join(base_dir, "mealie-mcp-server", "src")
