@@ -137,6 +137,8 @@ APP_TIMEZONE=America/New_York
 
 # --- Optional ---
 # RECIPE_CACHE_TTL=600    # seconds to cache recipe details in-process (default: 600)
+# RECIPE_API_KEY=your_recipe_api_key        # optional, for fast USDA nutrition lookup from recipe-api.com
+
 ```
 
 > [!TIP]
@@ -195,7 +197,7 @@ mealie-planner/
 │   ├── mcp_server.py        # MCP tool definitions for Mealie API
 │   ├── plan_generator.py    # Core weekly meal planning logic
 │   ├── recipe_crawler.py    # Recipe import & validation
-│   ├── recipe_nutrition.py  # Nutritional data imputation
+│   ├── recipe_nutrition.py  # Nutritional data lookup (Recipe API + AI fallback)
 │   ├── shopping_sync.py     # Shopping list sync logic
 │   └── unified_client.py   # Mealie API client with in-process caching
 ├── mealie-mcp-server/       # Git submodule — MCP server for Mealie API
