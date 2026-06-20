@@ -397,7 +397,7 @@ def clear_plan_route():
     week = request.form.get('week', 'current')
     what = request.form.get('what', 'both')
     try:
-        wipe_mealie_data(week=week, what=what)
+        wipe_mealie_data(week=week, what=what, clear_past=True)
         if what in ('plan', 'both'):
             save_state({
                 'low_staples': [],

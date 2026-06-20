@@ -64,6 +64,7 @@ FAMILY_NAMES = os.getenv('FAMILY_NAMES', _METADATA.get('family_names', 'Nathan &
 TIMEZONE = os.getenv('APP_TIMEZONE', _METADATA.get('timezone', 'America/New_York'))
 APP_URL = os.getenv('MEALIE_PLANNER_APP_URL', _METADATA.get('app_url', 'https://mealie-planner.example.com'))
 MEALIE_FRONTEND_URL = os.getenv('MEALIE_FRONTEND_URL', 'https://your-mealie-domain.example')
+RECIPE_API_KEY = os.getenv('RECIPE_API_KEY')
 
 # --- AI Vendor and Models Configuration ---
 AI_VENDOR = os.getenv("AI_VENDOR", "gemini").lower()  # "gemini" or "openai" or "deepseek"
