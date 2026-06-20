@@ -50,12 +50,14 @@ All configurations are managed in your `.env` file, which is created automatical
 > **Docker Networking:** If this companion app runs on the same host as Mealie and you prefer internal container-to-container routing, uncomment the network block at the bottom of `docker-compose.yml` to join Mealie's Docker network.
 
 ### Custom Household Rules
-To keep your private family preferences out of git, the app loads dietary constraints and banned recipes dynamically from files in the `data/` directory (gitignored):
+To keep your private family preferences out of git, the app loads dietary constraints and banned recipes dynamically from files in the `data/` directory (which is gitignored). 
+
+Templates for these files are provided in the repository root and are copied automatically to the `data/` folder when you run the setup script:
 
 1. **Custom Dietary Rules (`data/dietary_rules.txt`):**
-   Define specific family guidelines or allergies (e.g. strict peanut allergy).
+   Define specific family guidelines, dietary styles, or severe allergies (copied from `dietary_rules.example.txt`).
 2. **Banned Recipes (`data/banned_recipes.txt`):**
-   List recipe titles (one per line) that should never be scheduled.
+   List recipe titles (one per line) that the menu generator should never schedule (copied from `banned_recipes.example.txt`).
 
 ---
 

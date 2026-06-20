@@ -219,6 +219,19 @@ def create_directories():
     else:
         print_success("'data/' directory already exists.")
 
+    # Copy example files to data/ if they do not exist
+    dietary_example = os.path.join(base_dir, "dietary_rules.example.txt")
+    dietary_target = os.path.join(data_dir, "dietary_rules.txt")
+    if os.path.exists(dietary_example) and not os.path.exists(dietary_target):
+        shutil.copy(dietary_example, dietary_target)
+        print_success("Copied dietary_rules.example.txt to data/dietary_rules.txt")
+
+    banned_example = os.path.join(base_dir, "banned_recipes.example.txt")
+    banned_target = os.path.join(data_dir, "banned_recipes.txt")
+    if os.path.exists(banned_example) and not os.path.exists(banned_target):
+        shutil.copy(banned_example, banned_target)
+        print_success("Copied banned_recipes.example.txt to data/banned_recipes.txt")
+
 def main():
     parser = argparse.ArgumentParser(description="Setup Mealie AI Companion Planner")
     parser.add_argument("--auto", action="store_true", help="Non-interactive automatic setup (uses defaults)")

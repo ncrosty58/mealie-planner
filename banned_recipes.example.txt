@@ -1,0 +1,7 @@
+# Banned recipes list.
+# List any specific recipe titles (one per line) that the menu generator should never schedule.
+# Lines starting with # are ignored.
+
+Cream of Cilantro Soup
+Coriander Soup
+Bacon Avocado Salad

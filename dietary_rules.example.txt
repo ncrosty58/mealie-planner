@@ -1,0 +1,7 @@
+# Dietary rules used to guide the menu planner.
+# These rules are injected into the AI prompt to customize menu generation.
+# Lines starting with # are ignored.
+
+- **Diet**: Omnivore. Prioritize high-protein recipes.
+- **Dietary Restrictions**: Strict peanut allergy (NEVER purchase or schedule recipes with peanuts).
+- **Organic Target**: Automatically append `(Buy Organic)` to USDA Dirty Dozen fruits/veg.
