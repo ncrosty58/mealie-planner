@@ -9,7 +9,7 @@ from mealie_planner.unified_client import UnifiedMealieClient
 from mealie_planner.utils import get_active_week_range
 from mealie_planner import config
 
-def wipe_mealie_data(week='both', what='both'):
+def wipe_mealie_data(week='both', what='both', clear_past=False):
     """Wipe data for current week, next week, or both.
 
     `what` controls which data is wiped: 'plan' (meal plan entries only),
@@ -27,8 +27,11 @@ def wipe_mealie_data(week='both', what='both'):
     if what in ('plan', 'both'):
         if week in ('current', 'both'):
             current_end_str = current_end.strftime("%Y-%m-%d")
-            # Clear current week starting from today (or start of week if today is earlier, which shouldn't happen)
-            clear_start_str = max(today_str, current_start.strftime("%Y-%m-%d"))
+            # Clear current week starting from today (or start of week if clear_past is True)
+            if clear_past:
+                clear_start_str = current_start.strftime("%Y-%m-%d")
+            else:
+                clear_start_str = max(today_str, current_start.strftime("%Y-%m-%d"))
 
             print(f"Clearing meal plan for current week from: {clear_start_str} to {current_end_str}")
             existing_plans_current_week = client.get_meal_plan(clear_start_str, current_end_str)
