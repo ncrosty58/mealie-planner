@@ -215,7 +215,7 @@ mealie-planner/
 Contains `planner_state.json`, which persists runtime state such as the current low-staples list and per-recipient email toggle settings. This directory is bind-mounted by the compose file and survives container restarts.
 
 ### `.agents/skills/`
-Markdown-based skill definitions consumed by AI coding assistants (e.g. Antigravity, Claude) when working on this codebase. They encode household dietary rules, scoring criteria, and agentic workflows. They are **not** loaded by the Flask app at runtime.
+Markdown-based skill definitions consumed by AI coding assistants (e.g. Antigravity) when working on this codebase. They encode household dietary rules, scoring criteria, and agentic workflows. They are **not** loaded by the Flask app at runtime.
 
 ---
 
