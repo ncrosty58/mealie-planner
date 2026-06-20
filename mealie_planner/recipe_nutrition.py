@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 from .config import (
     RDA, BREAKFAST_PROFILES, LUNCH_LEFTOVER_PROFILE, LUNCH_SANDWICH_PROFILE,
-    _RECIPE_NUTRITION_IMPUTATION_SKILL_DEFINITION
+    _RECIPE_NUTRITION_IMPUTATION_SKILL_DEFINITION, RECIPE_API_KEY
 )
 from .exceptions import MealieAPIError, SkillParsingError
 from .models import RecipeNutritionImputation
@@ -14,10 +14,73 @@ class RecipeNutrition:
         self.client = mealie_client
         self.ai = ai_client
 
-    def impute_nutrition_with_ai(self, recipe_details):
-        """Call AI to estimate nutritional values for a recipe missing data."""
-        ingredients = extract_ingredient_texts(recipe_details)
+    def fetch_nutrition_from_recipe_api(self, recipe_name):
+        """Fetch recipe details and nutrition from recipe-api.com using search and get endpoints."""
+        if not RECIPE_API_KEY:
+            print("[RecipeAPI] RECIPE_API_KEY is not set.")
+            return None
+        
+        headers = {
+            "X-API-Key": RECIPE_API_KEY,
+            "Accept": "application/json"
+        }
+        
+        try:
+            print(f"[RecipeAPI] Searching for recipe: '{recipe_name}'")
+            search_url = "https://recipe-api.com/api/v1/recipes"
+            params = {"q": recipe_name, "per_page": 1}
+            r = requests.get(search_url, headers=headers, params=params, timeout=10)
+            r.raise_for_status()
+            search_data = r.json()
+            
+            recipes = search_data.get("data", [])
+            if not recipes:
+                print(f"[RecipeAPI] No matching recipes found for: '{recipe_name}'")
+                return None
+                
+            recipe_id = recipes[0].get("id")
+            if not recipe_id:
+                return None
+                
+            print(f"[RecipeAPI] Fetching full details for recipe ID: {recipe_id}")
+            detail_url = f"https://recipe-api.com/api/v1/recipes/{recipe_id}"
+            r_detail = requests.get(detail_url, headers=headers, timeout=10)
+            r_detail.raise_for_status()
+            detail_data = r_detail.json()
+            
+            recipe_obj = detail_data.get("data", {})
+            nutrition = recipe_obj.get("nutrition", {})
+            per_serving = nutrition.get("per_serving")
+            if not per_serving:
+                print(f"[RecipeAPI] No per-serving nutrition details found for: '{recipe_name}'")
+                return None
+                
+            print(f"[RecipeAPI] Successfully retrieved nutrition for: '{recipe_name}'")
+            return {
+                "calories": str(per_serving.get("calories") or 0.0),
+                "proteinContent": str(per_serving.get("protein_g") or 0.0),
+                "carbohydrateContent": str(per_serving.get("carbohydrates_g") or 0.0),
+                "fatContent": str(per_serving.get("fat_g") or 0.0),
+                "fiberContent": str(per_serving.get("fiber_g") or 0.0),
+                "sodiumContent": str(per_serving.get("sodium_mg") or 0.0),
+                "sugarContent": str(per_serving.get("sugar_g") or 0.0),
+                "cholesterolContent": str(per_serving.get("cholesterol_mg") or 0.0)
+            }
+        except Exception as e:
+            print(f"[RecipeAPI] Request to recipe-api.com failed: {e}")
+            return None
 
+    def impute_nutrition_with_ai(self, recipe_details):
+        """Estimate nutritional values for a recipe missing data, trying Recipe API first, then falling back to AI."""
+        # 1. Try Recipe API first
+        recipe_name = recipe_details.get('name')
+        if recipe_name:
+            api_data = self.fetch_nutrition_from_recipe_api(recipe_name)
+            if api_data:
+                return api_data
+                
+        # 2. Fallback to Gemini/DeepSeek AI Imputation
+        ingredients = extract_ingredient_texts(recipe_details)
         servings = recipe_details.get('recipeServings') or recipe_details.get('recipeYield') or '4'
         description = recipe_details.get('description') or ''
         
@@ -30,7 +93,7 @@ class RecipeNutrition:
 
 ### CONTEXT FOR THIS INVOCATION:
 """ +
-            f"Recipe Name: {recipe_details.get('name')}\n" +
+            f"Recipe Name: {recipe_name}\n" +
             f"Description: {description}\n" +
             f"Servings: {servings}\n" +
             f"Ingredients: {', '.join(ingredients)}\n\n" +
