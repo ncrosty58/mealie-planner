@@ -6,7 +6,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
 # Run startup checks (verifying submodules and config templates)
-from .startup_check import run_startup_checks
+from mealie_planner.startup_check import run_startup_checks
 run_startup_checks()
 
 # Add mealie-mcp-server/src to the python path to import vendored tools and client
