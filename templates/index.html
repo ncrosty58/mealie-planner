@@ -8,6 +8,12 @@
     <link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
     <meta name="theme-color" content="#F4F0EB">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon.svg') }}">
+    <script>
+        // Apply theme immediately before parsing body to prevent flash of light theme
+        const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -38,6 +44,74 @@
             --border-radius: 4px;
             --shadow-sm: 0 2px 8px rgba(0,0,0,0.04);
             --shadow-md: 0 4px 20px rgba(0,0,0,0.06);
+        }
+
+        [data-theme="dark"] {
+            --bg-app: #121212;
+            --bg-sidebar: #1E1E1E;
+            --bg-card: #1E1E1E;
+            
+            --color-primary: #8EB4AC; /* Lighter Deep Sage */
+            --color-accent: #E58E61;  /* Lighter Terracotta */
+            --color-muted: #A39A8E;   /* Lighter Stone */
+            --color-border: #2D2D2D;
+            --color-divider: #3D3D3D;
+            
+            --color-success: #8EB4AC;
+            --color-danger: #EF5350;
+            
+            --text-main: #E6E1DC;
+            --text-muted: #BCAE9F;
+            
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
+            --shadow-md: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        /* Inline styles adaptations for dark theme */
+        [data-theme="dark"] [style*="background: #FAF9F6"],
+        [data-theme="dark"] [style*="background:#FAF9F6"],
+        [data-theme="dark"] [style*="background: #FAF9F6;"],
+        [data-theme="dark"] [style*="background: #FAF9F6 !important"] {
+            background: #181818 !important;
+        }
+
+        [data-theme="dark"] [style*="background: white"],
+        [data-theme="dark"] [style*="background:white"],
+        [data-theme="dark"] [style*="background: #FFFFFF"],
+        [data-theme="dark"] [style*="background:#FFFFFF"] {
+            background: var(--bg-card) !important;
+        }
+
+        [data-theme="dark"] [style*="color: #2C2C2C"],
+        [data-theme="dark"] [style*="color:#2C2C2C"] {
+            color: var(--text-main) !important;
+        }
+
+        [data-theme="dark"] [style*="border-color: #E6DFD5"],
+        [data-theme="dark"] [style*="border-color:#E6DFD5"] {
+            border-color: var(--color-border) !important;
+        }
+
+        [data-theme="dark"] select,
+        [data-theme="dark"] textarea,
+        [data-theme="dark"] input {
+            background-color: #2C2C2C !important;
+            color: var(--text-main) !important;
+            border-color: var(--color-border) !important;
+        }
+
+        [data-theme="dark"] .chat-msg.bot {
+            background: #2C2C2C !important;
+            color: var(--text-main) !important;
+        }
+
+        [data-theme="dark"] .chat-msg.user {
+            background: var(--color-primary) !important;
+            color: #121212 !important;
+        }
+
+        [data-theme="dark"] #chat-messages {
+            background: #141414 !important;
         }
 
         /* --- LAYOUT SHELL --- */
@@ -557,6 +631,9 @@
         <div class="sidebar-footer">
             <div class="brand-label">{% if week == 'next' %}Next Week{% else %}Active Week{% endif %}</div>
             <div style="font-size: 0.75rem; color: var(--color-muted); font-weight: 500;">{{ start_date }} &rarr; {{ end_date }}</div>
+            <button id="theme-toggle-btn" onclick="toggleTheme()" style="background: none; border: none; color: var(--color-primary); cursor: pointer; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-top: 0.75rem; display: flex; align-items: center; gap: 4px; padding: 0;">
+                🌗 Toggle Theme
+            </button>
         </div>
     </aside>
 
@@ -958,6 +1035,12 @@
             if (_aiBusyCount === 0) document.getElementById('ai-pill').classList.remove('show');
         }
 
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
         function toggleDrawer() { document.getElementById('sidebar').classList.toggle('active'); document.getElementById('drawer-overlay').classList.toggle('active'); }
         function toggleChat() { document.getElementById('chat-window').classList.toggle('open'); }
         function switchTab(id) {
@@ -1276,7 +1359,11 @@
             function addMsg(s, t, save=true) {
                 const d = document.createElement('div');
                 d.className = `chat-msg ${s === 'user' ? 'user' : 'bot'}`;
-                d.innerHTML = t;
+                if (s === 'bot' && typeof marked !== 'undefined') {
+                    d.innerHTML = marked.parse(t);
+                } else {
+                    d.innerHTML = t;
+                }
                 cmessages.appendChild(d);
                 cmessages.scrollTop = cmessages.scrollHeight;
                 if (save) {

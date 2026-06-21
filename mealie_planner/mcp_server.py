@@ -379,19 +379,10 @@ def sync_shopping_list(
         from mealie_planner.shopping_sync import sync_shopping_list as run_sync
         
         # Load state for low staples and freezer items
-        import json
-        low_staples = []
-        freezer_items = ""
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        state_path = os.path.join(base_dir, "data", "planner_state.json")
-        if os.path.exists(state_path):
-            try:
-                with open(state_path, "r") as f:
-                    state = json.load(f)
-                    low_staples = state.get("low_staples", [])
-                    freezer_items = state.get("freezer_items", "")
-            except Exception:
-                pass
+        from mealie_planner.database import load_state_from_db
+        state = load_state_from_db()
+        low_staples = state.get("low_staples", [])
+        freezer_items = state.get("freezer_items", "")
 
         if not start_date or not end_date:
             active_start, active_end = get_planning_week_strings()

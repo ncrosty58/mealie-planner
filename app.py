@@ -22,26 +22,15 @@ from scripts.clear_mealie import wipe_mealie_data
 # Mealie configuration
 MEALIE_API_URL = os.getenv('MEALIE_API_URL', 'http://mealie:9000')
 MEALIE_FRONTEND_URL = os.getenv('MEALIE_FRONTEND_URL', 'https://your-mealie-domain.example')
-STATE_FILE = "data/planner_state.json"
-CHAT_HISTORY_FILE = "data/chat_history.json"
+from mealie_planner.database import (
+    load_state_from_db as load_state,
+    save_state_to_db as save_state,
+    load_chat_history_from_db as load_chat_history,
+    save_chat_history_to_db as save_chat_history,
+    clear_chat_history_in_db
+)
 
 app = Flask(__name__)
-
-def load_chat_history():
-    """Load persisted chat history."""
-    if os.path.exists(CHAT_HISTORY_FILE):
-        try:
-            with open(CHAT_HISTORY_FILE, 'r') as f:
-                return json.load(f)
-        except:
-            return {"history": [], "messages": []}
-    return {"history": [], "messages": []}
-
-def save_chat_history(history, messages):
-    """Save persisted chat history."""
-    os.makedirs(os.path.dirname(CHAT_HISTORY_FILE), exist_ok=True)
-    with open(CHAT_HISTORY_FILE, 'w') as f:
-        json.dump({"history": history, "messages": messages}, f)
 app.secret_key = os.getenv('SECRET_KEY', 'mealie_companion_secret_9926')
 
 # ---------- Composition Root (DI wiring) ----------
@@ -54,23 +43,7 @@ nutrition = RecipeNutrition(mealie_client, ai_client)
 plan_generator = PlanGenerator(mealie_client, ai_client, crawler, shopping, notifier)
 # ----------------------------------------------------
 
-def load_state():
-    """Load persisted application state."""
-    if os.path.exists(STATE_FILE):
-        try:
-            with open(STATE_FILE, 'r') as f:
-                return json.load(f)
-        except:
-            return {}
-    return {}
 
-def save_state(updates):
-    """Save/update application state."""
-    state = load_state()
-    state.update(updates)
-    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
-    with open(STATE_FILE, 'w') as f:
-        json.dump(state, f)
 
 def get_list_id_for_week(week):
     """Return the Mealie shopping list ID associated with the given week."""
@@ -676,7 +649,7 @@ def get_chat_history():
 @app.route('/chat-clear', methods=['POST'])
 def clear_chat_history():
     """Endpoint to clear the server-side chat history."""
-    save_chat_history([], [])
+    clear_chat_history_in_db()
     return json.dumps({"success": True})
 
 @app.route('/chat', methods=['POST'])

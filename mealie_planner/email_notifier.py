@@ -35,18 +35,9 @@ class EmailNotifier:
 
     def send_email(self, subject, html_content):
         """Send an email using SMTP settings."""
-        # Check if emails are enabled in state
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        state_path = os.path.join(base_dir, "data", "planner_state.json")
-        emails_enabled = True
-        if os.path.exists(state_path):
-            try:
-                import json
-                with open(state_path, 'r') as f:
-                    state = json.load(f)
-                    emails_enabled = state.get('emails_enabled', True)
-            except Exception as e:
-                print(f"[Email] Error checking emails_enabled state: {e}")
+        from mealie_planner.database import load_state_from_db
+        state = load_state_from_db()
+        emails_enabled = state.get('emails_enabled', True)
                 
         if not emails_enabled:
             print(f"[Email] Emails are currently disabled. Skipping sending: '{subject}'")

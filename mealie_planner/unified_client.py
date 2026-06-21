@@ -4,6 +4,8 @@ import json
 import time
 import logging
 from typing import List, Dict, Any, Optional
+import httpx
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 # Run startup checks (verifying submodules and config templates)
 from .startup_check import run_startup_checks
@@ -27,6 +29,16 @@ _recipe_details_cache_ts = {}
 # Default time-to-live (seconds) for cached recipe details. Bounds staleness when a
 # recipe is edited out-of-band (e.g. by the MCP chat subprocess, whose cache is separate).
 RECIPE_CACHE_TTL = int(os.getenv('RECIPE_CACHE_TTL', '600'))
+
+def is_retryable_exception(exception):
+    """Determine if a request failure should trigger a retry attempt."""
+    if isinstance(exception, httpx.RequestError):
+        return True
+    if isinstance(exception, httpx.HTTPStatusError):
+        return exception.response.status_code >= 500
+    if isinstance(exception, ConnectionError):
+        return True
+    return False
 
 class UnifiedMealieClient(MealieFetcher):
     """
@@ -55,6 +67,16 @@ class UnifiedMealieClient(MealieFetcher):
         self._recipe_details_cache = _recipe_details_cache
         self._recipe_details_cache_ts = _recipe_details_cache_ts
         self._initialized = True
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception(is_retryable_exception),
+        reraise=True
+    )
+    def _handle_request(self, method: str, url: str, **kwargs):
+        """Overridden request handler that wraps all requests in exponential backoff retries."""
+        return super()._handle_request(method, url, **kwargs)
 
     # --- Legacy Compatibility Aliases ---
     

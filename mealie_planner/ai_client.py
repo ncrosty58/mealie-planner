@@ -3,8 +3,28 @@ import json
 import logging
 import requests
 from typing import Optional, List, Dict, Any
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 logger = logging.getLogger(__name__)
+
+def is_ai_retryable_exception(exception):
+    """Determine if an AI API call failure is transient and should be retried."""
+    if isinstance(exception, requests.exceptions.RequestException):
+        if exception.response is not None:
+            return exception.response.status_code in (429, 500, 502, 503, 504)
+        return True
+    
+    try:
+        import openai
+        if isinstance(exception, openai.APIError):
+            status_code = getattr(exception, "status_code", None)
+            if status_code is not None:
+                return status_code in (429, 500, 502, 503, 504)
+            return True
+    except ImportError:
+        pass
+        
+    return False
 
 
 class AIClient:
@@ -58,6 +78,12 @@ class AIClient:
 
         self._initialized = True
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception(is_ai_retryable_exception),
+        reraise=True
+    )
     def call(
         self,
         prompt: str,
@@ -144,6 +170,12 @@ class AIClient:
             response = self.client.chat.completions.create(**kwargs)
             return response.choices[0].message.content
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception(is_ai_retryable_exception),
+        reraise=True
+    )
     def generate(
         self,
         contents: list,
