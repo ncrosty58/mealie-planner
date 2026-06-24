@@ -825,7 +825,7 @@
                                     {% if dinner_entry and dinner_entry[0].recipeId %}
                                         <a href="{{ mealie_url }}/g/home/r/{{ dinner_entry[0].recipe.slug }}" class="dinner-link" target="_blank">{{ meals.dinner }}</a>
                                         {% if dinner_entry[0].is_blackstone %}<span class="badge-griddle">Griddle</span>{% endif %}
-                                        {% if dinner_entry[0].nutrition_source == 'recipe-api' %}<span class="badge-api" title="Nutrition facts retrieved from recipe-api.com">API</span>{% endif %}
+                                        {% if dinner_entry[0].nutrition_source == 'recipe-api' %}<span class="badge-api" title="Nutrition facts retrieved from recipe-api.com">RAPI</span>{% endif %}
                                     {% else %}{{ meals.dinner }}{% endif %}
                                 </div>
                             </div>
