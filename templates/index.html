@@ -19,11 +19,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;0,800;1,400&display=swap" rel="stylesheet">
     
-    <style>
         :root {
             --bg-app: #F4F0EB;
             --bg-sidebar: #FFFFFF;
             --bg-card: #FFFFFF;
+            --bg-neutral: #FAF9F6;
             
             --color-primary: #3C5A54; /* Deep Sage */
             --color-accent: #C66B3D;  /* Terracotta */
@@ -50,6 +50,7 @@
             --bg-app: #121212;
             --bg-sidebar: #1E1E1E;
             --bg-card: #1E1E1E;
+            --bg-neutral: #181818;
             
             --color-primary: #8EB4AC; /* Lighter Deep Sage */
             --color-accent: #E58E61;  /* Lighter Terracotta */
@@ -651,6 +652,74 @@
                 color: var(--color-primary) !important;
             }
         }
+
+        /* Recipient and Admin Settings Styles */
+        .recipient-label {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+            padding: 0.65rem 0.85rem;
+            border-radius: 6px;
+            border: 1px solid var(--color-border);
+            background: var(--bg-card);
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .recipient-label.muted {
+            border-color: #FFCDCD;
+            background: #FFF5F5;
+        }
+        [data-theme="dark"] .recipient-label.muted {
+            border-color: #5C3333;
+            background: #2D1A1A;
+        }
+
+        .recipient-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 20px;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        .recipient-badge.receiving {
+            background: #E8F5E9;
+            color: #2E7D32;
+        }
+        .recipient-badge.muted-badge {
+            background: #FFEBEE;
+            color: #C62828;
+        }
+        [data-theme="dark"] .recipient-badge.receiving {
+            background: #1B4D22;
+            color: #81C784;
+        }
+        [data-theme="dark"] .recipient-badge.muted-badge {
+            background: #661A1A;
+            color: #E57373;
+        }
+
+        .danger-zone-box {
+            background: #FFF5F5;
+            border: 1px solid #FFCDCD;
+            border-radius: var(--border-radius);
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+        [data-theme="dark"] .danger-zone-box {
+            background: #2D1A1A;
+            border-color: #5C3333;
+        }
+        .danger-text-muted {
+            font-size: 0.78rem;
+            color: #5D5D5D;
+            line-height: 1.4;
+        }
+        [data-theme="dark"] .danger-text-muted {
+            color: #A39A8E;
+        }
     </style>
 </head>
 <body>
@@ -924,7 +993,7 @@
                     </p>
                     <form action="{{ url_for('update_admin') }}" method="POST">
                         {# ── Email notifications master toggle ── #}
-                        <div style="display: flex; align-items: center; justify-content: space-between; background: #FAF9F6; padding: 1.25rem; border: 1px solid var(--color-border); border-radius: var(--border-radius); flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-neutral); padding: 1.25rem; border: 1px solid var(--color-border); border-radius: var(--border-radius); flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
                             <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                                 <span style="font-weight: 600; font-size: 0.9rem; color: var(--color-primary);">Email Notifications</span>
                                 <span id="email-status-label" style="font-size: 0.8rem; font-weight: 600; color: {% if emails_enabled %}var(--color-primary){% else %}var(--color-danger){% endif %}">
@@ -943,22 +1012,22 @@
                         {% set known_emails = mealie_users | map(attribute='email') | select | list %}
                         {% if known_emails %}
                         <input type="hidden" name="all_known_emails" value="{{ known_emails | join(',') }}">
-                        <div style="background: #FAF9F6; border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: 1.25rem; margin-bottom: 1.25rem;">
+                        <div style="background: var(--bg-neutral); border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: 1.25rem; margin-bottom: 1.25rem;">
                             <p style="font-size: 0.8rem; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.9rem 0;">Recipients</p>
                             <div style="display: flex; flex-direction: column; gap: 0.65rem;">
                                 {% for user in mealie_users %}
                                 {% if user.email %}
                                 {% set is_disabled = user.email in disabled_recipient_emails %}
-                                <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; padding: 0.65rem 0.85rem; border-radius: 6px; border: 1px solid {% if not is_disabled %}var(--color-border){% else %}#FFCDCD{% endif %}; background: {% if not is_disabled %}#fff{% else %}#FFF5F5{% endif %}; transition: background 0.15s, border-color 0.15s;">
+                                <label class="recipient-label {% if is_disabled %}muted{% endif %}">
                                     <input type="checkbox" name="enabled_recipients" value="{{ user.email }}"
                                            {% if not is_disabled %}checked{% endif %}
-                                           onchange="(function(cb){var lbl=cb.closest('label');var badge=lbl.querySelector('.recipient-badge');if(cb.checked){lbl.style.background='#fff';lbl.style.borderColor='var(--color-border)';badge.style.background='#E8F5E9';badge.style.color='#2E7D32';badge.textContent='Receiving';}else{lbl.style.background='#FFF5F5';lbl.style.borderColor='#FFCDCD';badge.style.background='#FFEBEE';badge.style.color='#C62828';badge.textContent='Muted';}})(this)"
+                                           onchange="(function(cb){var lbl=cb.closest('label');var badge=lbl.querySelector('.recipient-badge');if(cb.checked){lbl.classList.remove('muted');badge.className='recipient-badge receiving';badge.textContent='Receiving';}else{lbl.classList.add('muted');badge.className='recipient-badge muted-badge';badge.textContent='Muted';}})(this)"
                                            style="width: 16px; height: 16px; accent-color: var(--color-primary); flex-shrink: 0;">
                                     <div style="display: flex; flex-direction: column; gap: 0.1rem; flex: 1; min-width: 0;">
                                         <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-primary);">{{ user.fullName or user.username or 'Unknown' }}</span>
                                         <span style="font-size: 0.75rem; color: var(--color-muted);">{{ user.email }}</span>
                                     </div>
-                                    <span class="recipient-badge" style="font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: {% if not is_disabled %}#E8F5E9; color: #2E7D32{% else %}#FFEBEE; color: #C62828{% endif %}; flex-shrink: 0; white-space: nowrap;">
+                                    <span class="recipient-badge {% if not is_disabled %}receiving{% else %}muted-badge{% endif %}">
                                         {% if not is_disabled %}Receiving{% else %}Muted{% endif %}
                                     </span>
                                 </label>
@@ -974,54 +1043,93 @@
 
                 <div>
                     <h3 style="font-size: 1rem; color: var(--color-danger); border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem; margin-bottom: 1rem;">🗑️ Danger Zone</h3>
-                    <p style="font-size: 0.85rem; color: var(--color-muted); margin-bottom: 1.25rem; line-height: 1.5;">
-                        These actions affect the {% if week == 'next' %}Next{% else %}Current{% endif %} Week and cannot be undone.
+                    <p style="font-size: 0.85rem; color: var(--color-muted); margin-bottom: 1.5rem; line-height: 1.5;">
+                        These actions permanently clear scheduled data and reset dashboard states. Select the week you wish to modify.
                     </p>
-                    <div style="background: #FFF5F5; border: 1px solid #FFCDCD; border-radius: var(--border-radius); padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-                            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                                <span style="font-weight: 600; font-size: 0.9rem; color: #D32F2F;">Clear Meal Plan Only</span>
-                                <span style="font-size: 0.8rem; color: #5D5D5D;">Erase scheduled breakfasts, lunches, and dinners. Shopping list is left untouched.</span>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 1rem;">
+                        <!-- Current Week Panel -->
+                        <div class="danger-zone-box">
+                            <h4 style="font-weight: 700; font-size: 0.9rem; color: #D32F2F; margin: 0 0 0.5rem 0; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--color-border); padding-bottom: 0.5rem;">Current Week Actions</h4>
+                            <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+                                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px dashed var(--color-border); padding-bottom: 0.75rem;">
+                                    <div style="display: flex; flex-direction: column; gap: 0.15rem;">
+                                        <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-main);">Clear Meal Plan Only</span>
+                                        <span class="danger-text-muted">Erase scheduled meals. Shopping list is left untouched.</span>
+                                    </div>
+                                    <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you sure you want to permanently clear the meal plan for the current week?')">
+                                        <input type="hidden" name="week" value="current">
+                                        <input type="hidden" name="what" value="plan">
+                                        <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.45rem 0.9rem; font-weight: 600; font-size: 0.75rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">Clear</button>
+                                    </form>
+                                </div>
+                                
+                                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px dashed var(--color-border); padding-bottom: 0.75rem;">
+                                    <div style="display: flex; flex-direction: column; gap: 0.15rem;">
+                                        <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-main);">Clear Shopping List Only</span>
+                                        <span class="danger-text-muted">Empty the shopping list. Meal plan is left untouched.</span>
+                                    </div>
+                                    <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you sure you want to permanently clear the shopping list for the current week?')">
+                                        <input type="hidden" name="week" value="current">
+                                        <input type="hidden" name="what" value="shopping">
+                                        <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.45rem 0.9rem; font-weight: 600; font-size: 0.75rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">Clear</button>
+                                    </form>
+                                </div>
+
+                                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;">
+                                    <div style="display: flex; flex-direction: column; gap: 0.15rem;">
+                                        <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-main);">Clear Current Week (Everything)</span>
+                                        <span class="danger-text-muted">Erase meal plan, active shopping list, and questionnaire inputs.</span>
+                                    </div>
+                                    <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you absolutely sure you want to permanently clear the current week and reset state?')">
+                                        <input type="hidden" name="week" value="current">
+                                        <input type="hidden" name="what" value="both">
+                                        <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.45rem 0.9rem; font-weight: 600; font-size: 0.75rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">Clear All</button>
+                                    </form>
+                                </div>
                             </div>
-                            <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you sure you want to permanently clear the meal plan for the {% if week == 'next' %}next{% else %}current{% endif %} week?')">
-                                <input type="hidden" name="week" value="{{ week }}">
-                                <input type="hidden" name="what" value="plan">
-                                <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.85rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">
-                                    Clear Meal Plan
-                                </button>
-                            </form>
                         </div>
 
-                        <div style="border-top: 1px solid #FFCDCD;"></div>
+                        <!-- Next Week Panel -->
+                        <div class="danger-zone-box">
+                            <h4 style="font-weight: 700; font-size: 0.9rem; color: #D32F2F; margin: 0 0 0.5rem 0; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--color-border); padding-bottom: 0.5rem;">Next Week Actions</h4>
+                            <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+                                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px dashed var(--color-border); padding-bottom: 0.75rem;">
+                                    <div style="display: flex; flex-direction: column; gap: 0.15rem;">
+                                        <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-main);">Clear Meal Plan Only</span>
+                                        <span class="danger-text-muted">Erase scheduled meals. Shopping list is left untouched.</span>
+                                    </div>
+                                    <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you sure you want to permanently clear the meal plan for the next week?')">
+                                        <input type="hidden" name="week" value="next">
+                                        <input type="hidden" name="what" value="plan">
+                                        <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.45rem 0.9rem; font-weight: 600; font-size: 0.75rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">Clear</button>
+                                    </form>
+                                </div>
+                                
+                                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px dashed var(--color-border); padding-bottom: 0.75rem;">
+                                    <div style="display: flex; flex-direction: column; gap: 0.15rem;">
+                                        <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-main);">Clear Shopping List Only</span>
+                                        <span class="danger-text-muted">Empty the shopping list. Meal plan is left untouched.</span>
+                                    </div>
+                                    <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you sure you want to permanently clear the shopping list for the next week?')">
+                                        <input type="hidden" name="week" value="next">
+                                        <input type="hidden" name="what" value="shopping">
+                                        <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.45rem 0.9rem; font-weight: 600; font-size: 0.75rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">Clear</button>
+                                    </form>
+                                </div>
 
-                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-                            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                                <span style="font-weight: 600; font-size: 0.9rem; color: #D32F2F;">Clear Shopping List Only</span>
-                                <span style="font-size: 0.8rem; color: #5D5D5D;">Empty the shopping list. Meal plan is left untouched.</span>
+                                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;">
+                                    <div style="display: flex; flex-direction: column; gap: 0.15rem;">
+                                        <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-main);">Clear Next Week (Everything)</span>
+                                        <span class="danger-text-muted">Erase meal plan, next week's shopping list, and questionnaire inputs.</span>
+                                    </div>
+                                    <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you absolutely sure you want to permanently clear the next week and reset state?')">
+                                        <input type="hidden" name="week" value="next">
+                                        <input type="hidden" name="what" value="both">
+                                        <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.45rem 0.9rem; font-weight: 600; font-size: 0.75rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">Clear All</button>
+                                    </form>
+                                </div>
                             </div>
-                            <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you sure you want to permanently clear the shopping list for the {% if week == 'next' %}next{% else %}current{% endif %} week?')">
-                                <input type="hidden" name="week" value="{{ week }}">
-                                <input type="hidden" name="what" value="shopping">
-                                <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.85rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">
-                                    Clear Shopping List
-                                </button>
-                            </form>
-                        </div>
-
-                        <div style="border-top: 1px solid #FFCDCD;"></div>
-
-                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-                            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                                <span style="font-weight: 600; font-size: 0.9rem; color: #D32F2F;">Clear {% if week == 'next' %}Next{% else %}Current{% endif %} Week (Everything)</span>
-                                <span style="font-size: 0.8rem; color: #5D5D5D;">Erase the meal plan, shopping list, and questionnaire inputs for this week.</span>
-                            </div>
-                            <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you absolutely sure you want to permanently clear the {% if week == 'next' %}next{% else %}current{% endif %} week and reset state?')">
-                                <input type="hidden" name="week" value="{{ week }}">
-                                <input type="hidden" name="what" value="both">
-                                <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.85rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">
-                                    Clear Week
-                                </button>
-                            </form>
                         </div>
                     </div>
                 </div>
