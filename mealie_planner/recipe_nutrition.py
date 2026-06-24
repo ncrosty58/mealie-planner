@@ -70,16 +70,41 @@ class RecipeNutrition:
         except Exception as e:
             print(f"[RecipeAPI] Request to recipe-api.com failed: {e}")
             return None
+    def simplify_recipe_name_with_ai(self, recipe_name):
+        """Simplify a complex recipe name into its most generic, common 2-3 word base dish name."""
+        prompt = (
+            "You are an expert culinary assistant.\n"
+            f"Simplify the following recipe name into its most generic, common 2-3 word base dish name (e.g. 'Crispy Black Bean Tacos with Cilantro Lime Sauce' -> 'Black Bean Tacos', 'Turkey Smash Burger' -> 'Turkey Burger', 'Mom\\'s Classic Homemade Lasagna' -> 'Lasagna').\n"
+            "Return ONLY the simplified name as plain text. Do not include quotes, punctuation, or any other words.\n\n"
+            f"Recipe Name: {recipe_name}"
+        )
+        try:
+            res = self.ai.call(prompt, expect_json=False)
+            simplified = res.strip().strip('"').strip("'").strip()
+            print(f"[Nutrition] Simplified recipe name '{recipe_name}' to '{simplified}'")
+            return simplified
+        except Exception as e:
+            print(f"[Nutrition] Failed to simplify recipe name '{recipe_name}': {e}")
+            return None
 
     def impute_nutrition_with_ai(self, recipe_details):
         """Estimate nutritional values for a recipe missing data, trying Recipe API first, then falling back to AI."""
-        # 1. Try Recipe API first
         recipe_name = recipe_details.get('name')
         if recipe_name:
+            # 1. Try Recipe API with original name first
+            print(f"[Nutrition] Querying recipe-api.com with original name: '{recipe_name}'")
             api_data = self.fetch_nutrition_from_recipe_api(recipe_name)
             if api_data:
                 return api_data
                 
+            # 2. Try Recipe API with simplified name
+            simplified_name = self.simplify_recipe_name_with_ai(recipe_name)
+            if simplified_name and simplified_name != recipe_name:
+                print(f"[Nutrition] Querying recipe-api.com with simplified name: '{simplified_name}'")
+                api_data = self.fetch_nutrition_from_recipe_api(simplified_name)
+                if api_data:
+                    return api_data
+
         # 2. Fallback to Gemini/DeepSeek AI Imputation
         ingredients = extract_ingredient_texts(recipe_details)
         servings = recipe_details.get('recipeServings') or recipe_details.get('recipeYield') or '4'
