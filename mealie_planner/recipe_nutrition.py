@@ -135,6 +135,43 @@ class RecipeNutrition:
             print(f"[AI] Nutrition imputation failed: {e}")
             return None
 
+    def _save_nutrition_to_mealie(self, recipe, imputed):
+        """Helper to save imputed or fetched nutrition details back to Mealie database and cache."""
+        try:
+            slug = recipe.get('slug')
+            if slug:
+                existing_extras = recipe.get('extras') or {}
+                source = imputed.get('_source', 'ai')
+                patch_payload = {
+                    "nutrition": {
+                        "calories": imputed.get("calories"),
+                        "proteinContent": imputed.get("proteinContent"),
+                        "carbohydrateContent": imputed.get("carbohydrateContent"),
+                        "fatContent": imputed.get("fatContent"),
+                        "fiberContent": imputed.get("fiberContent"),
+                        "sodiumContent": imputed.get("sodiumContent"),
+                        "sugarContent": imputed.get("sugarContent"),
+                        "cholesterolContent": imputed.get("cholesterolContent")
+                    },
+                    "extras": {
+                        **existing_extras,
+                        "nutrition_source": source
+                    }
+                }
+                self.client.patch_recipe(slug, patch_payload)
+                print(f"[Nutrition] Saved nutrition ({source}) back to Mealie for recipe: {recipe['name']}")
+                
+                # Update local client details cache too
+                r_id = recipe.get('id')
+                if r_id and r_id in self.client._recipe_details_cache:
+                    self.client._recipe_details_cache[r_id]['nutrition'] = patch_payload["nutrition"]
+                    self.client._recipe_details_cache[r_id]['extras'] = patch_payload["extras"]
+                if slug and slug in self.client._recipe_details_cache:
+                    self.client._recipe_details_cache[slug]['nutrition'] = patch_payload["nutrition"]
+                    self.client._recipe_details_cache[slug]['extras'] = patch_payload["extras"]
+        except Exception as patch_err:
+            print(f"[Nutrition] Failed to save nutrition back to Mealie: {patch_err}")
+
     def calculate_nutrition_for_range(self, start_date_str, end_date_str):
         """Calculate aggregate and daily nutritional totals for a date range."""
         try:
@@ -191,62 +228,12 @@ class RecipeNutrition:
             elif entry_type == "dinner" and recipe_id:
                 try:
                     r = self.client.get_recipe_details(recipe_id)
-                    # Check if nutrition is missing
-                    has_nut = r.get('nutrition') and r['nutrition'].get('calories')
+                    extras = r.get('extras') or {}
+                    source = extras.get('nutrition_source')
                     
-                    if not has_nut:
-                        print(f"[Nutrition] Imputing missing data for: {r['name']}")
-                        imputed = self.impute_nutrition_with_ai(r)
-                        if imputed:
-                            nut_data = {
-                                "calories": float(imputed.get('calories') or 0),
-                                "protein": float(imputed.get('proteinContent') or 0),
-                                "carbs": float(imputed.get('carbohydrateContent') or 0),
-                                "fat": float(imputed.get('fatContent') or 0),
-                                "fiber": float(imputed.get('fiberContent') or 0),
-                                "sodium": float(imputed.get('sodiumContent') or 0),
-                                "sugar": float(imputed.get('sugarContent') or 0),
-                                "cholesterol": float(imputed.get('cholesterolContent') or 0)
-                            }
-                            
-                            # Save back to Mealie database via PATCH to avoid future imputations
-                            try:
-                                slug = r.get('slug')
-                                if slug:
-                                    existing_extras = r.get('extras') or {}
-                                    source = imputed.get('_source', 'ai')
-                                    patch_payload = {
-                                        "nutrition": {
-                                            "calories": imputed.get("calories"),
-                                            "proteinContent": imputed.get("proteinContent"),
-                                            "carbohydrateContent": imputed.get("carbohydrateContent"),
-                                            "fatContent": imputed.get("fatContent"),
-                                            "fiberContent": imputed.get("fiberContent"),
-                                            "sodiumContent": imputed.get("sodiumContent"),
-                                            "sugarContent": imputed.get("sugarContent"),
-                                            "cholesterolContent": imputed.get("cholesterolContent")
-                                        },
-                                        "extras": {
-                                            **existing_extras,
-                                            "nutrition_source": source
-                                        }
-                                    }
-                                    self.client.patch_recipe(slug, patch_payload)
-                                    print(f"[Nutrition] Saved imputed nutrition back to Mealie for recipe: {r['name']}")
-                                    
-                                    # Update local client details cache too
-                                    r_id = r.get('id')
-                                    if r_id and r_id in self.client._recipe_details_cache:
-                                        self.client._recipe_details_cache[r_id]['nutrition'] = patch_payload["nutrition"]
-                                        self.client._recipe_details_cache[r_id]['extras'] = patch_payload["extras"]
-                                    if slug and slug in self.client._recipe_details_cache:
-                                        self.client._recipe_details_cache[slug]['nutrition'] = patch_payload["nutrition"]
-                                        self.client._recipe_details_cache[slug]['extras'] = patch_payload["extras"]
-                            except Exception as patch_err:
-                                print(f"[Nutrition] Failed to save imputed nutrition back to Mealie: {patch_err}")
-                    else:
-                        raw_nut = r['nutrition']
-                        # Standard Mealie keys: calories, proteinContent, fatContent, carbohydrateContent, fiberContent, sodiumContent, sugarContent, cholesterolContent
+                    # Scenario A: Already fetched from recipe-api in the past, use Mealie nutrition directly
+                    if source == 'recipe-api':
+                        raw_nut = r.get('nutrition') or {}
                         nut_data = {
                             "calories": float(raw_nut.get('calories') or 0),
                             "protein": float(raw_nut.get('proteinContent') or 0),
@@ -257,7 +244,90 @@ class RecipeNutrition:
                             "sugar": float(raw_nut.get('sugarContent') or 0),
                             "cholesterol": float(raw_nut.get('cholesterolContent') or 0)
                         }
-                    
+                    else:
+                        # Scenario B: Not retrieved from recipe-api yet. Query recipe-api first!
+                        recipe_name = r.get('name')
+                        api_data = None
+                        if recipe_name:
+                            print(f"[Nutrition] Querying recipe-api.com first for recipe: '{recipe_name}'")
+                            api_data = self.fetch_nutrition_from_recipe_api(recipe_name)
+                            if not api_data:
+                                simplified_name = self.simplify_recipe_name_with_ai(recipe_name)
+                                if simplified_name and simplified_name != recipe_name:
+                                    print(f"[Nutrition] Querying recipe-api.com with simplified name: '{simplified_name}'")
+                                    api_data = self.fetch_nutrition_from_recipe_api(simplified_name)
+                                    
+                        if api_data:
+                            # Found on recipe-api! Save it to Mealie and use it
+                            nut_data = {
+                                "calories": float(api_data.get('calories') or 0),
+                                "protein": float(api_data.get('proteinContent') or 0),
+                                "carbs": float(api_data.get('carbohydrateContent') or 0),
+                                "fat": float(api_data.get('fatContent') or 0),
+                                "fiber": float(api_data.get('fiberContent') or 0),
+                                "sodium": float(api_data.get('sodiumContent') or 0),
+                                "sugar": float(api_data.get('sugarContent') or 0),
+                                "cholesterol": float(api_data.get('cholesterolContent') or 0)
+                            }
+                            self._save_nutrition_to_mealie(r, api_data)
+                        else:
+                            # Scenario C: recipe-api failed to find anything.
+                            # Fall back to existing Mealie nutrition facts (if present)
+                            raw_nut = r.get('nutrition') or {}
+                            if raw_nut.get('calories'):
+                                print(f"[Nutrition] recipe-api failed. Falling back to existing Mealie nutrition facts for: {r['name']}")
+                                nut_data = {
+                                    "calories": float(raw_nut.get('calories') or 0),
+                                    "protein": float(raw_nut.get('proteinContent') or 0),
+                                    "carbs": float(raw_nut.get('carbohydrateContent') or 0),
+                                    "fat": float(raw_nut.get('fatContent') or 0),
+                                    "fiber": float(raw_nut.get('fiberContent') or 0),
+                                    "sodium": float(raw_nut.get('sodiumContent') or 0),
+                                    "sugar": float(raw_nut.get('sugarContent') or 0),
+                                    "cholesterol": float(raw_nut.get('cholesterolContent') or 0)
+                                }
+                            else:
+                                # Scenario D: No recipe-api, no Mealie facts. Fall back to AI imputation
+                                print(f"[Nutrition] No data found on recipe-api or Mealie. Falling back to AI imputation for: {r['name']}")
+                                ingredients = extract_ingredient_texts(r)
+                                servings = r.get('recipeServings') or r.get('recipeYield') or '4'
+                                description = r.get('description') or ''
+                                
+                                prompt = (
+                                    """You are an expert in the 'Recipe Nutrition Imputation Skill'.
+
+""" +
+                                    _RECIPE_NUTRITION_IMPUTATION_SKILL_DEFINITION +
+                                    """
+
+### CONTEXT FOR THIS INVOCATION:
+""" +
+                                    f"Recipe Name: {r.get('name')}\n" +
+                                    f"Description: {description}\n" +
+                                    f"Servings: {servings}\n" +
+                                    f"Ingredients: {', '.join(ingredients)}\n\n" +
+                                    "Return ONLY the JSON object as specified in the skill definition."
+                                )
+
+                                try:
+                                    raw = self.ai.call(prompt, response_schema=RecipeNutritionImputation)
+                                    imputed = RecipeNutritionImputation.model_validate_json(raw).model_dump()
+                                    imputed['_source'] = 'ai'
+                                    
+                                    nut_data = {
+                                        "calories": float(imputed.get('calories') or 0),
+                                        "protein": float(imputed.get('proteinContent') or 0),
+                                        "carbs": float(imputed.get('carbohydrateContent') or 0),
+                                        "fat": float(imputed.get('fatContent') or 0),
+                                        "fiber": float(imputed.get('fiberContent') or 0),
+                                        "sodium": float(imputed.get('sodiumContent') or 0),
+                                        "sugar": float(imputed.get('sugarContent') or 0),
+                                        "cholesterol": float(imputed.get('cholesterolContent') or 0)
+                                    }
+                                    self._save_nutrition_to_mealie(r, imputed)
+                                except Exception as ai_err:
+                                    print(f"[AI] Nutrition imputation failed for {r['name']}: {ai_err}")
+                                    
                     if nut_data:
                         category_counts["dinner"] += 1
                         
