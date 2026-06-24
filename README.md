@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="static/images/github_banner_minimal.jpg" alt="Mealie AI Companion Planner Banner" width="100%">
+  <img src="static/images/github_banner_sleek.jpg" alt="Mealie AI Companion Planner Banner" width="100%">
 </p>
 
 # Mealie AI Companion Planner 🍽️
