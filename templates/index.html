@@ -334,7 +334,9 @@
         .item-checkbox { width: 16px; height: 18px; accent-color: var(--color-primary); cursor: pointer; }
         .item-text { font-size: 0.85rem; line-height: 1.4; flex: 1; }
         .item-text.checked { text-decoration: line-through; opacity: 0.5; }
-        .badge-organic { font-size: 8px; font-weight: 800; background: #EEF3F1; color: var(--color-success); padding: 1px 4px; border-radius: 2px; text-transform: uppercase; margin-left: 4px; }
+        .badge-organic { font-size: 8px; font-weight: 800; background: #EEF3F1; color: var(--color-success); padding: 1px 4px; border-radius: 2px; text-transform: uppercase; margin-left: 4px; display: inline-block; vertical-align: middle; }
+        .badge-griddle { font-size: 8px; font-weight: 800; background: #FCEEE9; color: var(--color-accent); padding: 1px 4px; border-radius: 2px; text-transform: uppercase; margin-left: 4px; display: inline-block; vertical-align: middle; }
+        .badge-api { font-size: 8px; font-weight: 800; background: #E2F0FD; color: #1976D2; padding: 1px 4px; border-radius: 2px; text-transform: uppercase; margin-left: 4px; display: inline-block; vertical-align: middle; }
 
         /* --- NUTRITION CHARTS --- */
         .nutrition-grid {
@@ -721,6 +723,9 @@
         [data-theme="dark"] .danger-text-muted {
             color: #A39A8E;
         }
+        [data-theme="dark"] .badge-organic { background: #1E2D24 !important; color: #8EB4AC !important; }
+        [data-theme="dark"] .badge-griddle { background: #33211B !important; color: #E58E61 !important; }
+        [data-theme="dark"] .badge-api { background: #1C2E3D !important; color: #64B5F6 !important; }
     </style>
 </head>
 <body>
@@ -819,7 +824,8 @@
                                 <div class="meal-line dinner-title"><strong>D</strong> 
                                     {% if dinner_entry and dinner_entry[0].recipeId %}
                                         <a href="{{ mealie_url }}/g/home/r/{{ dinner_entry[0].recipe.slug }}" class="dinner-link" target="_blank">{{ meals.dinner }}</a>
-                                        {% if dinner_entry[0].is_blackstone %}<span class="badge-organic" style="background:#FCEEE9; color:var(--color-accent);">Griddle</span>{% endif %}
+                                        {% if dinner_entry[0].is_blackstone %}<span class="badge-griddle">Griddle</span>{% endif %}
+                                        {% if dinner_entry[0].nutrition_source == 'recipe-api' %}<span class="badge-api" title="Nutrition facts retrieved from recipe-api.com">API</span>{% endif %}
                                     {% else %}{{ meals.dinner }}{% endif %}
                                 </div>
                             </div>

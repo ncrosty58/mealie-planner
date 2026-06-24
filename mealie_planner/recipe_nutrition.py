@@ -64,7 +64,8 @@ class RecipeNutrition:
                 "fiberContent": str(per_serving.get("fiber_g") or 0.0),
                 "sodiumContent": str(per_serving.get("sodium_mg") or 0.0),
                 "sugarContent": str(per_serving.get("sugar_g") or 0.0),
-                "cholesterolContent": str(per_serving.get("cholesterol_mg") or 0.0)
+                "cholesterolContent": str(per_serving.get("cholesterol_mg") or 0.0),
+                "_source": "recipe-api"
             }
         except Exception as e:
             print(f"[RecipeAPI] Request to recipe-api.com failed: {e}")
@@ -102,7 +103,9 @@ class RecipeNutrition:
 
         try:
             raw = self.ai.call(prompt, response_schema=RecipeNutritionImputation)
-            return RecipeNutritionImputation.model_validate_json(raw).model_dump()
+            res = RecipeNutritionImputation.model_validate_json(raw).model_dump()
+            res['_source'] = 'ai'
+            return res
         except Exception as e:
             print(f"[AI] Nutrition imputation failed: {e}")
             return None
@@ -185,6 +188,8 @@ class RecipeNutrition:
                             try:
                                 slug = r.get('slug')
                                 if slug:
+                                    existing_extras = r.get('extras') or {}
+                                    source = imputed.get('_source', 'ai')
                                     patch_payload = {
                                         "nutrition": {
                                             "calories": imputed.get("calories"),
@@ -195,6 +200,10 @@ class RecipeNutrition:
                                             "sodiumContent": imputed.get("sodiumContent"),
                                             "sugarContent": imputed.get("sugarContent"),
                                             "cholesterolContent": imputed.get("cholesterolContent")
+                                        },
+                                        "extras": {
+                                            **existing_extras,
+                                            "nutrition_source": source
                                         }
                                     }
                                     self.client.patch_recipe(slug, patch_payload)
@@ -204,8 +213,10 @@ class RecipeNutrition:
                                     r_id = r.get('id')
                                     if r_id and r_id in self.client._recipe_details_cache:
                                         self.client._recipe_details_cache[r_id]['nutrition'] = patch_payload["nutrition"]
+                                        self.client._recipe_details_cache[r_id]['extras'] = patch_payload["extras"]
                                     if slug and slug in self.client._recipe_details_cache:
                                         self.client._recipe_details_cache[slug]['nutrition'] = patch_payload["nutrition"]
+                                        self.client._recipe_details_cache[slug]['extras'] = patch_payload["extras"]
                             except Exception as patch_err:
                                 print(f"[Nutrition] Failed to save imputed nutrition back to Mealie: {patch_err}")
                     else:

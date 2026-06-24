@@ -151,10 +151,14 @@ def index():
                 try:
                     r_details = mealie_client.get_recipe_details(p['recipeId'])
                     p['is_blackstone'] = crawler.check_blackstone_compatibility(r_details)
+                    extras = r_details.get('extras') or {}
+                    p['nutrition_source'] = extras.get('nutrition_source')
                 except:
                     p['is_blackstone'] = False
+                    p['nutrition_source'] = None
             else:
                 p['is_blackstone'] = False
+                p['nutrition_source'] = None
 
         shopping_list = []
         try:
