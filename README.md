@@ -1,8 +1,4 @@
-<p align="center">
-  <img src="static/images/github_banner_sleek.jpg" alt="Mealie AI Companion Planner Banner" width="100%">
-</p>
-
-# Mealie AI Companion Planner 🍽️
+# Mealie AI Companion Planner
 
 An intelligent, AI-powered weekly menu planner, shopping list syncer, and email briefing companion for **[Mealie](https://mealie.io)**.
 
