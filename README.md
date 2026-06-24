@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="static/images/github_banner_v3.jpg" alt="Mealie AI Companion Planner Banner" width="100%">
+  <img src="static/images/github_banner_minimal.jpg" alt="Mealie AI Companion Planner Banner" width="100%">
 </p>
 
 # Mealie AI Companion Planner 🍽️
 
 An intelligent, AI-powered weekly menu planner, shopping list syncer, and email briefing companion for **[Mealie](https://mealie.io)**.
 
-This companion app interfaces with your Mealie instance to automate weekly menu curation, sequence meals by ingredient perishability, run Blackstone griddle compatibility checks, sync shopping lists, and send automated kitchen briefings. It also features an interactive AI chatbot for on-the-fly plan adjustments.
+This companion app interfaces with your Mealie instance to automate weekly menu curation, sequence meals by ingredient perishability, sync shopping lists, and send automated kitchen briefings. It also features an interactive AI chatbot for on-the-fly plan adjustments.
 
 ---
 
@@ -40,12 +40,12 @@ The dashboard will be accessible at **`http://localhost:9926`**.
 ## 🌟 Key Features
 
 * **Intelligent Weekly Planning:** Schedules plans for a Saturday-to-Friday week. Sequences meals by perishability (fresh fish/greens first; frozen/pantry later) and prioritizes inventory you already have.
-* **Semantic Blackstone Griddle Check:** Analyzes recipes for outdoor griddle compatibility, tags them on the dashboard, and suggests batch-cooking optimizations.
 * **Active Shopping List Syncer:** Automatically syncs ingredients, cleans names, filters staples, and pushes to Mealie. Prevents item duplication by using database UUID mapping.
 * **Interactive AI Chatbot:** Adjust the weekly plan dynamically ("swap Thursday's dinner with a beef recipe") using the chat panel.
 * **Smart Swaps:** Suggests alternative recipes from your collection that reuse unused ingredients to minimize food waste.
 * **Automated Email Briefings:** Sends weekly menus on Saturdays and daily reminders with prep steps and macro/micro nutrition tracking.
 * **Progressive Web App (PWA):** Fully installable on iOS and Android devices.
+* **Griddle Compatibility tagging (Optional):** Optionally flags recipes suitable for outdoor griddles/flat-tops and suggests batch-cooking optimizations.
 
 ---
 
