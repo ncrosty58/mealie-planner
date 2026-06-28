@@ -36,6 +36,18 @@ class TestClassifyEarlyLateDates(unittest.TestCase):
         self.assertEqual(len(early), 2)
         self.assertEqual(len(late), 1)
 
+    def test_four_days_split_two_and_two(self):
+        d = self._dates(4)
+        early, late = classify_early_late_dates(d)
+        self.assertEqual(len(early), 2)
+        self.assertEqual(len(late), 2)
+
+    def test_five_days_split_two_and_three(self):
+        d = self._dates(5)
+        early, late = classify_early_late_dates(d)
+        self.assertEqual(len(early), 2)
+        self.assertEqual(len(late), 3)
+
     def test_full_week_reserves_last_three_for_late(self):
         d = self._dates(7)
         early, late = classify_early_late_dates(d)
@@ -49,10 +61,16 @@ class TestClassifyEarlyLateDates(unittest.TestCase):
         self.assertEqual(len(early), 3)
         self.assertEqual(len(late), 3)
 
+    def test_eight_days_reserves_last_three(self):
+        d = self._dates(8)
+        early, late = classify_early_late_dates(d)
+        self.assertEqual(len(early), 5)
+        self.assertEqual(len(late), 3)
+
     def test_partitions_are_contiguous_and_complete(self):
         # For ranges of 2+ days, early + late must reconstruct the original ordered range
         # with no overlap and no gaps.
-        for n in range(2, 8):
+        for n in range(2, 11):
             d = self._dates(n)
             early, late = classify_early_late_dates(d)
             self.assertEqual(early + late, d, f"failed for n={n}")
