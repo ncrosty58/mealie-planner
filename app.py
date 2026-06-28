@@ -146,10 +146,25 @@ def index():
         # Dashboard View - Displays the FULL active week (preserved past + new)
         daily_nutrition, averages = nutrition.calculate_nutrition_for_range(active_start_str, active_end_str)
         
+        # Performance optimization: bulk fetch recipe details for dinners to avoid N+1 network/DB queries
+        dinner_recipe_ids = list(set([
+            p['recipeId'] for p in meal_plans
+            if p.get('entryType') == 'dinner' and p.get('recipeId')
+        ]))
+
+        bulk_recipe_details = {}
+        if dinner_recipe_ids:
+            try:
+                bulk_recipe_details = mealie_client.get_recipes_details_bulk(dinner_recipe_ids)
+            except Exception as e:
+                print(f"Error fetching bulk recipe details: {e}")
+
         for p in meal_plans:
             if p['entryType'] == 'dinner' and p.get('recipeId'):
                 try:
-                    r_details = mealie_client.get_recipe_details(p['recipeId'])
+                    r_details = bulk_recipe_details.get(p['recipeId'])
+                    if not r_details:
+                        raise ValueError("Recipe not found in bulk results")
                     p['is_blackstone'] = crawler.check_blackstone_compatibility(r_details)
                     extras = r_details.get('extras') or {}
                     p['nutrition_source'] = extras.get('nutrition_source')
