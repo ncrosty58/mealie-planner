@@ -25,22 +25,23 @@
             --bg-sidebar: #FFFFFF;
             --bg-card: #FFFFFF;
             --bg-neutral: #FAF9F6;
-            
+            --bg-input: #FAF9F6;
+
             --color-primary: #3C5A54; /* Deep Sage */
             --color-accent: #C66B3D;  /* Terracotta */
             --color-muted: #8C8273;   /* Stone */
             --color-border: #E6DFD5;
             --color-divider: #D5CEB8;
-            
+
             --color-success: #3C5A54;
             --color-danger: #EF5350;
-            
+
             --text-main: #2C2C2C;
             --text-muted: #5C5247;
-            
+
             --font-display: 'Playfair Display', serif;
             --font-body: 'Plus Jakarta Sans', sans-serif;
-            
+
             --sidebar-width: 280px;
             --border-radius: 4px;
             --shadow-sm: 0 2px 8px rgba(0,0,0,0.04);
@@ -52,52 +53,28 @@
             --bg-sidebar: #1E1E1E;
             --bg-card: #1E1E1E;
             --bg-neutral: #181818;
-            
+            --bg-input: #2C2C2C;
+
             --color-primary: #8EB4AC; /* Lighter Deep Sage */
             --color-accent: #E58E61;  /* Lighter Terracotta */
             --color-muted: #A39A8E;   /* Lighter Stone */
             --color-border: #2D2D2D;
             --color-divider: #3D3D3D;
-            
+
             --color-success: #8EB4AC;
             --color-danger: #EF5350;
-            
+
             --text-main: #E6E1DC;
             --text-muted: #BCAE9F;
-            
+
             --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
             --shadow-md: 0 4px 20px rgba(0,0,0,0.3);
-        }
-
-        /* Inline styles adaptations for dark theme */
-        [data-theme="dark"] [style*="background: #FAF9F6"],
-        [data-theme="dark"] [style*="background:#FAF9F6"],
-        [data-theme="dark"] [style*="background: #FAF9F6;"],
-        [data-theme="dark"] [style*="background: #FAF9F6 !important"] {
-            background: #181818 !important;
-        }
-
-        [data-theme="dark"] [style*="background: white"],
-        [data-theme="dark"] [style*="background:white"],
-        [data-theme="dark"] [style*="background: #FFFFFF"],
-        [data-theme="dark"] [style*="background:#FFFFFF"] {
-            background: var(--bg-card) !important;
-        }
-
-        [data-theme="dark"] [style*="color: #2C2C2C"],
-        [data-theme="dark"] [style*="color:#2C2C2C"] {
-            color: var(--text-main) !important;
-        }
-
-        [data-theme="dark"] [style*="border-color: #E6DFD5"],
-        [data-theme="dark"] [style*="border-color:#E6DFD5"] {
-            border-color: var(--color-border) !important;
         }
 
         [data-theme="dark"] select,
         [data-theme="dark"] textarea,
         [data-theme="dark"] input {
-            background-color: #2C2C2C !important;
+            background-color: var(--bg-input) !important;
             color: var(--text-main) !important;
             border-color: var(--color-border) !important;
         }
@@ -117,13 +94,8 @@
         }
 
         /* --- Dark Mode Specific Components --- */
-        [data-theme="dark"] .category-group,
-        [data-theme="dark"] .nut-card {
-            background: #1E1E1E !important;
-        }
-
         [data-theme="dark"] .btn-secondary {
-            background: #2C2C2C !important;
+            background: var(--bg-input) !important;
             color: var(--text-main) !important;
             border-color: var(--color-border) !important;
         }
@@ -148,31 +120,8 @@
             border-top-color: var(--color-primary) !important;
         }
 
-        [data-theme="dark"] .chat-window {
-            background: #1E1E1E !important;
-        }
-
-        [data-theme="dark"] .typing {
-            background: #2C2C2C !important;
-        }
-
-        [data-theme="dark"] .mobile-header {
-            background: #1E1E1E !important;
-        }
-
-        [data-theme="dark"] .textarea-input {
-            background: #2C2C2C !important;
-        }
-
-        [data-theme="dark"] a[style*="background: var(--color-primary)"],
-        [data-theme="dark"] a[style*="background:var(--color-primary)"] {
+        [data-theme="dark"] a.week-pill.active {
             color: #121212 !important;
-        }
-
-        /* Staples modal items border override */
-        [data-theme="dark"] [style*="border: 1px solid #eee"],
-        [data-theme="dark"] [style*="border:1px solid #eee"] {
-            border-color: var(--color-border) !important;
         }
 
 
@@ -247,7 +196,7 @@
         }
 
         .nav-item:hover {
-            background: #F8F6F2;
+            background: var(--bg-neutral);
             color: var(--text-main);
         }
 
@@ -300,7 +249,7 @@
         /* --- MENU TABLE --- */
         .menu-table { width: 100%; border-collapse: collapse; }
         .menu-row {
-            border-bottom: 1px solid #FAF9F6;
+            border-bottom: 1px solid var(--color-border);
             display: grid;
             grid-template-columns: 130px 1fr 200px;
             padding: 1rem 0;
@@ -319,7 +268,7 @@
         .dinner-link { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--color-divider); }
 
         .action-col { display: flex; justify-content: flex-end; }
-        .select-recipe { padding: 0.4rem; font-size: 0.8rem; border: 1px solid var(--color-border); border-radius: 2px; background: #F8F6F2; width: 100%; }
+        .select-recipe { padding: 0.4rem; font-size: 0.8rem; border: 1px solid var(--color-border); border-radius: 2px; background: var(--bg-input); color: var(--text-main); width: 100%; }
 
         /* --- SHOPPING LIST GRID --- */
         .shopping-list-grid {
@@ -328,7 +277,7 @@
             gap: 1.5rem;
             align-items: start;
         }
-        .category-group { background: #FAF9F6; padding: 1.25rem; border-radius: var(--border-radius); border: 1px solid var(--color-border); }
+        .category-group { background: var(--bg-neutral); padding: 1.25rem; border-radius: var(--border-radius); border: 1px solid var(--color-border); }
         .category-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--color-accent); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.25rem; }
         .shopping-item { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.3rem 0; }
         .item-checkbox { width: 16px; height: 18px; accent-color: var(--color-primary); cursor: pointer; }
@@ -345,7 +294,7 @@
             gap: 1.25rem;
         }
         .nut-card {
-            background: #FAF9F6;
+            background: var(--bg-neutral);
             padding: 1.25rem;
             border: 1px solid var(--color-border);
             border-radius: var(--border-radius);
@@ -375,19 +324,6 @@
             overflow: hidden;
             position: relative;
         }
-        .nut-fill {
-            height: 100%;
-            background: var(--color-primary);
-            border-radius: 10px;
-            transition: width 1s ease-out;
-        }
-        .nut-pct {
-            font-size: 0.7rem;
-            font-weight: 700;
-            margin-top: 0.4rem;
-            display: block;
-            text-align: right;
-        }
 
         /* --- INPUTS & TEXTAREAS --- */
         .textarea-input {
@@ -395,7 +331,7 @@
             font-family: var(--font-body);
             font-size: 0.9rem;
             color: var(--text-main);
-            background: #FAF9F6;
+            background: var(--bg-input);
             border: 1px solid var(--color-border);
             border-radius: var(--border-radius);
             padding: 0.75rem;
@@ -414,14 +350,17 @@
         /* --- BUTTONS --- */
         .btn { font-family: var(--font-body); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 0.7rem; padding: 0.5rem 1rem; border-radius: 2px; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 0.5rem; }
         .btn-primary { background: var(--color-primary); color: white; }
-        .btn-secondary { background: #FAF9F6; color: var(--text-muted); border: 1px solid var(--color-border); }
-        .btn-danger { background: transparent; color: var(--color-danger); border: 1px solid var(--color-danger); }
+        .btn-secondary { background: var(--bg-neutral); color: var(--text-muted); border: 1px solid var(--color-border); }
+        .btn-danger { background: var(--color-danger); color: white; border: none; white-space: nowrap; }
+        .btn-danger:hover { opacity: 0.88; }
 
         /* --- CHAT --- */
         .chat-trigger { position: fixed; bottom: 1.5rem; right: 1.5rem; width: 52px; height: 56px; border-radius: 50%; background: var(--color-primary); color: white; border: none; cursor: pointer; box-shadow: var(--shadow-md); display: flex; align-items: center; justify-content: center; z-index: 900; }
-        .chat-window { position: fixed; bottom: 5.5rem; right: 1.5rem; width: 420px; height: 580px; background: white; border: 1px solid var(--color-border); border-radius: 8px; box-shadow: var(--shadow-md); display: flex; flex-direction: column; overflow: hidden; opacity: 0; transform: translateY(10px); pointer-events: none; transition: all 0.2s; z-index: 950; }
+        .chat-window { position: fixed; bottom: 5.5rem; right: 1.5rem; width: 420px; height: 580px; background: var(--bg-card); border: 1px solid var(--color-border); border-radius: 8px; box-shadow: var(--shadow-md); display: flex; flex-direction: column; overflow: hidden; opacity: 0; transform: translateY(10px); pointer-events: none; transition: all 0.2s; z-index: 950; }
         .chat-window.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .chat-header { padding: 1rem; background: var(--color-primary); color: white; display: flex; justify-content: space-between; align-items: center; }
+        #chat-messages { flex: 1; overflow-y: auto; padding: 1.25rem; background: var(--bg-neutral); display: flex; flex-direction: column; gap: 1rem; }
+        .chat-input-row { padding: 1rem; border-top: 1px solid var(--color-border); display: flex; gap: 0.5rem; background: var(--bg-card); }
         .chat-msg {
             padding: 0.85rem 1.25rem;
             border-radius: 8px;
@@ -434,29 +373,29 @@
             white-space: pre-wrap;
             box-shadow: var(--shadow-sm);
         }
-        .chat-msg.user { 
-            align-self: flex-end; 
-            background: var(--color-primary); 
-            color: white; 
+        .chat-msg.user {
+            align-self: flex-end;
+            background: var(--color-primary);
+            color: white;
             border-bottom-right-radius: 2px;
         }
-        .chat-msg.bot { 
-            align-self: flex-start; 
-            background: white; 
+        .chat-msg.bot {
+            align-self: flex-start;
+            background: var(--bg-card);
             border: 1px solid var(--color-border);
             color: var(--text-main);
             border-bottom-left-radius: 2px;
         }
 
         /* Typing Dots */
-        .typing { 
-            display: flex; 
-            align-items: center; 
-            gap: 5px; 
-            padding: 0.75rem 1.25rem; 
-            background: #f0f0f0; 
-            border-radius: 8px; 
-            align-self: flex-start; 
+        .typing {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 0.75rem 1.25rem;
+            background: var(--bg-input);
+            border-radius: 8px;
+            align-self: flex-start;
             margin-bottom: 0.5rem;
         }
         .typing span { width: 6px; height: 6px; background: #999; border-radius: 50%; animation: blink 1.4s infinite both; }
@@ -465,7 +404,7 @@
         @keyframes blink { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
 
         /* --- MOBILE --- */
-        .mobile-header { display: none; position: fixed; top: 0; left: 0; right: 0; height: 56px; background: white; border-bottom: 1px solid var(--color-border); padding: 0 1.25rem; align-items: center; justify-content: space-between; z-index: 1000; }
+        .mobile-header { display: none; position: fixed; top: 0; left: 0; right: 0; height: 56px; background: var(--bg-card); border-bottom: 1px solid var(--color-border); padding: 0 1.25rem; align-items: center; justify-content: space-between; z-index: 1000; }
         .drawer-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); backdrop-filter: blur(4px); z-index: 1100; }
         .drawer-overlay.active { display: block; }
         @media (max-width: 1024px) {
@@ -726,9 +665,60 @@
         [data-theme="dark"] .badge-organic { background: #1E2D24 !important; color: #8EB4AC !important; }
         [data-theme="dark"] .badge-griddle { background: #33211B !important; color: #E58E61 !important; }
         [data-theme="dark"] .badge-api { background: #1C2E3D !important; color: #64B5F6 !important; }
+
+        /* --- WEEK SELECTOR PILL --- */
+        .week-pill-group { display: flex; gap: 0.5rem; background: var(--bg-neutral); padding: 4px; border: 1px solid var(--color-border); border-radius: 4px; }
+        .week-pill { flex: 1; text-align: center; text-decoration: none; font-size: 0.75rem; font-weight: 700; padding: 0.5rem; border-radius: 3px; transition: all 0.2s; }
+        .week-pill.active { background: var(--color-primary); color: white; }
+        .week-pill:not(.active) { color: var(--color-muted); }
+
+        /* --- PREP NOTES --- */
+        .prep-note { padding: 1rem; background: var(--bg-neutral); border-left: 3px solid var(--color-accent); margin-bottom: 0.5rem; }
+        .prep-note-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--color-muted); margin-bottom: 2px; }
+        .prep-note-text { font-size: 0.9rem; line-height: 1.5; }
+
+        /* --- FLASH MESSAGES --- */
+        .flash-msg { padding: 0.75rem 1rem; margin-bottom: 0.5rem; }
+        .flash-msg.success { border-color: var(--color-success); }
+        .flash-msg.danger { border-color: var(--color-danger); }
+        .flash-text { font-weight: 600; font-size: 0.85rem; }
+        .flash-msg.success .flash-text { color: var(--color-success); }
+        .flash-msg.danger .flash-text { color: var(--color-danger); }
+
+        /* --- PLAN FORM --- */
+        .plan-form-card { max-width: 600px; margin: auto; }
+        .form-field { margin-bottom: 1.25rem; }
+
+        /* --- NUTRITION COLORS --- */
+        .nut-fill { height: 100%; background: var(--color-primary); border-radius: 10px; transition: width 1s ease-out; }
+        .nut-fill.warning { background: var(--color-danger); }
+        .nut-fill.caution { background: var(--color-accent); }
+        .nut-pct { font-size: 0.7rem; font-weight: 700; margin-top: 0.4rem; display: block; text-align: right; color: var(--color-primary); }
+        .nut-pct.warning { color: var(--color-danger); }
+        .nut-pct.caution { color: var(--color-accent); }
+
+        /* --- STAPLES MODAL --- */
+        .staples-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem; max-height: 300px; overflow-y: auto; background: var(--bg-neutral); padding: 0.75rem; margin-bottom: 1.25rem; border: 1px solid var(--color-border); border-radius: var(--border-radius); }
+        .staple-item { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; padding: 0.35rem 0.5rem; background: var(--bg-card); border: 1px solid var(--color-border); border-radius: var(--border-radius); min-width: 0; }
+        .staple-item-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; color: var(--text-main); }
+
+        /* --- PAGE FOOTER --- */
+        .page-footer { margin-top: auto; padding-top: 4rem; text-align: center; opacity: 0.3; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; }
+
+        /* --- ADMIN SECTION --- */
+        .section-heading { font-size: 1rem; color: var(--color-primary); border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem; margin-bottom: 1rem; }
+        .section-heading.danger { color: var(--color-danger); }
+        .admin-toggle-row { display: flex; align-items: center; justify-content: space-between; background: var(--bg-neutral); padding: 1.25rem; border: 1px solid var(--color-border); border-radius: var(--border-radius); flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem; }
+        .admin-section-box { background: var(--bg-neutral); border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: 1.25rem; margin-bottom: 1.25rem; }
+        .admin-section-label { font-size: 0.8rem; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.9rem 0; }
+        .danger-action-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+        .danger-action-row:not(:last-child) { border-bottom: 1px dashed var(--color-border); padding-bottom: 0.75rem; margin-bottom: 0.85rem; }
+        .danger-action-info { display: flex; flex-direction: column; gap: 0.15rem; }
+        .danger-action-title { font-weight: 600; font-size: 0.85rem; color: var(--text-main); }
     </style>
 </head>
 <body>
+    {% set family_name_display = family_names if ('Kitchen' in family_names or 'Family' in family_names or 'Kitchens' in family_names) else family_names ~ ' Kitchen' %}
     <div id="loading-overlay" class="loading-overlay" style="display: none;">
         <div><div class="spinner"></div><div class="brand-label">Kitchen Process</div><div id="loading-text" class="brand-title" style="font-size: 1.2rem;">Orchestrating Menu</div><div id="loading-log" style="font-size: 10px; color: var(--color-muted); margin-top: 1rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></div></div>
     </div>
@@ -740,28 +730,24 @@
     <div id="drawer-overlay" class="drawer-overlay" onclick="toggleDrawer()"></div>
 
     <aside id="sidebar" class="sidebar">
-        <div class="sidebar-brand"><span class="brand-label">Culinary Companion</span><div class="brand-title">{% if 'Kitchen' in family_names or 'Family' in family_names or 'Kitchens' in family_names %}{{ family_names }}{% else %}{{ family_names }} Kitchen{% endif %}</div></div>
+        <div class="sidebar-brand"><span class="brand-label">Culinary Companion</span><div class="brand-title">{{ family_name_display }}</div></div>
         
         <!-- Week Selector Pill Group -->
-        <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: #FAF9F6; padding: 4px; border: 1px solid var(--color-border); border-radius: 4px;">
-            <a href="{{ url_for('index', week='current') }}" style="flex: 1; text-align: center; text-decoration: none; font-size: 0.75rem; font-weight: 700; padding: 0.5rem; border-radius: 3px; color: {% if week == 'current' %}white{% else %}var(--color-muted){% endif %}; background: {% if week == 'current' %}var(--color-primary){% else %}transparent{% endif %}; transition: all 0.2s;">
-                Current Week
-            </a>
-            <a href="{{ url_for('index', week='next') }}" style="flex: 1; text-align: center; text-decoration: none; font-size: 0.75rem; font-weight: 700; padding: 0.5rem; border-radius: 3px; color: {% if week == 'next' %}white{% else %}var(--color-muted){% endif %}; background: {% if week == 'next' %}var(--color-primary){% else %}transparent{% endif %}; transition: all 0.2s;">
-                Next Week
-            </a>
+        <div class="week-pill-group" style="margin-bottom: 1.5rem;">
+            <a href="{{ url_for('index', week='current') }}" class="week-pill {% if week == 'current' %}active{% endif %}">Current Week</a>
+            <a href="{{ url_for('index', week='next') }}" class="week-pill {% if week == 'next' %}active{% endif %}">Next Week</a>
         </div>
         <nav class="nav-group">
-            <button class="nav-item active" id="nav-menu" onclick="switchTab('menu')">📅 Weekly Menu</button>
-            <button class="nav-item" id="nav-shopping" onclick="switchTab('shopping')" {% if not is_submitted %}disabled style="opacity: 0.5; cursor: not-allowed;" title="Plan the week first to view the shopping list."{% endif %}>🛒 Shopping List</button>
-            <button class="nav-item" id="nav-prep" onclick="switchTab('prep')" {% if not is_submitted %}disabled style="opacity: 0.5; cursor: not-allowed;" title="Plan the week first to view the prep guide."{% endif %}>👨‍🍳 Prep Guide</button>
+            <button class="nav-item active" id="nav-menu" onclick="switchTab('menu')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Weekly Menu</button>
+            <button class="nav-item" id="nav-shopping" onclick="switchTab('shopping')" {% if not is_submitted %}disabled style="opacity: 0.5; cursor: not-allowed;" title="Plan the week first to view the shopping list."{% endif %}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg> Shopping List</button>
+            <button class="nav-item" id="nav-prep" onclick="switchTab('prep')" {% if not is_submitted %}disabled style="opacity: 0.5; cursor: not-allowed;" title="Plan the week first to view the prep guide."{% endif %}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/></svg> Prep Guide</button>
             <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;"><span class="brand-label">Management</span></div>
-            <button class="nav-item" onclick="openStaplesModal()">📋 Manage Staples</button>
+            <button class="nav-item" onclick="openStaplesModal()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> Manage Staples</button>
             <form action="{{ url_for('sync') }}" method="POST" onsubmit="showLoading('Recalculating Groceries', 'The chef is re-optimizing your shopping list…')">
                 <input type="hidden" name="week" value="{{ week }}">
-                <button type="submit" class="nav-item" {% if not is_submitted %}disabled style="opacity: 0.5; cursor: not-allowed;" title="Plan the week first to refresh the list."{% endif %}>🔄 Refresh List</button>
+                <button type="submit" class="nav-item" {% if not is_submitted %}disabled style="opacity: 0.5; cursor: not-allowed;" title="Plan the week first to refresh the list."{% endif %}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Refresh List</button>
             </form>
-            <button class="nav-item" id="nav-admin" onclick="switchTab('admin')">⚙️ Admin Settings</button>
+            <button class="nav-item" id="nav-admin" onclick="switchTab('admin')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Admin Settings</button>
         </nav>
         <div class="sidebar-footer">
             <div class="brand-label">{% if week == 'next' %}Next Week{% else %}Active Week{% endif %}</div>
@@ -772,26 +758,26 @@
         </div>
     </aside>
 
-    <header class="mobile-header"><div class="brand-title" style="font-size: 1.1rem;">{% if 'Kitchen' in family_names or 'Family' in family_names or 'Kitchens' in family_names %}{{ family_names }}{% else %}{{ family_names }} Kitchen{% endif %}</div><button class="hamburger-btn" onclick="toggleDrawer()">☰</button></header>
+    <header class="mobile-header"><div class="brand-title" style="font-size: 1.1rem;">{{ family_name_display }}</div><button class="hamburger-btn" onclick="toggleDrawer()">☰</button></header>
 
     <main class="main-container">
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}{% for category, message in messages %}
-            <div class="card" style="padding: 0.75rem 1rem; border-color: var(--color-{{ 'success' if category == 'success' else 'danger' }}); margin-bottom: 0.5rem;">
-                <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-{{ 'success' if category == 'success' else 'danger' }});">{{ message }}</span>
+            <div class="card flash-msg {{ category }}">
+                <span class="flash-text">{{ message }}</span>
             </div>
           {% endfor %}{% endif %}
         {% endwith %}
 
         {% if not is_submitted %}
         <div id="tab-menu" class="tab-view">
-            <div class="card" style="width: 100%; max-width: 600px; margin: auto;">
+            <div class="card plan-form-card">
                 <div class="card-header"><h2 class="card-title">Plan New Week</h2></div>
                 <form id="plan-form" onsubmit="submitPlanForm(event)">
                     <input type="hidden" name="week" value="{{ week }}">
-                    <div style="margin-bottom: 1.25rem;"><label class="brand-label">Exclusions</label><textarea class="textarea-input" name="exclude_text" placeholder="Skip meals..."></textarea></div>
-                    <div style="margin-bottom: 1.25rem;"><label class="brand-label">Inventory</label><textarea class="textarea-input" name="freezer_items" placeholder="Salmon, frozen peas..."></textarea></div>
-                    <div style="margin-bottom: 1.25rem;"><label class="brand-label">Requests</label><textarea class="textarea-input" name="special_requests" placeholder="Mexican, high fiber..."></textarea></div>
+                    <div class="form-field"><label class="brand-label">Exclusions</label><textarea class="textarea-input" name="exclude_text" placeholder="Skip meals..."></textarea></div>
+                    <div class="form-field"><label class="brand-label">Inventory</label><textarea class="textarea-input" name="freezer_items" placeholder="Salmon, frozen peas..."></textarea></div>
+                    <div class="form-field"><label class="brand-label">Requests</label><textarea class="textarea-input" name="special_requests" placeholder="Mexican, high fiber..."></textarea></div>
                     <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.8rem;">Generate Weekly Plan</button>
                 </form>
             </div>
@@ -855,19 +841,17 @@
                         {% set avg_val = averages.get(k, 0.0) %}
                         {% set pct = ((avg_val / rda_val) * 100) | round | int if rda_val > 0 else 0 %}
                         {% set display_pct = 100 if pct > 100 else pct %}
-                        {% set bar_color = 'var(--color-primary)' %}
-                        {% if k == 'sodium' and pct > 100 %}{% set bar_color = 'var(--color-danger)' %}{% endif %}
-                        {% if k == 'fiber' and pct < 100 %}{% set bar_color = 'var(--color-accent)' %}{% endif %}
-                        
+                        {% set bar_class = 'warning' if (k == 'sodium' and pct > 100) else ('caution' if (k == 'fiber' and pct < 100) else '') %}
+
                         <div class="nut-card">
                             <div class="nut-meta">
                                 <span class="nut-label">{{ k }}</span>
                                 <span class="nut-val">{{ avg_val }}{{ 'kcal' if k == 'calories' else ('mg' if k in ['sodium', 'cholesterol'] else 'g') }}</span>
                             </div>
                             <div class="nut-track">
-                                <div class="nut-fill" style="width: {{ display_pct }}%; background-color: {{ bar_color }};"></div>
+                                <div class="nut-fill {{ bar_class }}" style="width: {{ display_pct }}%;"></div>
                             </div>
-                            <span class="nut-pct" style="color: {{ bar_color }};">{{ pct }}% of RDA</span>
+                            <span class="nut-pct {{ bar_class }}">{{ pct }}% of RDA</span>
                         </div>
                     {% endfor %}
                 </div>
@@ -879,14 +863,6 @@
                 <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
                     <h2 class="card-title" style="margin-bottom: 0;">Shopping List <span class="print-date-subtitle">({{ start_date }} &rarr; {{ end_date }})</span></h2>
                     <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-                        <div style="display: flex; gap: 4px; background: #FAF9F6; padding: 4px; border: 1px solid var(--color-border); border-radius: 4px;">
-                            <a href="{{ url_for('index', week='current') }}" style="text-align: center; text-decoration: none; font-size: 0.75rem; font-weight: 700; padding: 0.4rem 0.75rem; border-radius: 3px; color: {% if week == 'current' %}white{% else %}var(--color-muted){% endif %}; background: {% if week == 'current' %}var(--color-primary){% else %}transparent{% endif %}; transition: all 0.2s;">
-                                This Week
-                            </a>
-                            <a href="{{ url_for('index', week='next') }}" style="text-align: center; text-decoration: none; font-size: 0.75rem; font-weight: 700; padding: 0.4rem 0.75rem; border-radius: 3px; color: {% if week == 'next' %}white{% else %}var(--color-muted){% endif %}; background: {% if week == 'next' %}var(--color-primary){% else %}transparent{% endif %}; transition: all 0.2s;">
-                                Next Week
-                            </a>
-                        </div>
                         <button class="btn btn-secondary" onclick="checkAllItems(this)">Check All</button>
                         <button class="btn btn-secondary" onclick="copyShoppingList(this)">Copy List</button>
                         <button class="btn btn-secondary" onclick="printShoppingList()">Print List</button>
@@ -970,9 +946,9 @@
                         <div style="margin-bottom: 1.5rem;" class="{% if d_str < today_str %}past-day{% endif %}">
                             <div class="category-title" style="color: var(--color-primary);">{{ d_str | select_day_name }} &bull; {{ d_str }}</div>
                             {% for entry in day_prep %}
-                                <div style="padding: 1rem; background: #FAF9F6; border-left: 3px solid var(--color-accent); margin-bottom: 0.5rem;">
-                                    <div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--color-muted); margin-bottom: 2px;">{{ entry.title or 'Note' }}</div>
-                                    <div style="font-size: 0.9rem; line-height: 1.5;">{{ entry.text }}</div>
+                                <div class="prep-note">
+                                    <div class="prep-note-label">{{ entry.title or 'Note' }}</div>
+                                    <div class="prep-note-text">{{ entry.text }}</div>
                                 </div>
                             {% endfor %}
                         </div>
@@ -994,13 +970,13 @@
                 </div>
                 
                 <div style="margin-bottom: 2.5rem;">
-                    <h3 style="font-size: 1rem; color: var(--color-primary); border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem; margin-bottom: 1rem;">📧 Communication Control</h3>
+                    <h3 class="section-heading">Communication Control</h3>
                     <p style="font-size: 0.85rem; color: var(--color-muted); margin-bottom: 1.25rem; line-height: 1.5;">
                         Control whether the application sends automated emails, including the Saturday Questionnaire prompt, Saturday Report, and Daily Briefings.
                     </p>
                     <form action="{{ url_for('update_admin') }}" method="POST">
                         {# ── Email notifications master toggle ── #}
-                        <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-neutral); padding: 1.25rem; border: 1px solid var(--color-border); border-radius: var(--border-radius); flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+                        <div class="admin-toggle-row">
                             <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                                 <span style="font-weight: 600; font-size: 0.9rem; color: var(--color-primary);">Email Notifications</span>
                                 <span id="email-status-label" style="font-size: 0.8rem; font-weight: 600; color: {% if emails_enabled %}var(--color-primary){% else %}var(--color-danger){% endif %}">
@@ -1019,8 +995,8 @@
                         {% set known_emails = mealie_users | map(attribute='email') | select | list %}
                         {% if known_emails %}
                         <input type="hidden" name="all_known_emails" value="{{ known_emails | join(',') }}">
-                        <div style="background: var(--bg-neutral); border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: 1.25rem; margin-bottom: 1.25rem;">
-                            <p style="font-size: 0.8rem; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.9rem 0;">Recipients</p>
+                        <div class="admin-section-box">
+                            <p class="admin-section-label">Recipients</p>
                             <div style="display: flex; flex-direction: column; gap: 0.65rem;">
                                 {% for user in mealie_users %}
                                 {% if user.email %}
@@ -1049,7 +1025,7 @@
                 </div>
 
                 <div>
-                    <h3 style="font-size: 1rem; color: var(--color-danger); border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem; margin-bottom: 1rem;">🗑️ Danger Zone</h3>
+                    <h3 class="section-heading danger">Danger Zone</h3>
                     <p style="font-size: 0.85rem; color: var(--color-muted); margin-bottom: 1.5rem; line-height: 1.5;">
                         These actions permanently clear scheduled data and reset dashboard states. Select the week you wish to modify.
                     </p>
@@ -1057,41 +1033,41 @@
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 1rem;">
                         <!-- Current Week Panel -->
                         <div class="danger-zone-box">
-                            <h4 style="font-weight: 700; font-size: 0.9rem; color: #D32F2F; margin: 0 0 0.5rem 0; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--color-border); padding-bottom: 0.5rem;">Current Week Actions</h4>
-                            <div style="display: flex; flex-direction: column; gap: 0.85rem;">
-                                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px dashed var(--color-border); padding-bottom: 0.75rem;">
-                                    <div style="display: flex; flex-direction: column; gap: 0.15rem;">
-                                        <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-main);">Clear Meal Plan Only</span>
+                            <h4 style="font-weight: 700; font-size: 0.9rem; color: var(--color-danger); margin: 0 0 0.5rem 0; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--color-border); padding-bottom: 0.5rem;">Current Week Actions</h4>
+                            <div style="display: flex; flex-direction: column;">
+                                <div class="danger-action-row">
+                                    <div class="danger-action-info">
+                                        <span class="danger-action-title">Clear Meal Plan Only</span>
                                         <span class="danger-text-muted">Erase scheduled meals. Shopping list is left untouched.</span>
                                     </div>
                                     <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you sure you want to permanently clear the meal plan for the current week?')">
                                         <input type="hidden" name="week" value="current">
                                         <input type="hidden" name="what" value="plan">
-                                        <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.45rem 0.9rem; font-weight: 600; font-size: 0.75rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">Clear</button>
+                                        <button type="submit" class="btn btn-danger">Clear</button>
                                     </form>
                                 </div>
-                                
-                                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px dashed var(--color-border); padding-bottom: 0.75rem;">
-                                    <div style="display: flex; flex-direction: column; gap: 0.15rem;">
-                                        <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-main);">Clear Shopping List Only</span>
+
+                                <div class="danger-action-row">
+                                    <div class="danger-action-info">
+                                        <span class="danger-action-title">Clear Shopping List Only</span>
                                         <span class="danger-text-muted">Empty the shopping list. Meal plan is left untouched.</span>
                                     </div>
                                     <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you sure you want to permanently clear the shopping list for the current week?')">
                                         <input type="hidden" name="week" value="current">
                                         <input type="hidden" name="what" value="shopping">
-                                        <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.45rem 0.9rem; font-weight: 600; font-size: 0.75rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">Clear</button>
+                                        <button type="submit" class="btn btn-danger">Clear</button>
                                     </form>
                                 </div>
 
-                                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;">
-                                    <div style="display: flex; flex-direction: column; gap: 0.15rem;">
-                                        <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-main);">Clear Current Week (Everything)</span>
+                                <div class="danger-action-row">
+                                    <div class="danger-action-info">
+                                        <span class="danger-action-title">Clear Current Week (Everything)</span>
                                         <span class="danger-text-muted">Erase meal plan, active shopping list, and questionnaire inputs.</span>
                                     </div>
                                     <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you absolutely sure you want to permanently clear the current week and reset state?')">
                                         <input type="hidden" name="week" value="current">
                                         <input type="hidden" name="what" value="both">
-                                        <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.45rem 0.9rem; font-weight: 600; font-size: 0.75rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">Clear All</button>
+                                        <button type="submit" class="btn btn-danger">Clear All</button>
                                     </form>
                                 </div>
                             </div>
@@ -1099,41 +1075,41 @@
 
                         <!-- Next Week Panel -->
                         <div class="danger-zone-box">
-                            <h4 style="font-weight: 700; font-size: 0.9rem; color: #D32F2F; margin: 0 0 0.5rem 0; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--color-border); padding-bottom: 0.5rem;">Next Week Actions</h4>
-                            <div style="display: flex; flex-direction: column; gap: 0.85rem;">
-                                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px dashed var(--color-border); padding-bottom: 0.75rem;">
-                                    <div style="display: flex; flex-direction: column; gap: 0.15rem;">
-                                        <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-main);">Clear Meal Plan Only</span>
+                            <h4 style="font-weight: 700; font-size: 0.9rem; color: var(--color-danger); margin: 0 0 0.5rem 0; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--color-border); padding-bottom: 0.5rem;">Next Week Actions</h4>
+                            <div style="display: flex; flex-direction: column;">
+                                <div class="danger-action-row">
+                                    <div class="danger-action-info">
+                                        <span class="danger-action-title">Clear Meal Plan Only</span>
                                         <span class="danger-text-muted">Erase scheduled meals. Shopping list is left untouched.</span>
                                     </div>
                                     <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you sure you want to permanently clear the meal plan for the next week?')">
                                         <input type="hidden" name="week" value="next">
                                         <input type="hidden" name="what" value="plan">
-                                        <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.45rem 0.9rem; font-weight: 600; font-size: 0.75rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">Clear</button>
+                                        <button type="submit" class="btn btn-danger">Clear</button>
                                     </form>
                                 </div>
-                                
-                                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px dashed var(--color-border); padding-bottom: 0.75rem;">
-                                    <div style="display: flex; flex-direction: column; gap: 0.15rem;">
-                                        <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-main);">Clear Shopping List Only</span>
+
+                                <div class="danger-action-row">
+                                    <div class="danger-action-info">
+                                        <span class="danger-action-title">Clear Shopping List Only</span>
                                         <span class="danger-text-muted">Empty the shopping list. Meal plan is left untouched.</span>
                                     </div>
                                     <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you sure you want to permanently clear the shopping list for the next week?')">
                                         <input type="hidden" name="week" value="next">
                                         <input type="hidden" name="what" value="shopping">
-                                        <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.45rem 0.9rem; font-weight: 600; font-size: 0.75rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">Clear</button>
+                                        <button type="submit" class="btn btn-danger">Clear</button>
                                     </form>
                                 </div>
 
-                                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;">
-                                    <div style="display: flex; flex-direction: column; gap: 0.15rem;">
-                                        <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-main);">Clear Next Week (Everything)</span>
+                                <div class="danger-action-row">
+                                    <div class="danger-action-info">
+                                        <span class="danger-action-title">Clear Next Week (Everything)</span>
                                         <span class="danger-text-muted">Erase meal plan, next week's shopping list, and questionnaire inputs.</span>
                                     </div>
                                     <form action="{{ url_for('clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you absolutely sure you want to permanently clear the next week and reset state?')">
                                         <input type="hidden" name="week" value="next">
                                         <input type="hidden" name="what" value="both">
-                                        <button type="submit" class="btn btn-danger" style="background-color: #EF5350; color: white; border: none; padding: 0.45rem 0.9rem; font-weight: 600; font-size: 0.75rem; border-radius: 4px; cursor: pointer; white-space: nowrap;">Clear All</button>
+                                        <button type="submit" class="btn btn-danger">Clear All</button>
                                     </form>
                                 </div>
                             </div>
@@ -1143,9 +1119,8 @@
             </div>
         </div>
 
-        <footer style="margin-top: auto; padding-top: 4rem; text-align: center; opacity: 0.3;">
-            <div class="ornament" style="font-size: 0.8rem;">❖ &bull; ❖ &bull; ❖</div>
-            <p style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-top: 1rem;">{% if 'Kitchen' in family_names or 'Family' in family_names or 'Kitchens' in family_names %}{{ family_names }}{% else %}{{ family_names }} Kitchen{% endif %} Culinary Companion</p>
+        <footer class="page-footer">
+            <p>{{ family_name_display }} Culinary Companion</p>
         </footer>
     </main>
 
@@ -1156,14 +1131,14 @@
             <form id="staples-form" action="{{ url_for('update_staples') }}" method="POST" onsubmit="showLoading('Updating Provisions...', 'Refreshing larder inventory...')">
                 <input type="hidden" name="staples_submitted" value="1">
                 <input type="hidden" name="week" value="{{ week }}">
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem; max-height: 300px; overflow-y: auto; background: #FAF9F6; padding: 0.75rem; margin-bottom: 1.25rem; border: 1px solid var(--color-border);">
+                <div class="staples-grid">
                     {% for item in staples %}
-                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; padding: 0.35rem 0.5rem; background: white; border: 1px solid #eee; border-radius: 4px; min-width: 0;">
+                        <div class="staple-item">
                             <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; flex-grow: 1; margin: 0; min-width: 0;">
                                 <input type="checkbox" name="low_staples" value="{{ item.id }}" class="item-checkbox" {% if item.id in low_staples or item.id.replace('-', '') in low_staples %}checked{% endif %}>
-                                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; color: var(--color-text);">{{ item.note }}</span>
+                                <span class="staple-item-text">{{ item.note }}</span>
                             </label>
-                            <button type="button" onclick="deleteStaple('{{ item.id }}', this)" style="background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 1.1rem; padding: 0 0.2rem; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'" title="Delete staple">×</button>
+                            <button type="button" onclick="deleteStaple('{{ item.id }}', this)" style="background: none; border: none; color: var(--color-danger); cursor: pointer; font-size: 1.1rem; padding: 0 0.2rem; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'" title="Delete staple">×</button>
                         </div>
                     {% endfor %}
                 </div>
@@ -1184,8 +1159,8 @@
                 <button onclick="toggleChat()" style="background: none; border: none; color: white; font-size: 1.4rem; cursor: pointer;">&times;</button>
             </div>
         </div>
-        <div id="chat-messages" style="flex: 1; overflow-y: auto; padding: 1.25rem; background: #FAF9F6; display: flex; flex-direction: column; gap: 1rem;"></div>
-        <div style="padding: 1rem; border-top: 1px solid var(--color-border); display: flex; gap: 0.5rem; background: white;">
+        <div id="chat-messages"></div>
+        <div class="chat-input-row">
             <input type="text" id="chat-input" class="textarea-input" style="padding: 0.75rem; font-size: 0.9rem;" placeholder="Ask your chef...">
             <button id="chat-send" class="btn btn-primary" disabled>Send</button>
         </div>

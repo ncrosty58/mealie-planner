@@ -11,7 +11,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from mealie_planner.unified_client import UnifiedMealieClient
 from mealie_planner.ai_client import AIClient
 from mealie_planner.plan_generator import PlanGenerator
-from mealie_planner.shopping_sync import ShoppingListSync
+from mealie_planner.shopping_sync import ShoppingListSync, normalize_ingredient_name
 from mealie_planner.recipe_nutrition import RecipeNutrition
 from mealie_planner.recipe_crawler import RecipeCrawler
 from mealie_planner.email_notifier import EmailNotifier, setup_scheduler
@@ -34,6 +34,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', os.urandom(24))
 
 # ---------- Composition Root (DI wiring) ----------
+
 mealie_client = UnifiedMealieClient()
 ai_client = AIClient()
 crawler = RecipeCrawler(mealie_client, ai_client)
@@ -42,7 +43,6 @@ notifier = EmailNotifier(mealie_client, ai_client)
 nutrition = RecipeNutrition(mealie_client, ai_client)
 plan_generator = PlanGenerator(mealie_client, ai_client, crawler, shopping, notifier)
 # ----------------------------------------------------
-
 
 
 def get_list_id_for_week(week):
@@ -225,7 +225,6 @@ def index():
             low_staples=current_week_low_staples,
             mealie_url=MEALIE_FRONTEND_URL,
             active_list_id=formatted_list_id,
-            week_view='current',
             today_str=today_str,
             emails_enabled=emails_enabled,
             mealie_users=mealie_users,
@@ -419,9 +418,8 @@ def _add_item_to_list(list_id: str, item_type: str):
         label_id = None
         try:
             import re
-            from mealie_planner.ai_client import AIClient
-            ai = AIClient()
             labels = mealie_client.get_labels()
+            ai = ai_client
             if labels:
                 label_names = [l['name'] for l in labels]
                 prompt = (
@@ -478,7 +476,6 @@ def delete_staple():
         # If we successfully retrieved the note, find and delete the item from the active/next lists too
         if staple_note:
             try:
-                from mealie_planner.shopping_sync import normalize_ingredient_name
                 staple_norm = normalize_ingredient_name(staple_note)
                 list_ids = {ACTIVE_LIST_ID, NEXT_LIST_ID}
                 matching_active_ids = []
