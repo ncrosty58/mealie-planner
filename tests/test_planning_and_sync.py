@@ -374,6 +374,29 @@ class TestPlanGeneratorAIFailureAborts(unittest.TestCase):
 
 
 class TestWeekRanges(unittest.TestCase):
+    @patch("mealie_planner.utils.get_active_week_range")
+    def test_get_next_week_range_mocked(self, mock_get_active_week):
+        from datetime import datetime
+        from mealie_planner.utils import get_next_week_range
+
+        # Normal week
+        mock_get_active_week.return_value = (datetime(2023, 10, 7), datetime(2023, 10, 13))
+        next_start, next_end = get_next_week_range()
+        self.assertEqual(next_start, datetime(2023, 10, 14))
+        self.assertEqual(next_end, datetime(2023, 10, 20))
+
+        # Month rollover
+        mock_get_active_week.return_value = (datetime(2023, 10, 28), datetime(2023, 11, 3))
+        next_start, next_end = get_next_week_range()
+        self.assertEqual(next_start, datetime(2023, 11, 4))
+        self.assertEqual(next_end, datetime(2023, 11, 10))
+
+        # Year rollover
+        mock_get_active_week.return_value = (datetime(2023, 12, 30), datetime(2024, 1, 5))
+        next_start, next_end = get_next_week_range()
+        self.assertEqual(next_start, datetime(2024, 1, 6))
+        self.assertEqual(next_end, datetime(2024, 1, 12))
+
     def test_get_next_week_range(self):
         from datetime import timedelta
         from mealie_planner.utils import get_active_week_range, get_next_week_range
