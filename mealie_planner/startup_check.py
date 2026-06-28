@@ -19,11 +19,12 @@ def run_startup_checks():
         
         # Check if we are in a git repository
         git_dir = os.path.join(base_dir, ".git")
-        if os.path.exists(git_dir):
+        git_executable = shutil.which("git")
+        if os.path.exists(git_dir) and git_executable:
             print("\nDetecting git repository. Attempting auto-initialization...", file=sys.stderr)
             try:
                 subprocess.run(
-                    ["git", "submodule", "update", "--init", "--recursive"],
+                    [git_executable, "submodule", "update", "--init", "--recursive"],
                     cwd=base_dir,
                     check=True
                 )
