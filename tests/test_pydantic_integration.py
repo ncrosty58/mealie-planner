@@ -168,13 +168,44 @@ class TestPydanticIntegration(unittest.TestCase):
             else:
                 os.environ.pop("GOOGLE_API_KEY", None)
 
-    def test_normalize_ingredient_name_spacing(self):
+    def test_normalize_ingredient_name_comprehensive(self):
         from mealie_planner.shopping_sync import normalize_ingredient_name
-        # Test double space normalization
+
+        # Test double space normalization and general stripping
         self.assertEqual(normalize_ingredient_name("fresh red onion"), "red onion")
         self.assertEqual(normalize_ingredient_name("chicken raw breast"), "chicken breast")
         self.assertEqual(normalize_ingredient_name("3 cloves   garlic"), "garlic")
         self.assertEqual(normalize_ingredient_name("1/2 cup organic spinach"), "spinach")
+
+        # Test "(buy organic)"
+        self.assertEqual(normalize_ingredient_name("milk (buy organic)"), "milk")
+        self.assertEqual(normalize_ingredient_name("(buy organic) apples"), "apples")
+
+        # Test descriptors
+        self.assertEqual(normalize_ingredient_name("frozen peas"), "peas")
+        self.assertEqual(normalize_ingredient_name("canned beans"), "beans")
+        self.assertEqual(normalize_ingredient_name("cooked rice"), "rice")
+        self.assertEqual(normalize_ingredient_name("fresh raw organic chicken"), "chicken")
+
+        # Test quantity/units
+        self.assertEqual(normalize_ingredient_name("2 lbs beef"), "beef")
+        self.assertEqual(normalize_ingredient_name("1 oz cheese"), "cheese")
+        self.assertEqual(normalize_ingredient_name("1.5 kg flour"), "flour")
+        self.assertEqual(normalize_ingredient_name("3/4 cup sugar"), "sugar")
+        self.assertEqual(normalize_ingredient_name("2 cans tomatoes"), "tomatoes")
+        self.assertEqual(normalize_ingredient_name("1 package pasta"), "pasta")
+        self.assertEqual(normalize_ingredient_name("3 slices bread"), "bread")
+        self.assertEqual(normalize_ingredient_name("1-2 pieces fruit"), "fruit")
+
+        # Test digits without units
+        self.assertEqual(normalize_ingredient_name("5 apples"), "apples")
+        self.assertEqual(normalize_ingredient_name("1/2 onion"), "onion")
+        self.assertEqual(normalize_ingredient_name("3.5 carrots"), "carrots")
+
+        # Edge cases
+        self.assertEqual(normalize_ingredient_name(""), "")
+        self.assertEqual(normalize_ingredient_name("   "), "")
+        self.assertEqual(normalize_ingredient_name("FRESH CHICKEN"), "chicken")
 
     def test_parse_freezer_items_empty_text_short_circuits(self):
         ai = MagicMock()
