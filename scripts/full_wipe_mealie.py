@@ -3,8 +3,24 @@ import sys
 # Add the project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+import concurrent.futures
+
 from mealie_planner.unified_client import UnifiedMealieClient
 from mealie_planner import config
+
+def delete_recipe_task(client, r):
+    print(f"Deleting recipe: {r['name']} ({r['id']})")
+    try:
+        client.delete_recipe(r['id'])
+    except Exception as e:
+        print(f"Error deleting recipe {r['id']}: {e}")
+
+def delete_meal_plan_entry_task(client, p):
+    print(f"Deleting meal plan entry: {p.get('title', p.get('entryType'))} on {p['date']}")
+    try:
+        client.delete_meal_plan_entry(p['id'])
+    except Exception as e:
+        print(f"Error deleting meal plan entry {p['id']}: {e}")
 
 def full_wipe():
     print("🚀 Starting FULL Mealie wipe...")
@@ -14,12 +30,11 @@ def full_wipe():
     print("\n--- Deleting all recipes ---")
     recipes = client.get_all_recipes()
     print(f"Found {len(recipes)} recipes.")
-    for r in recipes:
-        print(f"Deleting recipe: {r['name']} ({r['id']})")
-        try:
-            client.delete_recipe(r['id'])
-        except Exception as e:
-            print(f"Error deleting recipe {r['id']}: {e}")
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [executor.submit(delete_recipe_task, client, r) for r in recipes]
+        concurrent.futures.wait(futures)
+
     print(f"Deleted {len(recipes)} recipes.")
 
     # 2. Clear active shopping list
@@ -39,9 +54,11 @@ def full_wipe():
     try:
         existing_plans = client.get_meal_plan(start_date, end_date)
         print(f"Found {len(existing_plans)} meal plan entries.")
-        for p in existing_plans:
-            print(f"Deleting meal plan entry: {p.get('title', p.get('entryType'))} on {p['date']}")
-            client.delete_meal_plan_entry(p['id'])
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            futures = [executor.submit(delete_meal_plan_entry_task, client, p) for p in existing_plans]
+            concurrent.futures.wait(futures)
+
         print(f"Cleared {len(existing_plans)} meal plan entries.")
     except Exception as e:
         print(f"Error clearing meal plan: {e}")
