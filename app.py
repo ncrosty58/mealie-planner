@@ -585,10 +585,20 @@ def get_swap_recommendations():
         
         # Compile list of other dinner names/ingredients for context
         other_dinner_context = []
+        try:
+            other_dinner_ids = [r['id'] for r in other_dinners]
+            details_map = mealie_client.get_recipes_details_bulk(other_dinner_ids) if other_dinner_ids else {}
+        except Exception as bulk_err:
+            print(f"[Swap Recs] Error bulk loading context details: {bulk_err}")
+            details_map = {}
+
         for r in other_dinners:
             # Fetch details to get ingredients
             try:
-                det = mealie_client.get_recipe_details(r['id'])
+                det = details_map.get(r['id'])
+                if det is None:
+                    # Fallback if bulk fetch missed it for some reason
+                    det = mealie_client.get_recipe_details(r['id'])
                 ingredients = extract_ingredient_texts(det)
                 other_dinner_context.append({
                     "name": r['name'],
