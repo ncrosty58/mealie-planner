@@ -31,7 +31,7 @@ from mealie_planner.database import (
 )
 
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'mealie_companion_secret_9926')
+app.secret_key = os.getenv('SECRET_KEY', os.urandom(24))
 
 # ---------- Composition Root (DI wiring) ----------
 mealie_client = UnifiedMealieClient()
