@@ -32,9 +32,14 @@ def main():
         return
         
     print(f"Found {len(dinners)} dinners:")
+
+    # Bulk fetch recipe details to avoid N+1 queries
+    recipe_ids = list({d['recipeId'] for d in dinners})
+    recipe_details_map = client.get_recipes_details_bulk(recipe_ids)
+
     for d in dinners:
         recipe_id = d['recipeId']
-        recipe = client.get_recipe_details(recipe_id)
+        recipe = recipe_details_map.get(recipe_id, {})
         name = recipe.get('name')
         has_nut = recipe.get('nutrition') and recipe['nutrition'].get('calories')
         extras = recipe.get('extras') or {}
