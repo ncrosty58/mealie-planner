@@ -172,9 +172,15 @@ def run_substep_profile():
     staples = client.get_shopping_list_items(config.STAPLES_LIST_ID)
     
     raw_recipe_ingredients = []
+    recipe_ids_to_fetch = {p['recipeId'] for p in meal_plans if p.get('entryType') == 'dinner' and p.get('recipeId')}
+    if recipe_ids_to_fetch:
+        details_map = client.get_recipes_details_bulk(list(recipe_ids_to_fetch))
+    else:
+        details_map = {}
+
     for p in meal_plans:
         if p['entryType'] == 'dinner' and p.get('recipeId'):
-            r_details = client.get_recipe_details(p['recipeId'])
+            r_details = details_map.get(p['recipeId'], {})
             for ing in r_details.get('recipeIngredient', []):
                 disp = ing.get('display') or ing.get('originalText') or ""
                 if disp.strip():
