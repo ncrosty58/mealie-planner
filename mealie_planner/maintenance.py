@@ -1,6 +1,6 @@
 """Destructive maintenance operations (plan/list wipes) shared by the web app and CLI."""
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from . import config
