@@ -298,20 +298,23 @@
                 swapRecsCache[date] = await res.json() || [];
                 renderSwapSuggestions(date);
                 
-                // Programmatically re-show the dropdown picker since DOM manipulation dismisses it
-                if (document.activeElement === inputEl) {
-                    if (typeof inputEl.showPicker === 'function') {
-                        try {
-                            inputEl.showPicker();
-                        } catch (e) {
+                // Programmatically re-show the dropdown picker with a small delay
+                // to prevent synchronous class/DOM changes from auto-dismissing it.
+                setTimeout(() => {
+                    if (document.activeElement === inputEl) {
+                        if (typeof inputEl.showPicker === 'function') {
+                            try {
+                                inputEl.showPicker();
+                            } catch (e) {
+                                inputEl.blur();
+                                inputEl.focus();
+                            }
+                        } else {
                             inputEl.blur();
                             inputEl.focus();
                         }
-                    } else {
-                        inputEl.blur();
-                        inputEl.focus();
                     }
-                }
+                }, 100);
             }
         } catch (err) {
             console.error("Error loading swap recommendations", err);
