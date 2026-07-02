@@ -26,6 +26,8 @@ from .config import _INGREDIENT_STANDARDIZATION_SKILL_DEFINITION
 _recipe_details_cache = {}
 # Per-key fetch timestamps so cached recipe details can expire (see RECIPE_CACHE_TTL).
 _recipe_details_cache_ts = {}
+_recipes_cache = None
+_recipes_cache_ts = 0
 # Default time-to-live (seconds) for cached recipe details. Bounds staleness when a
 # recipe is edited out-of-band (e.g. by the MCP chat subprocess, whose cache is separate).
 RECIPE_CACHE_TTL = int(os.getenv('RECIPE_CACHE_TTL', '600'))
@@ -91,10 +93,17 @@ class UnifiedMealieClient(MealieFetcher):
         return self._client.headers
 
     def get_all_recipes(self) -> List[Dict[str, Any]]:
-        """Legacy alias for get_recipes(per_page=500)"""
+        """Legacy alias for get_recipes(per_page=500), cached for performance."""
+        global _recipes_cache, _recipes_cache_ts
+        now = time.time()
+        if _recipes_cache is not None and (now - _recipes_cache_ts) < RECIPE_CACHE_TTL:
+            return _recipes_cache
+
         res = self.get_recipes(per_page=500)
         if isinstance(res, dict):
-            return res.get('items', [])
+            _recipes_cache = res.get('items', [])
+            _recipes_cache_ts = now
+            return _recipes_cache
         return []
 
     def get_recipe_details(self, recipe_id_or_slug: str) -> Dict[str, Any]:
@@ -114,6 +123,9 @@ class UnifiedMealieClient(MealieFetcher):
         """Drop cached recipe details. Pass one or more id/slug keys, or no args to clear all.
 
         Call after mutating a recipe so the next read re-fetches fresh data."""
+        global _recipes_cache, _recipes_cache_ts
+        _recipes_cache = None
+        _recipes_cache_ts = 0
         if not keys:
             self._recipe_details_cache.clear()
             self._recipe_details_cache_ts.clear()
