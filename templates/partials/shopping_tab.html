@@ -3,6 +3,10 @@
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
             <h2 class="card-title" style="margin-bottom: 0;">Shopping List <span class="print-date-subtitle">({{ start_date }} &rarr; {{ end_date }})</span></h2>
             <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <form action="{{ url_for('shopping.sync') }}" method="POST" onsubmit="showLoading('Recalculating Groceries', 'The chef is re-optimizing your shopping list…')" style="display: inline; margin: 0; padding: 0;">
+                    <input type="hidden" name="week" value="{{ week }}">
+                    <button type="submit" class="btn btn-secondary">Refresh List</button>
+                </form>
                 <button class="btn btn-secondary" onclick="checkAllItems(this)">Check All</button>
                 <button class="btn btn-danger" onclick="deleteCheckedItems(this)">Delete Checked</button>
                 <button class="btn btn-secondary" onclick="copyShoppingList(this)">Copy List</button>
