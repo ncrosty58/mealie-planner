@@ -1,5 +1,5 @@
-import pytest
 from mealie_planner.utils import sanitize_input
+
 
 def test_sanitize_input_empty():
     assert sanitize_input(None) == ""

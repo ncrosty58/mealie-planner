@@ -1,13 +1,39 @@
-import requests
+import copy
+import json
+import logging
 from datetime import datetime, timedelta
 
+import requests
+
 from .config import (
-    RDA, BREAKFAST_PROFILES, LUNCH_LEFTOVER_PROFILE, LUNCH_SANDWICH_PROFILE,
-    _RECIPE_NUTRITION_IMPUTATION_SKILL_DEFINITION, RECIPE_API_KEY
+    _RECIPE_NUTRITION_IMPUTATION_SKILL_DEFINITION,
+    BREAKFAST_PROFILES,
+    LUNCH_LEFTOVER_PROFILE,
+    LUNCH_SANDWICH_PROFILE,
+    RDA,
+    RECIPE_API_KEY,
 )
-from .exceptions import MealieAPIError, SkillParsingError
+from .exceptions import MealieAPIError
 from .models import RecipeNutritionImputation
 from .utils import extract_ingredient_texts
+
+logger = logging.getLogger(__name__)
+
+# Cache of computed week nutrition keyed by date range; each entry stores a
+# signature of the meal plan contents so any plan change invalidates it. This
+# avoids re-running the recipe-api/AI imputation pipeline on every page load.
+_nutrition_cache = {}
+
+
+def _plan_signature(meal_plans):
+    return json.dumps(
+        sorted(
+            [p.get('id'), p.get('date'), p.get('entryType'), p.get('recipeId'), p.get('title')]
+            for p in meal_plans
+        ),
+        default=str,
+    )
+
 
 class RecipeNutrition:
     def __init__(self, mealie_client, ai_client):
@@ -17,7 +43,7 @@ class RecipeNutrition:
     def fetch_nutrition_from_recipe_api(self, recipe_name):
         """Fetch recipe details and nutrition from recipe-api.com using search and get endpoints."""
         if not RECIPE_API_KEY:
-            print("[RecipeAPI] RECIPE_API_KEY is not set.")
+            logger.info("[RecipeAPI] RECIPE_API_KEY is not set.")
             return None
         
         headers = {
@@ -26,7 +52,7 @@ class RecipeNutrition:
         }
         
         try:
-            print(f"[RecipeAPI] Searching for recipe: '{recipe_name}'")
+            logger.info(f"[RecipeAPI] Searching for recipe: '{recipe_name}'")
             search_url = "https://recipe-api.com/api/v1/recipes"
             params = {"q": recipe_name, "per_page": 1}
             r = requests.get(search_url, headers=headers, params=params, timeout=10)
@@ -35,14 +61,14 @@ class RecipeNutrition:
             
             recipes = search_data.get("data", [])
             if not recipes:
-                print(f"[RecipeAPI] No matching recipes found for: '{recipe_name}'")
+                logger.info(f"[RecipeAPI] No matching recipes found for: '{recipe_name}'")
                 return None
                 
             recipe_id = recipes[0].get("id")
             if not recipe_id:
                 return None
                 
-            print(f"[RecipeAPI] Fetching full details for recipe ID: {recipe_id}")
+            logger.info(f"[RecipeAPI] Fetching full details for recipe ID: {recipe_id}")
             detail_url = f"https://recipe-api.com/api/v1/recipes/{recipe_id}"
             r_detail = requests.get(detail_url, headers=headers, timeout=10)
             r_detail.raise_for_status()
@@ -52,10 +78,10 @@ class RecipeNutrition:
             nutrition = recipe_obj.get("nutrition", {})
             per_serving = nutrition.get("per_serving")
             if not per_serving:
-                print(f"[RecipeAPI] No per-serving nutrition details found for: '{recipe_name}'")
+                logger.info(f"[RecipeAPI] No per-serving nutrition details found for: '{recipe_name}'")
                 return None
                 
-            print(f"[RecipeAPI] Successfully retrieved nutrition for: '{recipe_name}'")
+            logger.info(f"[RecipeAPI] Successfully retrieved nutrition for: '{recipe_name}'")
             return {
                 "calories": str(per_serving.get("calories") or 0.0),
                 "proteinContent": str(per_serving.get("protein_g") or 0.0),
@@ -68,7 +94,7 @@ class RecipeNutrition:
                 "_source": "recipe-api"
             }
         except Exception as e:
-            print(f"[RecipeAPI] Request to recipe-api.com failed: {e}")
+            logger.error(f"[RecipeAPI] Request to recipe-api.com failed: {e}")
             return None
     def simplify_recipe_name_with_ai(self, recipe_name):
         """Simplify a complex recipe name into its most generic, common 2-3 word base dish name."""
@@ -81,10 +107,10 @@ class RecipeNutrition:
         try:
             res = self.ai.call(prompt, expect_json=False)
             simplified = res.strip().strip('"').strip("'").strip()
-            print(f"[Nutrition] Simplified recipe name '{recipe_name}' to '{simplified}'")
+            logger.info(f"[Nutrition] Simplified recipe name '{recipe_name}' to '{simplified}'")
             return simplified
         except Exception as e:
-            print(f"[Nutrition] Failed to simplify recipe name '{recipe_name}': {e}")
+            logger.error(f"[Nutrition] Failed to simplify recipe name '{recipe_name}': {e}")
             return None
 
     def impute_nutrition_with_ai(self, recipe_details):
@@ -92,7 +118,7 @@ class RecipeNutrition:
         recipe_name = recipe_details.get('name')
         if recipe_name:
             # 1. Try Recipe API with original name first
-            print(f"[Nutrition] Querying recipe-api.com with original name: '{recipe_name}'")
+            logger.info(f"[Nutrition] Querying recipe-api.com with original name: '{recipe_name}'")
             api_data = self.fetch_nutrition_from_recipe_api(recipe_name)
             if api_data:
                 return api_data
@@ -100,7 +126,7 @@ class RecipeNutrition:
             # 2. Try Recipe API with simplified name
             simplified_name = self.simplify_recipe_name_with_ai(recipe_name)
             if simplified_name and simplified_name != recipe_name:
-                print(f"[Nutrition] Querying recipe-api.com with simplified name: '{simplified_name}'")
+                logger.info(f"[Nutrition] Querying recipe-api.com with simplified name: '{simplified_name}'")
                 api_data = self.fetch_nutrition_from_recipe_api(simplified_name)
                 if api_data:
                     return api_data
@@ -132,7 +158,7 @@ class RecipeNutrition:
             res['_source'] = 'ai'
             return res
         except Exception as e:
-            print(f"[AI] Nutrition imputation failed: {e}")
+            logger.error(f"[AI] Nutrition imputation failed: {e}")
             return None
 
     def _save_nutrition_to_mealie(self, recipe, imputed):
@@ -159,7 +185,7 @@ class RecipeNutrition:
                     }
                 }
                 self.client.patch_recipe(slug, patch_payload)
-                print(f"[Nutrition] Saved nutrition ({source}) back to Mealie for recipe: {recipe['name']}")
+                logger.info(f"[Nutrition] Saved nutrition ({source}) back to Mealie for recipe: {recipe['name']}")
                 
                 # Update local client details cache too
                 r_id = recipe.get('id')
@@ -170,15 +196,21 @@ class RecipeNutrition:
                     self.client._recipe_details_cache[slug]['nutrition'] = patch_payload["nutrition"]
                     self.client._recipe_details_cache[slug]['extras'] = patch_payload["extras"]
         except Exception as patch_err:
-            print(f"[Nutrition] Failed to save nutrition back to Mealie: {patch_err}")
+            logger.error(f"[Nutrition] Failed to save nutrition back to Mealie: {patch_err}")
 
     def calculate_nutrition_for_range(self, start_date_str, end_date_str):
         """Calculate aggregate and daily nutritional totals for a date range."""
         try:
             meal_plans = self.client.get_meal_plan(start_date_str, end_date_str)
         except MealieAPIError as e:
-            print(f"Error fetching meal plans for nutrition: {e}")
+            logger.error(f"Error fetching meal plans for nutrition: {e}")
             return {}, {}
+
+        cache_key = (start_date_str, end_date_str)
+        plan_sig = _plan_signature(meal_plans)
+        cached = _nutrition_cache.get(cache_key)
+        if cached and cached[0] == plan_sig:
+            return copy.deepcopy(cached[1]), copy.deepcopy(cached[2])
 
         # Initialize tracking dicts
         daily_nutrients = {}
@@ -249,12 +281,12 @@ class RecipeNutrition:
                         recipe_name = r.get('name')
                         api_data = None
                         if recipe_name:
-                            print(f"[Nutrition] Querying recipe-api.com first for recipe: '{recipe_name}'")
+                            logger.info(f"[Nutrition] Querying recipe-api.com first for recipe: '{recipe_name}'")
                             api_data = self.fetch_nutrition_from_recipe_api(recipe_name)
                             if not api_data:
                                 simplified_name = self.simplify_recipe_name_with_ai(recipe_name)
                                 if simplified_name and simplified_name != recipe_name:
-                                    print(f"[Nutrition] Querying recipe-api.com with simplified name: '{simplified_name}'")
+                                    logger.info(f"[Nutrition] Querying recipe-api.com with simplified name: '{simplified_name}'")
                                     api_data = self.fetch_nutrition_from_recipe_api(simplified_name)
                                     
                         if api_data:
@@ -275,7 +307,7 @@ class RecipeNutrition:
                             # Fall back to existing Mealie nutrition facts (if present)
                             raw_nut = r.get('nutrition') or {}
                             if raw_nut.get('calories'):
-                                print(f"[Nutrition] recipe-api failed. Falling back to existing Mealie nutrition facts for: {r['name']}")
+                                logger.error(f"[Nutrition] recipe-api failed. Falling back to existing Mealie nutrition facts for: {r['name']}")
                                 nut_data = {
                                     "calories": float(raw_nut.get('calories') or 0),
                                     "protein": float(raw_nut.get('proteinContent') or 0),
@@ -288,7 +320,7 @@ class RecipeNutrition:
                                 }
                             else:
                                 # Scenario D: No recipe-api, no Mealie facts. Fall back to AI imputation
-                                print(f"[Nutrition] No data found on recipe-api or Mealie. Falling back to AI imputation for: {r['name']}")
+                                logger.info(f"[Nutrition] No data found on recipe-api or Mealie. Falling back to AI imputation for: {r['name']}")
                                 ingredients = extract_ingredient_texts(r)
                                 servings = r.get('recipeServings') or r.get('recipeYield') or '4'
                                 description = r.get('description') or ''
@@ -326,13 +358,13 @@ class RecipeNutrition:
                                     }
                                     self._save_nutrition_to_mealie(r, imputed)
                                 except Exception as ai_err:
-                                    print(f"[AI] Nutrition imputation failed for {r['name']}: {ai_err}")
+                                    logger.error(f"[AI] Nutrition imputation failed for {r['name']}: {ai_err}")
                                     
                     if nut_data:
                         category_counts["dinner"] += 1
                         
                 except Exception as e:
-                    print(f"Error processing dinner nutrition for {recipe_id}: {e}")
+                    logger.error(f"Error processing dinner nutrition for {recipe_id}: {e}")
 
             # Add to daily and category totals
             if nut_data:
@@ -349,13 +381,14 @@ class RecipeNutrition:
             avg_dn = (category_totals["dinner"][k] / category_counts["dinner"]) if category_counts["dinner"] > 0 else 0.0
             
             averages[k] = round(avg_bf + avg_ln + avg_dn, 1)
-            
+
+        _nutrition_cache[cache_key] = (plan_sig, copy.deepcopy(daily_nutrients), copy.deepcopy(averages))
         return daily_nutrients, averages
 
 def calculate_nutrition_for_range(start_date_str, end_date_str):
     """Standalone helper to run nutrition calculation with fresh clients."""
-    from .unified_client import UnifiedMealieClient
     from .ai_client import AIClient
+    from .unified_client import UnifiedMealieClient
     client = UnifiedMealieClient()
     ai = AIClient()
     nutrition = RecipeNutrition(client, ai)

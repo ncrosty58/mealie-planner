@@ -1,4 +1,7 @@
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 # Mealie API List IDs
 ACTIVE_LIST_ID = os.getenv('MEALIE_ACTIVE_LIST_ID', '9a1e2d1e33f24f27a01fef55c89a92de')
@@ -170,6 +173,35 @@ RDA = {
     "cholesterol": 300
 }
 
+def get_secret_key():
+    """Return the Flask secret key.
+
+    Prefers the SECRET_KEY env var; otherwise generates one once and persists it
+    under data/ so sessions and flash messages survive container restarts.
+    """
+    env_key = os.getenv('SECRET_KEY')
+    if env_key:
+        return env_key
+
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    key_file = os.path.join(base_dir, 'data', '.secret_key')
+    try:
+        if os.path.exists(key_file):
+            with open(key_file, 'r', encoding='utf-8') as f:
+                key = f.read().strip()
+                if key:
+                    return key
+        import secrets
+        key = secrets.token_hex(32)
+        os.makedirs(os.path.dirname(key_file), exist_ok=True)
+        with open(key_file, 'w', encoding='utf-8') as f:
+            f.write(key)
+        return key
+    except OSError as e:
+        logger.warning(f"[config] Could not persist secret key ({e}); using ephemeral key.")
+        return os.urandom(24)
+
+
 def get_banned_recipes():
     """Load the list of banned recipes from a local data file or the banned-recipes skill."""
     # Try local data/banned_recipes.txt first
@@ -180,7 +212,7 @@ def get_banned_recipes():
             with open(banned_file, 'r', encoding='utf-8') as f:
                 return [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
         except Exception as e:
-            print(f"[config] Error reading local banned recipes: {e}")
+            logger.error(f"[config] Error reading local banned recipes: {e}")
 
     # Fallback to skill definition
     content = load_skill_md('banned-recipes')

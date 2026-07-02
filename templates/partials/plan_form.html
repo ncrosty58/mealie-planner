@@ -1,0 +1,12 @@
+<div id="tab-menu" class="tab-view">
+    <div class="card plan-form-card">
+        <div class="card-header"><h2 class="card-title">Plan New Week</h2></div>
+        <form id="plan-form" onsubmit="submitPlanForm(event)">
+            <input type="hidden" name="week" value="{{ week }}">
+            <div class="form-field"><label class="brand-label">Exclusions</label><textarea class="textarea-input" name="exclude_text" placeholder="Skip meals..."></textarea></div>
+            <div class="form-field"><label class="brand-label">Inventory</label><textarea class="textarea-input" name="freezer_items" placeholder="Salmon, frozen peas..."></textarea></div>
+            <div class="form-field"><label class="brand-label">Requests</label><textarea class="textarea-input" name="special_requests" placeholder="Mexican, high fiber..."></textarea></div>
+            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.8rem;">Generate Weekly Plan</button>
+        </form>
+    </div>
+</div>

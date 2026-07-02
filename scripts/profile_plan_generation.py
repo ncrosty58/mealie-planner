@@ -2,18 +2,19 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta
-import pytz
+from zoneinfo import ZoneInfo
 
 # Add project root to path
 sys.path.insert(0, '/app')
 
-from mealie_planner.unified_client import UnifiedMealieClient
-from mealie_planner.ai_client import AIClient
-from mealie_planner.recipe_crawler import RecipeCrawler
-from mealie_planner.plan_generator import PlanGenerator
-from mealie_planner.shopping_sync import ShoppingListSync
-from mealie_planner.email_notifier import EmailNotifier
 from mealie_planner import config
+from mealie_planner.ai_client import AIClient
+from mealie_planner.email_notifier import EmailNotifier
+from mealie_planner.plan_generator import PlanGenerator
+from mealie_planner.recipe_crawler import RecipeCrawler
+from mealie_planner.shopping_sync import ShoppingListSync
+from mealie_planner.unified_client import UnifiedMealieClient
+
 
 def run_profile():
     print("====================================================")
@@ -23,7 +24,7 @@ def run_profile():
     timers = {}
     
     # Define date range
-    today = datetime.now(pytz.timezone(config.TIMEZONE))
+    today = datetime.now(ZoneInfo(config.TIMEZONE))
     days_to_sat = (5 - today.weekday() + 7) % 7
     start_date = today + timedelta(days=days_to_sat)
     end_date = start_date + timedelta(days=6)

@@ -1,18 +1,19 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from pydantic import ValidationError
 
 from mealie_planner.gemini_client import GeminiClient
 from mealie_planner.models import (
-    ParsedIngredientList,
-    MealExclusions,
-    WeeklyMealPlanResponse,
-    RecipeNutritionImputation,
-    CompiledShoppingItem,
     CompiledShoppingList,
+    MealExclusions,
+    ParsedIngredientList,
+    RecipeNutritionImputation,
     StandardizedIngredients,
+    WeeklyMealPlanResponse,
 )
-from mealie_planner.parsers import parse_freezer_items, parse_exclusions
+from mealie_planner.parsers import parse_exclusions, parse_freezer_items
+
 
 class TestPydanticIntegration(unittest.TestCase):
 

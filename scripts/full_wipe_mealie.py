@@ -1,12 +1,14 @@
 import os
 import sys
+
 # Add the project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import concurrent.futures
 
-from mealie_planner.unified_client import UnifiedMealieClient
 from mealie_planner import config
+from mealie_planner.unified_client import UnifiedMealieClient
+
 
 def delete_recipe_task(client, r):
     print(f"Deleting recipe: {r['name']} ({r['id']})")

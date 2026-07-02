@@ -2,18 +2,21 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta
-import pytz
+from zoneinfo import ZoneInfo
+
 import requests
 
 # Add project root to path
 sys.path.insert(0, '/app')
 
-from mealie_planner.unified_client import UnifiedMealieClient
+import json
+
+from mealie_planner import config
+from mealie_planner.email_notifier import send_email
 from mealie_planner.gemini_client import GeminiClient, call_gemini
 from mealie_planner.parsers import parse_exclusions
-from mealie_planner.email_notifier import send_email
-from mealie_planner import config
-import json
+from mealie_planner.unified_client import UnifiedMealieClient
+
 
 def run_substep_profile():
     print("====================================================")
@@ -40,7 +43,7 @@ def run_substep_profile():
     print(f"    Duration: {t_catalog:.3f}s\n")
 
     # 3. Setup test date range
-    today = datetime.now(pytz.timezone(config.TIMEZONE))
+    today = datetime.now(ZoneInfo(config.TIMEZONE))
     days_to_sat = (5 - today.weekday() + 7) % 7
     start_date = today + timedelta(days=days_to_sat)
     end_date = start_date + timedelta(days=6)
@@ -87,10 +90,10 @@ def run_substep_profile():
         f"- **Family Dietary Rules & Preferences**: {config.FAMILY_DIETARY_RULES_PROMPT}\n" +
         f"- **Dinner nights this week**: {', '.join(dinner_days)}\n" +
         f"- **Number of dinners to plan**: {num_dinners}\n" +
-        f"- **Freezer items to prioritize**: salmon\n" +
-        f"- **Special requests from the family**: High fiber, vegetarian priority\n" +
-        f"- **Recently planned recipes**: none\n\n" +
-        f"### RECIPE CATALOGUE (JSON):\n" +
+        "- **Freezer items to prioritize**: salmon\n" +
+        "- **Special requests from the family**: High fiber, vegetarian priority\n" +
+        "- **Recently planned recipes**: none\n\n" +
+        "### RECIPE CATALOGUE (JSON):\n" +
         f"{recipe_catalogue}\n\n" +
         "Return ONLY the JSON object as specified in the skill definition."
     )
@@ -169,7 +172,7 @@ def run_substep_profile():
     t_fetch_start = time.perf_counter()
     # Fetch active plans & staples
     meal_plans = client.get_meal_plan(start_date_str, end_date_str)
-    staples = client.get_shopping_list_items(config.STAPLES_LIST_ID)
+    staples = client.get_shopping_list_items_for_list(config.STAPLES_LIST_ID)
     
     raw_recipe_ingredients = []
     recipe_ids_to_fetch = {p['recipeId'] for p in meal_plans if p.get('entryType') == 'dinner' and p.get('recipeId')}

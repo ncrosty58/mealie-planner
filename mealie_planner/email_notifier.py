@@ -1,17 +1,24 @@
+import logging
 import os
 import smtplib
+from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from datetime import datetime, timedelta
-import pytz
+from zoneinfo import ZoneInfo
 
 from .config import (
-    FAMILY_RECIPIENT_EMAILS, RDA, STAPLES_LIST_ID, APP_URL, TIMEZONE, MEALIE_FRONTEND_URL,
-    _DAILY_BRIEFING_GENERATION_SKILL_DEFINITION, _WEEKLY_THEMES_SYNOPSIS_SKILL_DEFINITION,
-    FAMILY_NAMES
+    _DAILY_BRIEFING_GENERATION_SKILL_DEFINITION,
+    _WEEKLY_THEMES_SYNOPSIS_SKILL_DEFINITION,
+    APP_URL,
+    FAMILY_NAMES,
+    FAMILY_RECIPIENT_EMAILS,
+    MEALIE_FRONTEND_URL,
+    RDA,
+    TIMEZONE,
 )
-from .utils import get_active_week_strings, get_active_week_range, extract_ingredient_texts
-from .exceptions import MealieAPIError, MealiePlannerError
+from .utils import extract_ingredient_texts, get_active_week_strings
+
+logger = logging.getLogger(__name__)
 
 class EmailNotifier:
     def __init__(self, mealie_client, ai_client):
@@ -40,7 +47,7 @@ class EmailNotifier:
         emails_enabled = state.get('emails_enabled', True)
                 
         if not emails_enabled:
-            print(f"[Email] Emails are currently disabled. Skipping sending: '{subject}'")
+            logger.warning(f"[Email] Emails are currently disabled. Skipping sending: '{subject}'")
             return False
 
         smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
@@ -51,7 +58,7 @@ class EmailNotifier:
         from_name = os.getenv('SMTP_FROM_NAME', 'Mealie Planner')
 
         if not smtp_user or not smtp_pass:
-            print("SMTP settings are missing. Cannot send email.")
+            logger.warning("SMTP settings are missing. Cannot send email.")
             return False
 
         # Fetch recipients dynamically from all registered Mealie users
@@ -60,27 +67,19 @@ class EmailNotifier:
             users = self.client.get_users()
             recipients = [u.get('email') for u in users if u.get('email')]
             if recipients:
-                print(f"[Email] Dynamically loaded recipients from Mealie: {recipients}")
+                logger.info(f"[Email] Dynamically loaded recipients from Mealie: {recipients}")
         except Exception as e:
-            print(f"[Email] Could not fetch Mealie users, falling back to static list: {e}")
+            logger.warning(f"[Email] Could not fetch Mealie users, falling back to static list: {e}")
             recipients = FAMILY_RECIPIENT_EMAILS
 
         # Apply per-recipient opt-outs saved by the admin UI
-        try:
-            import json as _json
-            disabled = []
-            if os.path.exists(state_path):
-                with open(state_path, 'r') as _f:
-                    disabled = _json.load(_f).get('disabled_recipient_emails', [])
-            if disabled:
-                before = recipients[:]
-                recipients = [r for r in recipients if r not in disabled]
-                print(f"[Email] Filtered out disabled recipients {disabled}. Sending to: {recipients}")
-        except Exception as e:
-            print(f"[Email] Could not apply recipient opt-outs: {e}")
+        disabled = state.get('disabled_recipient_emails', [])
+        if disabled:
+            recipients = [r for r in recipients if r not in disabled]
+            logger.info(f"[Email] Filtered out disabled recipients {disabled}. Sending to: {recipients}")
 
         if not recipients:
-            print("No recipient emails found. Cannot send email.")
+            logger.info("No recipient emails found. Cannot send email.")
             return False
 
         msg = MIMEMultipart('alternative')
@@ -95,10 +94,10 @@ class EmailNotifier:
                 server.starttls()
                 server.login(smtp_user, smtp_pass)
                 server.sendmail(from_email, recipients, msg.as_string())
-            print(f"Successfully sent email: '{subject}' to {recipients}")
+            logger.info(f"Successfully sent email: '{subject}' to {recipients}")
             return True
         except Exception as e:
-            print(f"Failed to send email: {e}")
+            logger.error(f"Failed to send email: {e}")
             return False
 
     def parse_recipe_details_for_ai(self, raw_details):
@@ -148,7 +147,7 @@ Tomorrow's Dinner details:
             summary = self.ai.call(prompt, expect_json=False, temperature=0.4).strip()
             return summary
         except Exception as e:
-            print(f"[Email] Failed to generate AI summary: {e}")
+            logger.error(f"[Email] Failed to generate AI summary: {e}")
             prep_str = f" Prep: {prep_note}" if prep_note else ""
             return f"Today we have {breakfast} for breakfast, {lunch} for lunch, and {dinner_title} for dinner.{prep_str}"
 
@@ -157,7 +156,7 @@ Tomorrow's Dinner details:
         dinners = []
         try:
             start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
-        except:
+        except ValueError:
             return "A diverse week of planned dinners."
             
         for i in range(7):
@@ -172,7 +171,7 @@ Tomorrow's Dinner details:
                     try:
                         r = self.client.get_recipe_details(dinner_item['recipeId'])
                         title = r['name']
-                    except:
+                    except Exception:
                         title = "Recipe Details Unavailable"
             dinners.append(f"- {day_name}: {title}")
             
@@ -188,7 +187,7 @@ Tomorrow's Dinner details:
         try:
             return self.ai.call(prompt, expect_json=False, temperature=0.5).strip().strip('"').strip("'")
         except Exception as e:
-            print(f"[Email] Failed to generate weekly themes summary: {e}")
+            logger.error(f"[Email] Failed to generate weekly themes summary: {e}")
             return "A diverse week of planned dinners, highlighting fresh ingredients and easy-to-cook recipes."
 
     def build_daily_briefing_html(self, day_name, date_str, bf, ln, dn_title, dn_recipe, ai_prep_note, today_nutrients, ai_summary, weekly_content_html=None):
@@ -232,7 +231,7 @@ Tomorrow's Dinner details:
         below the daily briefing so a single combined email is sent.
         """
         if not date_str:
-            date_str = datetime.now(pytz.timezone(TIMEZONE)).strftime("%Y-%m-%d")
+            date_str = datetime.now(ZoneInfo(TIMEZONE)).strftime("%Y-%m-%d")
             
         try:
             dt = datetime.strptime(date_str, "%Y-%m-%d")
@@ -240,12 +239,12 @@ Tomorrow's Dinner details:
             tomorrow_dt = dt + timedelta(days=1)
             tomorrow_str = tomorrow_dt.strftime("%Y-%m-%d")
         except Exception as e:
-            print(f"[Email] Error parsing date: {e}")
+            logger.error(f"[Email] Error parsing date: {e}")
             return False
             
         plans = self.client.get_meal_plan(date_str, tomorrow_str)
         if not plans:
-            print(f"[Email] No scheduled meals for {date_str}.")
+            logger.info(f"[Email] No scheduled meals for {date_str}.")
             return False
             
         bf = next((p['title'] for p in plans if p['date'][:10] == date_str and p['entryType'] == 'breakfast'), "Staples")
@@ -262,7 +261,7 @@ Tomorrow's Dinner details:
                 try:
                     dn_recipe = self.client.get_recipe_details(dinner_item['recipeId'])
                     dn_title = dn_recipe['name']
-                except:
+                except Exception:
                     dn_title = "Recipe Details Unavailable"
             elif dinner_item.get('title'):
                 dn_title = dinner_item['title']
@@ -277,7 +276,7 @@ Tomorrow's Dinner details:
                 try:
                     tomorrow_recipe = self.client.get_recipe_details(tomorrow_dinner_item['recipeId'])
                     tomorrow_title = tomorrow_recipe['name']
-                except:
+                except Exception:
                     tomorrow_title = "Recipe Details Unavailable"
             elif tomorrow_dinner_item.get('title'):
                 tomorrow_title = tomorrow_dinner_item['title']
@@ -308,14 +307,10 @@ Tomorrow's Dinner details:
             from .utils import get_active_week_strings
             active_start_str, active_end_str = get_active_week_strings()
             
-            print(f"[Email] Generating Saturday report for active week: {active_start_str} to {active_end_str} (triggered by plan generation from {start_date_str} to {end_date_str})...")
+            logger.info(f"[Email] Generating Saturday report for active week: {active_start_str} to {active_end_str} (triggered by plan generation from {start_date_str} to {end_date_str})...")
             meal_plans = self.client.get_meal_plan(active_start_str, active_end_str)
             daily_nutrients, averages = self.nutrition.calculate_nutrition_for_range(active_start_str, active_end_str)
             
-            staples = self.client.get_shopping_list_items(STAPLES_LIST_ID)
-            staple_id_map = {item['id'].replace('-', ''): item['note'] for item in staples}
-            low_staples_names = [staple_id_map.get(s_id.replace('-', '')) for s_id in low_staples_ids if staple_id_map.get(s_id.replace('-', ''))]
-
             # Build structured meal rows for the template
             meal_rows = []
             start_date = datetime.strptime(active_start_str, "%Y-%m-%d")
@@ -377,29 +372,28 @@ Tomorrow's Dinner details:
             )
 
         except Exception as e:
-            print(f"[Email] Failed Saturday report: {e}")
+            logger.error(f"[Email] Failed Saturday report: {e}")
             return False
 
 def send_email(subject, html_content):
-    from .unified_client import UnifiedMealieClient
     from .ai_client import AIClient
+    from .unified_client import UnifiedMealieClient
     client = UnifiedMealieClient()
     ai = AIClient()
     notifier = EmailNotifier(client, ai)
     return notifier.send_email(subject, html_content)
 
 def send_daily_reminder_email(date_str=None):
-    from .unified_client import UnifiedMealieClient
     from .ai_client import AIClient
+    from .unified_client import UnifiedMealieClient
     client = UnifiedMealieClient()
     ai = AIClient()
     notifier = EmailNotifier(client, ai)
     return notifier.send_daily_reminder_email(date_str)
 
 def send_saturday_qa_email():
-    from .unified_client import UnifiedMealieClient
     from .ai_client import AIClient
-    from .utils import get_active_week_strings
+    from .unified_client import UnifiedMealieClient
     client = UnifiedMealieClient()
     ai = AIClient()
     notifier = EmailNotifier(client, ai)
@@ -414,10 +408,10 @@ def send_saturday_qa_email():
             and (p.get('recipeId') or p.get('title') or p.get('text'))
         ]
         if dinners:
-            print(f"[Email] Plan already exists for Saturday ({start_str} to {end_str}). Skipping Saturday Q/A email.")
+            logger.warning(f"[Email] Plan already exists for Saturday ({start_str} to {end_str}). Skipping Saturday Q/A email.")
             return True
     except Exception as e:
-        print(f"[Email] Error checking plan existence for Saturday: {e}")
+        logger.error(f"[Email] Error checking plan existence for Saturday: {e}")
 
     subject = "📋 Weekly Meal Plan Questionnaire"
     body = f"""

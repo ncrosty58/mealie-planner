@@ -1,7 +1,8 @@
 import os
-import sys
 import shutil
 import subprocess
+import sys
+
 
 def run_startup_checks():
     """Verify that the submodule is populated and that default data files are in place."""
@@ -36,9 +37,9 @@ def run_startup_checks():
         
         print("\nWe will attempt to download the submodule directly...", file=sys.stderr)
         try:
+            import tempfile
             import urllib.request
             import zipfile
-            import tempfile
             
             commit = "f7a2a5e21e68e223629393a5ad16f55dca6ea577"
             url = f"https://github.com/rldiao/mealie-mcp-server/archive/{commit}.zip"
@@ -74,7 +75,7 @@ def run_startup_checks():
             print(f"Failed to download submodule: {e}", file=sys.stderr)
             
         print("\nPlease run the setup script to resolve this:", file=sys.stderr)
-        print("    python setup.py", file=sys.stderr)
+        print("    python scripts/setup_wizard.py", file=sys.stderr)
         print("="*80 + "\n", file=sys.stderr)
         sys.exit(1)
 

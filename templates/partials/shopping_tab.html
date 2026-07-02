@@ -1,0 +1,59 @@
+<div id="tab-shopping" class="tab-view" style="display: none;">
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+            <h2 class="card-title" style="margin-bottom: 0;">Shopping List <span class="print-date-subtitle">({{ start_date }} &rarr; {{ end_date }})</span></h2>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <button class="btn btn-secondary" onclick="checkAllItems(this)">Check All</button>
+                <button class="btn btn-danger" onclick="deleteCheckedItems(this)">Delete Checked</button>
+                <button class="btn btn-secondary" onclick="copyShoppingList(this)">Copy List</button>
+                <button class="btn btn-secondary" onclick="printShoppingList()">Print List</button>
+            </div>
+        </div>
+        <div class="print-meal-plan">
+            <h3 class="print-meal-plan-title">Weekly Menu</h3>
+            <div class="print-meal-plan-grid">
+                {% for day in days %}
+                    <div class="print-meal-plan-day">
+                        <div class="print-meal-plan-day-name">{{ day.day_name[:3] }}</div>
+                        <div class="print-meal-line"><strong>B:</strong> {{ day.breakfast }}</div>
+                        <div class="print-meal-line"><strong>L:</strong> {{ day.lunch }}</div>
+                        <div class="print-meal-line"><strong>D:</strong> {{ day.dinner_title }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
+            <input type="text" id="quick-add-input" class="textarea-input" style="padding: 0.6rem;" placeholder="Add item..." onkeypress="if(event.key === 'Enter') quickAddShoppingItem()">
+            <button class="btn btn-primary" onclick="quickAddShoppingItem()">Add</button>
+        </div>
+        <div class="shopping-list-grid">
+            {% for group in shopping_groups %}
+                <div class="category-group" data-category="{{ group.name }}">
+                    <div class="category-title">{{ group.name }}</div>
+                    <div class="category-items">
+                        {% for item in group['items'] %}
+                            <div class="shopping-item" data-category="{{ group.name }}">
+                                <input type="checkbox" class="item-checkbox shopping-list-checkbox" data-id="{{ item.id }}" {% if item.checked %}checked{% endif %}>
+                                <div class="item-text {% if item.checked %}checked{% endif %}">
+                                    {% if item.quantity and item.quantity > 0 %}
+                                        <span style="font-weight: 800; color: var(--color-primary); margin-right: 2px;">{{ item.quantity | round(2) | replace(".0", "") }}</span>
+                                    {% endif %}
+                                    {{ item.note }}
+                                    {% if '(Buy Organic)' in item.note %}<span class="badge-organic">Organic</span>{% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Checked items section -->
+        <div id="checked-items-container" class="category-group" style="margin-top: 1.5rem; display: none;">
+            <div class="category-title" style="color: var(--text-muted);">Checked Items</div>
+            <div class="category-items" id="checked-items-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.6rem 1.5rem;">
+                <!-- Checked items are moved here by JS -->
+            </div>
+        </div>
+    </div>
+</div>

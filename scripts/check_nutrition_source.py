@@ -1,6 +1,7 @@
 import os
 import sys
 from datetime import datetime
+
 from dotenv import load_dotenv
 
 # Load .env file explicitly
@@ -9,10 +10,11 @@ load_dotenv('/opt/mealie-planner/.env')
 # Add project root to path
 sys.path.insert(0, '/opt/mealie-planner')
 
+from mealie_planner.ai_client import AIClient
+from mealie_planner.recipe_nutrition import RecipeNutrition
 from mealie_planner.unified_client import UnifiedMealieClient
 from mealie_planner.utils import get_active_week_range
-from mealie_planner.recipe_nutrition import RecipeNutrition
-from mealie_planner.ai_client import AIClient
+
 
 def main():
     client = UnifiedMealieClient()
@@ -56,10 +58,10 @@ def main():
             print(f"  [Test] Fetching from recipe-api.com for '{name}'...")
             api_data = nutrition_service.fetch_nutrition_from_recipe_api(name)
             if api_data:
-                print(f"    [Test] Found matching recipe on recipe-api.com!")
+                print("    [Test] Found matching recipe on recipe-api.com!")
                 print(f"    [Test] Calories returned: {api_data.get('calories')}")
             else:
-                print(f"    [Test] No matching recipe found on recipe-api.com.")
+                print("    [Test] No matching recipe found on recipe-api.com.")
 
 if __name__ == '__main__':
     main()

@@ -1,13 +1,15 @@
 import os
 import sys
 import time
-import requests
 from concurrent.futures import ThreadPoolExecutor
+
+import requests
 
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from mealie_planner.unified_client import UnifiedMealieClient
+
 
 def test_concurrency(max_workers):
     client = UnifiedMealieClient()
@@ -27,7 +29,7 @@ def test_concurrency(max_workers):
                 success_count += 1
             else:
                 error_count += 1
-        except Exception as e:
+        except Exception:
             error_count += 1
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:

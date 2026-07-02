@@ -8,3 +8,4 @@ httpx==0.28.1
 pydantic==2.12.5
 openai>=1.0.0
 tenacity>=8.0.0
+gunicorn==23.0.0

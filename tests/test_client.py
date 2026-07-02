@@ -1,6 +1,8 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from mealie_planner.unified_client import UnifiedMealieClient
+
 
 class TestUnifiedMealieClient(unittest.TestCase):
     @patch("httpx.Client")

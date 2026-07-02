@@ -4,15 +4,15 @@ Setup script for Mealie AI Companion Planner.
 Initializes the submodule, configures environment variables, and creates data directories.
 Supports interactive mode and non-interactive mode (--auto).
 """
+import argparse
 import os
-import sys
-import shutil
 import secrets
+import shutil
 import subprocess
+import sys
+import tempfile
 import urllib.request
 import zipfile
-import tempfile
-import argparse
 
 SUBMODULE_COMMIT = "f7a2a5e21e68e223629393a5ad16f55dca6ea577"
 SUBMODULE_URL = f"https://github.com/rldiao/mealie-mcp-server/archive/{SUBMODULE_COMMIT}.zip"
@@ -31,7 +31,7 @@ def print_info(msg):
     print(f"\033[94m[*] {msg}\033[0m")
 
 def setup_submodule():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     mcp_dir = os.path.join(base_dir, "mealie-mcp-server")
     mcp_init = os.path.join(mcp_dir, "src", "mealie", "__init__.py")
 
@@ -93,7 +93,7 @@ def setup_submodule():
         return False
 
 def configure_env(auto=False):
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     env_file = os.path.join(base_dir, ".env")
     env_example = os.path.join(base_dir, ".env.example")
 
@@ -211,7 +211,7 @@ def prompt_val(prompt_text, default_val):
     return val if val else default_val
 
 def create_directories():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     data_dir = os.path.join(base_dir, "data")
     if not os.path.exists(data_dir):
         os.makedirs(data_dir, exist_ok=True)

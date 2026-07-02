@@ -1,5 +1,7 @@
 from typing import Dict, List, Literal, Optional
+
 from pydantic import BaseModel, RootModel
+
 
 # 1. Ingredient Parsing (parse_freezer_items)
 class ParsedIngredient(BaseModel):

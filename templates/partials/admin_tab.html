@@ -1,0 +1,97 @@
+<div id="tab-admin" class="tab-view" style="display: none;">
+    <div class="card">
+        <div class="card-header" style="border-bottom: 1px solid var(--color-border); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+            <h2 class="card-title">Admin Settings</h2>
+            <span class="brand-label">Control Panel</span>
+        </div>
+
+        <div style="margin-bottom: 2.5rem;">
+            <h3 class="section-heading">Communication Control</h3>
+            <p style="font-size: 0.85rem; color: var(--color-muted); margin-bottom: 1.25rem; line-height: 1.5;">
+                Control whether the application sends automated emails, including the Saturday Questionnaire prompt, Saturday Report, and Daily Briefings.
+            </p>
+            <form action="{{ url_for('admin.update_admin') }}" method="POST">
+                {# ── Email notifications master toggle ── #}
+                <div class="admin-toggle-row">
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                        <span style="font-weight: 600; font-size: 0.9rem; color: var(--color-primary);">Email Notifications</span>
+                        <span id="email-status-label" style="font-size: 0.8rem; font-weight: 600; color: {% if emails_enabled %}var(--color-primary){% else %}var(--color-danger){% endif %}">
+                            Currently: {% if emails_enabled %}Enabled (Sending){% else %}Disabled (Muted){% endif %}
+                        </span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <input type="hidden" name="emails_enabled" id="emails-enabled-hidden" value="{% if emails_enabled %}1{% else %}0{% endif %}">
+                        <button type="button" id="email-toggle-btn" class="btn {% if not emails_enabled %}btn-primary{% else %}btn-secondary{% endif %}" onclick="toggleEmailValue()" style="min-width: 130px; justify-content: center; font-size: 0.85rem;">
+                            {% if not emails_enabled %}Enable Emails{% else %}Disable Emails{% endif %}
+                        </button>
+                    </div>
+                </div>
+
+                {# ── Per-recipient opt-out ── #}
+                {% set known_emails = mealie_users | map(attribute='email') | select | list %}
+                {% if known_emails %}
+                <input type="hidden" name="all_known_emails" value="{{ known_emails | join(',') }}">
+                <div class="admin-section-box">
+                    <p class="admin-section-label">Recipients</p>
+                    <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+                        {% for user in mealie_users %}
+                        {% if user.email %}
+                        {% set is_disabled = user.email in disabled_recipient_emails %}
+                        <label class="recipient-label {% if is_disabled %}muted{% endif %}">
+                            <input type="checkbox" name="enabled_recipients" value="{{ user.email }}"
+                                   {% if not is_disabled %}checked{% endif %}
+                                   onchange="(function(cb){var lbl=cb.closest('label');var badge=lbl.querySelector('.recipient-badge');if(cb.checked){lbl.classList.remove('muted');badge.className='recipient-badge receiving';badge.textContent='Receiving';}else{lbl.classList.add('muted');badge.className='recipient-badge muted-badge';badge.textContent='Muted';}})(this)"
+                                   style="width: 16px; height: 16px; accent-color: var(--color-primary); flex-shrink: 0;">
+                            <div style="display: flex; flex-direction: column; gap: 0.1rem; flex: 1; min-width: 0;">
+                                <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-primary);">{{ user.fullName or user.username or 'Unknown' }}</span>
+                                <span style="font-size: 0.75rem; color: var(--color-muted);">{{ user.email }}</span>
+                            </div>
+                            <span class="recipient-badge {% if not is_disabled %}receiving{% else %}muted-badge{% endif %}">
+                                {% if not is_disabled %}Receiving{% else %}Muted{% endif %}
+                            </span>
+                        </label>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; font-size: 0.85rem; background-color: var(--color-accent); border: none; font-weight: 600;">Save Settings</button>
+            </form>
+        </div>
+
+        <div>
+            <h3 class="section-heading danger">Danger Zone</h3>
+            <p style="font-size: 0.85rem; color: var(--color-muted); margin-bottom: 1.5rem; line-height: 1.5;">
+                These actions permanently clear scheduled data and reset dashboard states. Select the week you wish to modify.
+            </p>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 1rem;">
+                {% for wk, wk_label in [('current', 'Current Week'), ('next', 'Next Week')] %}
+                <div class="danger-zone-box">
+                    <h4 style="font-weight: 700; font-size: 0.9rem; color: var(--color-danger); margin: 0 0 0.5rem 0; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--color-border); padding-bottom: 0.5rem;">{{ wk_label }} Actions</h4>
+                    <div style="display: flex; flex-direction: column;">
+                        {% for what, title, desc, btn_label in [
+                            ('plan', 'Clear Meal Plan Only', 'Erase scheduled meals. Shopping list is left untouched.', 'Clear'),
+                            ('shopping', 'Clear Shopping List Only', 'Empty the shopping list. Meal plan is left untouched.', 'Clear'),
+                            ('both', 'Clear ' ~ wk_label ~ ' (Everything)', 'Erase meal plan, shopping list, and questionnaire inputs.', 'Clear All'),
+                        ] %}
+                        <div class="danger-action-row">
+                            <div class="danger-action-info">
+                                <span class="danger-action-title">{{ title }}</span>
+                                <span class="danger-text-muted">{{ desc }}</span>
+                            </div>
+                            <form action="{{ url_for('admin.clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you sure you want to permanently clear this data for the {{ wk }} week?')">
+                                <input type="hidden" name="week" value="{{ wk }}">
+                                <input type="hidden" name="what" value="{{ what }}">
+                                <button type="submit" class="btn btn-danger">{{ btn_label }}</button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>

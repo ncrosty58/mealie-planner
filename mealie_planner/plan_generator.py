@@ -1,16 +1,21 @@
 import json
+import logging
 import random
 from datetime import datetime, timedelta
 
 from .config import (
-    FAMILY_DIETARY_RULES_PROMPT, get_banned_recipes,
-    _WEEKLY_MEAL_SELECTION_SKILL_DEFINITION,
     _BANNED_RECIPES_SKILL_DEFINITION,
-    ACTIVE_LIST_ID, RECENT_LOOKBACK_DAYS
+    _WEEKLY_MEAL_SELECTION_SKILL_DEFINITION,
+    ACTIVE_LIST_ID,
+    FAMILY_DIETARY_RULES_PROMPT,
+    RECENT_LOOKBACK_DAYS,
+    get_banned_recipes,
 )
-from .parsers import parse_freezer_items, parse_exclusions
-from .exceptions import MealieAPIError, SkillParsingError
+from .exceptions import MealieAPIError
 from .models import WeeklyMealPlanResponse
+from .parsers import parse_exclusions, parse_freezer_items
+
+logger = logging.getLogger(__name__)
 
 def classify_early_late_dates(target_date_strings):
     """Split the planning range into 'early' (fresh/perishable) and 'late'
@@ -40,8 +45,9 @@ class PlanGenerator:
         self.shopping = shopping
         self.notifier = notifier
 
-    def generate_weekly_plan(self, start_date_str, end_date_str, exclude_text="", freezer_items="", special_requests="", low_staples_ids=[], progress_callback=None, list_id=ACTIVE_LIST_ID):
+    def generate_weekly_plan(self, start_date_str, end_date_str, exclude_text="", freezer_items="", special_requests="", low_staples_ids=None, progress_callback=None, list_id=ACTIVE_LIST_ID):
         """Generate weekly plan using an AI-driven intelligent rule-based scoring engine and schedule in Mealie."""
+        low_staples_ids = low_staples_ids or []
         if progress_callback:
             progress_callback("Analyzing inputs and processing freezer/pantry/fridge items...", 5)
         
@@ -56,14 +62,14 @@ class PlanGenerator:
             try:
                 parsed_items = parse_freezer_items(self.ai, freezer_items)
             except Exception as e:
-                print(f"[Plan Generation] parse_freezer_items failed: {e}")
+                logger.error(f"[Plan Generation] parse_freezer_items failed: {e}")
                 if progress_callback:
                     progress_callback(f"⚠️ Meal plan generation failed: AI could not understand your freezer/pantry/fridge items ({e}). No changes were made to your existing plan.", 100)
                 return
 
             for item in parsed_items:
                 if not item.get("is_main_dish", True):
-                    print(f"[Plan Generation] Skipping recipe lookup/import for non-main-dish item: '{item.get('raw')}'")
+                    logger.warning(f"[Plan Generation] Skipping recipe lookup/import for non-main-dish item: '{item.get('raw')}'")
                     continue
                 
                 core = item.get("core_ingredient", item.get("raw", ""))
@@ -84,21 +90,20 @@ class PlanGenerator:
                 elif recipe_id:
                     item_to_recipe_map[raw] = recipe_id
                 else:
-                    print(f"[Plan Generation] WARNING: Could not find or import a recipe for '{raw}' (core: '{core}')")
+                    logger.warning(f"[Plan Generation] WARNING: Could not find or import a recipe for '{raw}' (core: '{core}')")
                     
                     
         if progress_callback:
             progress_callback("Filtering recipes and checking exclusions...", 40)
         
         banned_recipes = [name.lower() for name in get_banned_recipes()]
-        print(f"[Plan Generation] Loaded banned recipes: {banned_recipes}")
+        logger.info(f"[Plan Generation] Loaded banned recipes: {banned_recipes}")
 
         allowed_recipes = []
         
         for r in all_recipes:
             name_lower = r['name'].lower()
             slug_lower = r.get('slug', '').lower()
-            desc_lower = r.get('description', '').lower() if r.get('description') else ''
             
             # Tags are often dictionaries in newer Mealie versions
             tags = []
@@ -116,13 +121,13 @@ class PlanGenerator:
                     break
             
             if is_banned:
-                print(f"[Plan Generation] Excluding banned recipe: {r['name']}")
+                logger.info(f"[Plan Generation] Excluding banned recipe: {r['name']}")
                 continue
                 
             allowed_recipes.append(r)
             
         if not allowed_recipes:
-            print("Warning: No recipes left after filtering! Using unfiltered recipes.")
+            logger.warning("Warning: No recipes left after filtering! Using unfiltered recipes.")
             allowed_recipes = all_recipes
             
         # Build a lookup map for validation after AI selection
@@ -134,7 +139,7 @@ class PlanGenerator:
         try:
             exclusions = parse_exclusions(self.ai, exclude_text, start_date, end_date)
         except Exception as e:
-            print(f"[Plan Generation] parse_exclusions failed: {e}")
+            logger.error(f"[Plan Generation] parse_exclusions failed: {e}")
             if progress_callback:
                 progress_callback(f"⚠️ Meal plan generation failed: AI could not understand your meal exclusion notes ({e}). No changes were made to your existing plan.", 100)
             return
@@ -154,7 +159,7 @@ class PlanGenerator:
                     recent_recipe_names.append(p['recipe']['name'])
             recent_recipe_names = list(set(recent_recipe_names))
         except MealieAPIError as e:
-            print(f"Error fetching recently planned recipes: {e}")
+            logger.error(f"Error fetching recently planned recipes: {e}")
 
         # Filter out recently used recipes to prevent re-using them (unless explicitly requested/prioritized)
         from .shopping_sync import normalize_ingredient_name
@@ -164,13 +169,13 @@ class PlanGenerator:
         for r in allowed_recipes:
             is_recent = r['id'] in recent_recipe_ids or normalize_ingredient_name(r['name']) in recent_names_norm
             if is_recent and r['id'] not in priority_recipe_ids:
-                print(f"[Plan Generation] Excluding recently planned recipe: {r['name']}")
+                logger.info(f"[Plan Generation] Excluding recently planned recipe: {r['name']}")
                 continue
             filtered_recipes.append(r)
 
         # Safety fallback: if too many recipes were filtered out, restore them to avoid running out of choices
         if len(filtered_recipes) < num_days + 3:
-            print(f"[Plan Generation] Warning: Filtering recent recipes left only {len(filtered_recipes)} options. Restoring recent recipes to ensure enough choices.")
+            logger.warning(f"[Plan Generation] Warning: Filtering recent recipes left only {len(filtered_recipes)} options. Restoring recent recipes to ensure enough choices.")
             filtered_recipes = allowed_recipes
 
         recipe_catalogue = [
@@ -210,17 +215,17 @@ class PlanGenerator:
             f"- **Family Dietary Rules & Preferences**: {FAMILY_DIETARY_RULES_PROMPT}\n" +
             f"- **Banned Recipes (NEVER select these)**: {', '.join(get_banned_recipes())}\n" +
             f"- **Target Planning Dates (You MUST generate exactly these {num_days} dates in this exact order, even if some or all meals on a day are excluded)**: {json.dumps(target_date_strings)}\n" +
-            f"- **REDEFINED PERISHABILITY RULES FOR THIS PLANNED RANGE (STRICT RULE OVERRIDE)**:\n" +
+            "- **REDEFINED PERISHABILITY RULES FOR THIS PLANNED RANGE (STRICT RULE OVERRIDE)**:\n" +
             f"  * **EARLY DAYS (Reserve for fresh/highly-perishable ingredients)**: {early_days_display}\n" +
             f"  * **LATE DAYS (Reserve for frozen, canned, or shelf-stable ingredients)**: {late_days_display}\n" +
-            f"  * **Strict Sequencing constraint**: You MUST schedule recipes using frozen/shelf-stable items strictly on the LATE DAYS listed above. If there are multiple late days, prioritize the latest ones (e.g. towards the end of the late days list) to ensure they are eaten last. You MUST NOT schedule frozen/shelf-stable ingredients on the EARLY DAYS.\n" +
+            "  * **Strict Sequencing constraint**: You MUST schedule recipes using frozen/shelf-stable items strictly on the LATE DAYS listed above. If there are multiple late days, prioritize the latest ones (e.g. towards the end of the late days list) to ensure they are eaten last. You MUST NOT schedule frozen/shelf-stable ingredients on the EARLY DAYS.\n" +
             (f"- **Note on Weekdays**: Since the target planning range ({start_date_str} to {end_date_str}) is shorter than a full 7-day week, if any prioritized items are described as fresh, schedule them on the earliest available target dates (e.g. Wednesday or Thursday) rather than requiring Sat-Tue.\n" if num_days < 7 else "") +
             f"- **Meal Exclusions (Skipped/Eating Out)**: {json.dumps(exclusions)}\n" +
             f"- **Freezer/Pantry/Fridge items to prioritize**: {freezer_items or 'none'}\n" +
             (f"- **MANDATORY Priority Recipes (MUST include ALL of these in the plan)**: {json.dumps(item_to_recipe_map)}\n" if item_to_recipe_map else "") +
             f"- **Special requests from the family**: {special_requests or 'none'}\n" +
             f"- **Recently planned recipes (AVOID selecting these)**: {', '.join(recent_recipe_names) if recent_recipe_names else 'none'}\n\n" +
-            f"### RECIPE CATALOGUE (JSON):\n" +
+            "### RECIPE CATALOGUE (JSON):\n" +
             f"{json.dumps(recipe_catalogue, indent=2)}\n\n" +
             "Return ONLY the JSON object as specified in the skill definition."
         )
@@ -236,7 +241,7 @@ class PlanGenerator:
             for day_entry in ai_result.get("days", []):
                 d_str = day_entry['date']
                 if d_str not in target_date_strings:
-                    print(f"[Plan Generation] WARNING: AI generated out-of-range date {d_str}. Skipping.")
+                    logger.warning(f"[Plan Generation] WARNING: AI generated out-of-range date {d_str}. Skipping.")
                     continue
                 m = day_entry['meals']
                 prep_note = m.get('prep_note') or ""
@@ -244,7 +249,7 @@ class PlanGenerator:
                 # Deterministic Exclusion Enforcement
                 day_name = datetime.strptime(d_str, "%Y-%m-%d").strftime("%A")
                 day_exclusions = exclusions.get(day_name, [])
-                print(f"[Plan Generation] Processing {day_name} ({d_str}) with exclusions: {day_exclusions}")
+                logger.info(f"[Plan Generation] Processing {day_name} ({d_str}) with exclusions: {day_exclusions}")
 
                 # Breakfast
                 if 'breakfast' in day_exclusions:
@@ -284,14 +289,14 @@ class PlanGenerator:
                         if din_val in catalogue_ids:
                             meals.append({"date": d_str, "entryType": "dinner", "title": "", "recipeId": din_val, "text": prep_note})
                         else:
-                            print(f"[Plan Generation] WARNING: AI hallucinated recipe ID {din_val}. Falling back to text entry.")
+                            logger.warning(f"[Plan Generation] WARNING: AI hallucinated recipe ID {din_val}. Falling back to text entry.")
                             meals.append({"date": d_str, "entryType": "dinner", "title": "Planned Dinner", "recipeId": None, "text": prep_note})
                     else:
                         meals.append({"date": d_str, "entryType": "dinner", "title": din_val or "Eating Out", "recipeId": None, "text": prep_note})
                 
-            print(f"[AI] Successfully generated structured 7-day plan.")
+            logger.info("[AI] Successfully generated structured 7-day plan.")
         except Exception as e:
-            print(f"[AI] Plan generation failed: {e}")
+            logger.error(f"[AI] Plan generation failed: {e}")
             if progress_callback:
                 progress_callback(f"⚠️ Meal plan generation failed: AI error ({e}). No changes were made to your existing plan. Please try again.", 100)
             return
@@ -304,7 +309,7 @@ class PlanGenerator:
             for p in existing_plans:
                 self.client.delete_meal_plan_entry(p['id'])
         except MealieAPIError as e:
-            print(f"Error clearing existing plans: {e}")
+            logger.error(f"Error clearing existing plans: {e}")
             
         if progress_callback:
             progress_callback("Scheduling new breakfasts, lunches, and dinners...", 80)
@@ -318,11 +323,11 @@ class PlanGenerator:
                     recipe_id=m.get('recipeId')
                 )
             except MealieAPIError as e:
-                print(f"Error scheduling meal {m}: {e}")
+                logger.error(f"Error scheduling meal {m}: {e}")
             
         sync_ok = self.shopping.sync_shopping_list(start_date_str, end_date_str, low_staples_ids, progress_callback=progress_callback, freezer_items=freezer_items, list_id=list_id)
         if not sync_ok:
-            print("[Plan Generation] WARNING: Shopping list sync returned False — list may be empty.")
+            logger.warning("[Plan Generation] WARNING: Shopping list sync returned False — list may be empty.")
 
         if progress_callback:
             progress_callback("Sending weekly plan report email to family...", 99)
@@ -333,4 +338,4 @@ class PlanGenerator:
                 progress_callback("Meal plan generation complete!", 100)
             else:
                 progress_callback("⚠️ Meal plan generated, but the shopping list sync failed (AI error). Click 'Refresh List' in the sidebar to retry.", 100)
-        print(f"Rule-based plan successfully generated and scheduled for {start_date_str} to {end_date_str}.")
+        logger.info(f"Rule-based plan successfully generated and scheduled for {start_date_str} to {end_date_str}.")

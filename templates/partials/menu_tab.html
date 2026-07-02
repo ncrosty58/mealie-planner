@@ -1,0 +1,62 @@
+<div id="tab-menu" class="tab-view">
+    <div class="card">
+        <div class="card-header"><h2 class="card-title">Weekly Menu</h2><span class="brand-label">Chef's Table</span></div>
+        <div class="menu-table">
+            {% for day in days %}
+                <div class="menu-row {% if day.is_past %}past-day{% endif %}">
+                    <div class="day-col"><div class="day-name">{{ day.day_name }}</div><div class="day-date">{{ day.date }}</div></div>
+                    <div class="meal-col">
+                        <div class="meal-line"><strong>B</strong> {{ day.breakfast }}</div>
+                        <div class="meal-line"><strong>L</strong> {{ day.lunch }}</div>
+                        <div class="meal-line dinner-title"><strong>D</strong>
+                            {% if day.dinner and day.dinner.recipe_id %}
+                                <a href="{{ mealie_url }}/g/home/r/{{ day.dinner.slug }}" class="dinner-link" target="_blank">{{ day.dinner_title }}</a>
+                                {% if day.dinner.is_blackstone %}<span class="badge-griddle">Griddle</span>{% endif %}
+                                {% if day.dinner.nutrition_source == 'recipe-api' %}<span class="badge-api" title="Nutrition facts retrieved from recipe-api.com">RAPI</span>{% endif %}
+                            {% else %}{{ day.dinner_title }}{% endif %}
+                        </div>
+                    </div>
+                    <div class="action-col">{% if not day.is_past %}
+                        <form action="{{ url_for('planning.change_meal') }}" method="POST">
+                            <input type="hidden" name="date" value="{{ day.date }}">
+                            <input type="hidden" name="entry_id" value="{{ day.dinner.entry_id if day.dinner else '' }}">
+                            <input type="hidden" name="week" value="{{ week }}">
+                            <input type="hidden" name="recipe_id" class="select-recipe-id">
+                            <input type="text" class="select-recipe" list="recipe-options" data-date="{{ day.date }}"
+                                   placeholder="Swap Dinner..." autocomplete="off"
+                                   onfocus="loadSwapRecommendations(this)" onchange="onSwapSelected(this)">
+                        </form>
+                    {% endif %}</div>
+                </div>
+            {% endfor %}
+        </div>
+        <!-- One shared datalist for every swap input; AI suggestions for the focused
+             day are swapped into the top by JS. -->
+        <datalist id="recipe-options">
+            <option value="🚫 Eating Out"></option>
+            {% for rec in all_recipes %}<option value="{{ rec.name }}"></option>{% endfor %}
+        </datalist>
+    </div>
+    <div class="card" style="margin-top: 1.5rem;">
+        <div class="card-header"><h2 class="card-title" style="font-size: 1.1rem;">Nutritional Averages</h2></div>
+        <div class="nutrition-grid">
+            {% for k, rda_val in rda.items() %}
+                {% set avg_val = averages.get(k, 0.0) %}
+                {% set pct = ((avg_val / rda_val) * 100) | round | int if rda_val > 0 else 0 %}
+                {% set display_pct = 100 if pct > 100 else pct %}
+                {% set bar_class = 'warning' if (k == 'sodium' and pct > 100) else ('caution' if (k == 'fiber' and pct < 100) else '') %}
+
+                <div class="nut-card">
+                    <div class="nut-meta">
+                        <span class="nut-label">{{ k }}</span>
+                        <span class="nut-val">{{ avg_val }}{{ 'kcal' if k == 'calories' else ('mg' if k in ['sodium', 'cholesterol'] else 'g') }}</span>
+                    </div>
+                    <div class="nut-track">
+                        <div class="nut-fill {{ bar_class }}" style="width: {{ display_pct }}%;"></div>
+                    </div>
+                    <span class="nut-pct {{ bar_class }}">{{ pct }}% of RDA</span>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>

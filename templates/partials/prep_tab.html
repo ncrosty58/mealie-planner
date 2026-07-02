@@ -1,0 +1,23 @@
+<div id="tab-prep" class="tab-view" style="display: none;">
+    <div class="card">
+        <div class="card-header"><h2 class="card-title">Prep Guide</h2></div>
+        {% set ns = namespace(has_any=false) %}
+        {% for day in days %}
+            {% if day.prep_notes %}
+                {% set ns.has_any = true %}
+                <div style="margin-bottom: 1.5rem;" class="{% if day.is_past %}past-day{% endif %}">
+                    <div class="category-title" style="color: var(--color-primary);">{{ day.day_name }} &bull; {{ day.date }}</div>
+                    {% for note in day.prep_notes %}
+                        <div class="prep-note">
+                            <div class="prep-note-label">{{ note.title }}</div>
+                            <div class="prep-note-text">{{ note.text }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endfor %}
+        {% if not ns.has_any %}
+            <p style="font-size: 0.9rem; color: var(--color-muted); margin: 1rem 0; line-height: 1.5;">No preparation notes or batch cooking tips scheduled for this week's dinners. You are all set!</p>
+        {% endif %}
+    </div>
+</div>

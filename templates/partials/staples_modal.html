@@ -1,0 +1,26 @@
+<div id="staples-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 2000; align-items: center; justify-content: center;">
+    <div class="card" style="width: 90%; max-width: 650px; position: relative;">
+        <button onclick="closeStaplesModal()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        <div class="card-header"><h2 class="card-title">Manage Staples</h2></div>
+        <form id="staples-form" action="{{ url_for('shopping.update_staples') }}" method="POST" onsubmit="showLoading('Updating Provisions...', 'Refreshing larder inventory...')">
+            <input type="hidden" name="staples_submitted" value="1">
+            <input type="hidden" name="week" value="{{ week }}">
+            <div class="staples-grid">
+                {% for item in staples %}
+                    <div class="staple-item">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; flex-grow: 1; margin: 0; min-width: 0;">
+                            <input type="checkbox" name="low_staples" value="{{ item.id }}" class="item-checkbox" {% if item.id in low_staples or item.id.replace('-', '') in low_staples %}checked{% endif %}>
+                            <span class="staple-item-text">{{ item.note }}</span>
+                        </label>
+                        <button type="button" onclick="deleteStaple('{{ item.id }}', this)" style="background: none; border: none; color: var(--color-danger); cursor: pointer; font-size: 1.1rem; padding: 0 0.2rem; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'" title="Delete staple">×</button>
+                    </div>
+                {% endfor %}
+            </div>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem;">
+                <input type="text" id="new-staple-input" class="textarea-input" style="padding: 0.5rem 0.75rem; flex-grow: 1;" placeholder="Add new staple item..." onkeypress="if(event.key === 'Enter') { event.preventDefault(); addStaple(); }">
+                <button type="button" class="btn btn-secondary" onclick="addStaple()" style="padding: 0.5rem 1rem; white-space: nowrap;">Add Staple</button>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Update List</button>
+        </form>
+    </div>
+</div>

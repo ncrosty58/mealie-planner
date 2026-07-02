@@ -1,14 +1,41 @@
+from collections import namedtuple
 from datetime import datetime, timedelta
-import pytz
-import os
+from zoneinfo import ZoneInfo
+
 from .config import TIMEZONE
+
+# Resolved view of a UI week selection: canonical week name, date range strings,
+# and the Mealie shopping list backing that week.
+WeekContext = namedtuple('WeekContext', ['week', 'start_str', 'end_str', 'list_id'])
+
+
+def resolve_week(week, mode='planning'):
+    """Resolve a UI week selection ('current' or 'next') to a WeekContext.
+
+    mode='planning' returns the editable range (today -> Friday for the current
+    week); mode='active' returns the full Saturday -> Friday display range.
+    The next week is the same full range in both modes.
+    """
+    from .config import ACTIVE_LIST_ID, NEXT_LIST_ID
+
+    week = 'next' if week == 'next' else 'current'
+    if week == 'next':
+        start, end = get_next_week_range()
+        list_id = NEXT_LIST_ID
+    elif mode == 'active':
+        start, end = get_active_week_range()
+        list_id = ACTIVE_LIST_ID
+    else:
+        start, end = get_planning_week_range()
+        list_id = ACTIVE_LIST_ID
+    return WeekContext(week, start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"), list_id)
 
 def get_active_week_range():
     """
     Calculate the current planning week range.
     Starts on the most recent Saturday and ends the following Friday.
     """
-    tz = pytz.timezone(TIMEZONE)
+    tz = ZoneInfo(TIMEZONE)
     today = datetime.now(tz)
     
     # Find the most recent Saturday (or today if it is Saturday)
@@ -45,7 +72,7 @@ def get_planning_week_range(today=None):
     Starts today and ends on the Friday of the current active week.
     """
     if today is None:
-        tz = pytz.timezone(TIMEZONE)
+        tz = ZoneInfo(TIMEZONE)
         today = datetime.now(tz)
         
     # Find the most recent Saturday to determine the current week's Friday

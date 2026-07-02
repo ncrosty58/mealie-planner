@@ -1,20 +1,22 @@
+import json
 import os
 import sys
-import json
 from datetime import datetime
 from typing import List, Optional
+
 from pydantic import BaseModel
 
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
-from mealie_planner.unified_client import UnifiedMealieClient
-
 from mealie_planner.ai_client import AIClient
+from mealie_planner.unified_client import UnifiedMealieClient
 from mealie_planner.utils import get_active_week_strings
+
 
 class DinnerPrepNote(BaseModel):
     date: str

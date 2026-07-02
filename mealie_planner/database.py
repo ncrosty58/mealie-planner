@@ -1,7 +1,15 @@
-import os
+"""SQLite-backed persistence for planner state and chat history.
+
+Legacy JSON files under data/ are read once as a seed if the database is
+empty (first-run migration), but SQLite is the single source of truth.
+"""
 import json
+import logging
+import os
 import sqlite3
 import threading
+
+logger = logging.getLogger(__name__)
 
 DATABASE_FILE = "data/mealie_companion.db"
 STATE_FILE = "data/planner_state.json"
@@ -10,12 +18,14 @@ CHAT_HISTORY_FILE = "data/chat_history.json"
 # Thread-local storage to avoid sqlite thread-sharing issues
 _local = threading.local()
 
+
 def get_db():
     if not hasattr(_local, "conn"):
         os.makedirs(os.path.dirname(DATABASE_FILE), exist_ok=True)
         _local.conn = sqlite3.connect(DATABASE_FILE, timeout=10.0)
         _local.conn.row_factory = sqlite3.Row
     return _local.conn
+
 
 def init_db():
     """Initialize the SQLite database schema."""
@@ -37,17 +47,9 @@ def init_db():
     """)
     conn.commit()
 
-def load_state_from_db():
-    """Load settings/state from SQLite database. Falls back to JSON file if db is empty."""
-    import sys
-    if 'pytest' in sys.modules or 'unittest' in sys.modules:
-        if os.path.exists(STATE_FILE):
-            try:
-                with open(STATE_FILE, 'r') as f:
-                    return json.load(f)
-            except Exception:
-                pass
 
+def load_state_from_db():
+    """Load settings/state from SQLite. Seeds from the legacy JSON file if empty."""
     init_db()
     conn = get_db()
     cursor = conn.cursor()
@@ -62,52 +64,39 @@ def load_state_from_db():
                 except json.JSONDecodeError:
                     state[row['key']] = row['value']
             return state
-    except Exception as e:
-        print(f"[DB] Error loading state from SQLite: {e}")
+    except sqlite3.Error as e:
+        logger.error("Error loading state from SQLite: %s", e)
 
-    # Fallback to JSON file if SQLite is empty or errored
+    # One-time seed from the legacy JSON state file
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE, 'r') as f:
                 state = json.load(f)
-                # Seed database with JSON contents
-                save_state_to_db(state, write_json=False)
-                return state
+            save_state_to_db(state)
+            return state
         except Exception as e:
-            print(f"[DB] Error loading fallback JSON state: {e}")
+            logger.error("Error loading fallback JSON state: %s", e)
     return {}
 
-def save_state_to_db(updates, write_json=True):
-    """Save/update settings in SQLite database and sync back to JSON for compatibility."""
+
+def save_state_to_db(updates):
+    """Save/update settings in SQLite."""
     init_db()
     conn = get_db()
     cursor = conn.cursor()
     try:
         for key, val in updates.items():
-            val_json = json.dumps(val)
             cursor.execute(
                 "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
-                (key, val_json)
+                (key, json.dumps(val))
             )
         conn.commit()
-    except Exception as e:
-        print(f"[DB] Error saving state to SQLite: {e}")
+    except sqlite3.Error as e:
+        logger.error("Error saving state to SQLite: %s", e)
 
-    if write_json:
-        # Fetch the entire state to write to JSON
-        try:
-            state = load_state_from_db()
-            os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
-            # Use temporary file to prevent corruption during concurrent writes
-            tmp_file = f"{STATE_FILE}.tmp"
-            with open(tmp_file, 'w') as f:
-                json.dump(state, f)
-            os.replace(tmp_file, STATE_FILE)
-        except Exception as e:
-            print(f"[DB] Error writing state JSON file: {e}")
 
 def load_chat_history_from_db(session_id="default"):
-    """Load chat history and messages from SQLite database, with JSON fallback."""
+    """Load chat history and messages from SQLite. Seeds from legacy JSON if empty."""
     init_db()
     conn = get_db()
     cursor = conn.cursor()
@@ -122,65 +111,52 @@ def load_chat_history_from_db(session_id="default"):
                 "history": json.loads(row['history_json'] or "[]"),
                 "messages": json.loads(row['messages_json'] or "[]")
             }
-    except Exception as e:
-        print(f"[DB] Error loading chat history from SQLite: {e}")
+    except sqlite3.Error as e:
+        logger.error("Error loading chat history from SQLite: %s", e)
 
-    # Fallback to JSON file if SQLite is empty
+    # One-time seed from the legacy JSON chat history file
     if os.path.exists(CHAT_HISTORY_FILE):
         try:
             with open(CHAT_HISTORY_FILE, 'r') as f:
                 data = json.load(f)
-                # Seed SQLite
-                save_chat_history_to_db(
-                    data.get("history", []),
-                    data.get("messages", []),
-                    session_id=session_id,
-                    write_json=False
-                )
-                return data
+            save_chat_history_to_db(data.get("history", []), data.get("messages", []), session_id=session_id)
+            return data
         except Exception as e:
-            print(f"[DB] Error loading chat history fallback JSON: {e}")
+            logger.error("Error loading chat history fallback JSON: %s", e)
     return {"history": [], "messages": []}
 
-def save_chat_history_to_db(history, messages, session_id="default", write_json=True):
-    """Save chat history and messages to SQLite database and sync to JSON file."""
+
+def save_chat_history_to_db(history, messages, session_id="default"):
+    """Save chat history and messages to SQLite."""
     init_db()
     conn = get_db()
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "INSERT OR REPLACE INTO chat_history (session_id, history_json, messages_json, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+            "INSERT OR REPLACE INTO chat_history (session_id, history_json, messages_json, updated_at) "
+            "VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
             (session_id, json.dumps(history), json.dumps(messages))
         )
         conn.commit()
-    except Exception as e:
-        print(f"[DB] Error saving chat history to SQLite: {e}")
+    except sqlite3.Error as e:
+        logger.error("Error saving chat history to SQLite: %s", e)
 
-    if write_json:
-        try:
-            os.makedirs(os.path.dirname(CHAT_HISTORY_FILE), exist_ok=True)
-            tmp_file = f"{CHAT_HISTORY_FILE}.tmp"
-            with open(tmp_file, 'w') as f:
-                json.dump({"history": history, "messages": messages}, f)
-            os.replace(tmp_file, CHAT_HISTORY_FILE)
-        except Exception as e:
-            print(f"[DB] Error writing chat history JSON file: {e}")
 
 def clear_chat_history_in_db(session_id="default"):
-    """Clear chat history in SQLite and sync to JSON."""
+    """Clear chat history in SQLite (and reset the legacy JSON file if present)."""
     init_db()
     conn = get_db()
     cursor = conn.cursor()
     try:
         cursor.execute("DELETE FROM chat_history WHERE session_id = ?", (session_id,))
         conn.commit()
-    except Exception as e:
-        print(f"[DB] Error clearing chat history in SQLite: {e}")
-    
-    # Also overwrite the chat history file
-    try:
-        os.makedirs(os.path.dirname(CHAT_HISTORY_FILE), exist_ok=True)
-        with open(CHAT_HISTORY_FILE, 'w') as f:
-            json.dump({"history": [], "messages": []}, f)
-    except Exception as e:
-        print(f"[DB] Error writing cleared chat history JSON: {e}")
+    except sqlite3.Error as e:
+        logger.error("Error clearing chat history in SQLite: %s", e)
+
+    # Reset the legacy JSON file too so it can't re-seed old history
+    if os.path.exists(CHAT_HISTORY_FILE):
+        try:
+            with open(CHAT_HISTORY_FILE, 'w') as f:
+                json.dump({"history": [], "messages": []}, f)
+        except OSError as e:
+            logger.error("Error resetting legacy chat history JSON: %s", e)

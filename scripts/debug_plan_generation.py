@@ -5,12 +5,12 @@ from datetime import datetime, timedelta
 # Add the project root to sys.path to ensure module discovery
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from mealie_planner.unified_client import UnifiedMealieClient
 from mealie_planner.ai_client import AIClient
-from mealie_planner.recipe_crawler import RecipeCrawler
-from mealie_planner.shopping_sync import ShoppingListSync
 from mealie_planner.email_notifier import EmailNotifier
 from mealie_planner.plan_generator import PlanGenerator
+from mealie_planner.recipe_crawler import RecipeCrawler
+from mealie_planner.shopping_sync import ShoppingListSync
+from mealie_planner.unified_client import UnifiedMealieClient
 
 if __name__ == "__main__":
     print("--- Debugging generate_weekly_plan ---")

@@ -1,5 +1,6 @@
 import os
 import sys
+
 from dotenv import load_dotenv
 
 # Load .env file explicitly
@@ -9,6 +10,7 @@ load_dotenv('/opt/mealie-planner/.env')
 sys.path.insert(0, '/opt/mealie-planner')
 
 from mealie_planner.unified_client import UnifiedMealieClient
+
 
 def main():
     client = UnifiedMealieClient()
@@ -51,7 +53,7 @@ def main():
             }
             try:
                 client.patch_recipe(slug, patch_payload)
-                print(f"  Successfully cleared.")
+                print("  Successfully cleared.")
             except Exception as e:
                 print(f"  Error patching recipe {slug}: {e}")
                 

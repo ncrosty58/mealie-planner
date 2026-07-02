@@ -1,6 +1,7 @@
 import os
 import sys
 from datetime import datetime
+
 from dotenv import load_dotenv
 
 # Load env file
@@ -9,9 +10,10 @@ load_dotenv()
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from mealie_planner.unified_client import UnifiedMealieClient
-from mealie_planner.gemini_client import GeminiClient
 from mealie_planner.email_notifier import EmailNotifier
+from mealie_planner.gemini_client import GeminiClient
+from mealie_planner.unified_client import UnifiedMealieClient
+
 
 def generate_debug_email(date_str):
     client = UnifiedMealieClient()
@@ -19,7 +21,7 @@ def generate_debug_email(date_str):
     notifier = EmailNotifier(client, gemini)
     
     # 1. Fetch meal plans for today and tomorrow
-    from datetime import datetime, timedelta
+    from datetime import timedelta
     dt = datetime.strptime(date_str, "%Y-%m-%d")
     tomorrow_dt = dt + timedelta(days=1)
     tomorrow_str = tomorrow_dt.strftime("%Y-%m-%d")

@@ -1,7 +1,11 @@
-import json, os, sys
+import json
+import os
+import sys
+
 sys.path.insert(0, os.path.abspath("."))
 from mealie_planner.unified_client import UnifiedMealieClient
 from mealie_planner.utils import get_active_week_strings
+
 
 def check():
     client = UnifiedMealieClient()

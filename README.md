@@ -28,7 +28,7 @@ The dashboard will be accessible at **`http://localhost:9926`**.
 > [!TIP]
 > **Optional Interactive Setup:** If you prefer an interactive walkthrough to configure your `.env` variables and initialize the submodule manually on your host machine, you can run the helper script:
 > ```bash
-> python setup.py
+> python scripts/setup_wizard.py
 > ```
 
 ---
@@ -66,10 +66,24 @@ Templates for these files are provided in the repository root and are copied aut
 
 ## 🛠️ Tech Stack
 
-* **Backend:** Python 3.12, Flask, APScheduler
-* **Frontend:** Vanilla JS, CSS (modern design tokens, responsive layout)
+* **Backend:** Python 3.12, Flask (app factory + blueprints), APScheduler, served by gunicorn in Docker
+* **Frontend:** Vanilla JS + CSS design tokens (`static/js/app.js`, `static/css/app.css`), Jinja partials in `templates/partials/`
 * **AI Engine:** Google Gemini, OpenAI, or DeepSeek API (configurable via `.env`)
-* **MCP Integration:** [mealie-mcp-server](https://github.com/rldiao/mealie-mcp-server)
+* **MCP Integration:** [mealie-mcp-server](https://github.com/rldiao/mealie-mcp-server) via a persistent chat session
+
+### Code layout
+
+```
+app.py                       # thin entrypoint (dev: python app.py, prod: gunicorn app:app)
+mealie_planner/
+  web/                       # Flask app factory + services composition root
+    routes/                  # planning, shopping, chat, admin blueprints
+  plan_generator.py          # AI weekly plan generation
+  shopping_sync.py           # non-destructive AI shopping list sync
+  chat_session.py            # persistent MCP chat session
+  maintenance.py             # destructive wipe operations (web + CLI)
+templates/partials/          # per-view Jinja partials
+```
 
 ---
 
@@ -91,11 +105,12 @@ python -m scripts.clear_mealie
 
 ---
 
-## 🧪 Running Tests
+## 🧪 Tests & Lint
 
-Verify your setup by running the offline mocked test suite:
+Verify your setup by running the offline mocked test suite and linter (both run in CI on every push):
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt ruff pytest
+ruff check .
 pytest
 ```
 

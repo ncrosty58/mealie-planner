@@ -1,12 +1,14 @@
+import logging
 import os
 import sys
-import logging
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
 # Run startup checks (verifying submodules and config templates)
 from mealie_planner.startup_check import run_startup_checks
+
 run_startup_checks()
 
 # Add mealie-mcp-server/src to the python path to import vendored tools and client
@@ -25,6 +27,7 @@ if base_dir not in sys.path:
     sys.path.append(base_dir)
 
 from tools import register_all_tools
+
 from mealie_planner.unified_client import UnifiedMealieClient
 
 # Configure logging
@@ -114,7 +117,7 @@ def get_detailed_meal_plan(
     try:
         return mealie.get_detailed_meal_plan(start_date, end_date)
     except Exception as e:
-        raise ToolError(f"Error fetching detailed meal plan: {str(e)}")
+        raise ToolError(f"Error fetching detailed meal plan: {str(e)}") from e
 
 @mcp.tool()
 def create_recipe_from_url(url: str) -> Dict[str, Any]:
@@ -180,7 +183,7 @@ def create_recipe_from_url(url: str) -> Dict[str, Any]:
             
         return res
     except Exception as e:
-        raise ToolError(f"Error creating recipe from URL '{url}': {str(e)}")
+        raise ToolError(f"Error creating recipe from URL '{url}': {str(e)}") from e
 
 @mcp.tool()
 def parse_ingredients(raw_text: str) -> List[Dict[str, Any]]:
@@ -195,7 +198,7 @@ def parse_ingredients(raw_text: str) -> List[Dict[str, Any]]:
     try:
         return mealie.parse_ingredients_with_ai(raw_text)
     except Exception as e:
-        raise ToolError(f"Error parsing ingredients: {str(e)}")
+        raise ToolError(f"Error parsing ingredients: {str(e)}") from e
 
 @mcp.tool()
 def create_recipe(
@@ -240,7 +243,7 @@ def create_recipe(
 
         return mealie.update_recipe(slug, recipe_json)
     except Exception as e:
-        raise ToolError(f"Error creating recipe '{name}': {str(e)}")
+        raise ToolError(f"Error creating recipe '{name}': {str(e)}") from e
 
 @mcp.tool()
 def update_recipe(
@@ -286,7 +289,7 @@ def update_recipe(
 
         return mealie.update_recipe(slug, recipe_json)
     except Exception as e:
-        raise ToolError(f"Error updating recipe '{slug}': {str(e)}")
+        raise ToolError(f"Error updating recipe '{slug}': {str(e)}") from e
 
 @mcp.tool()
 def get_shopping_list_labels() -> List[Dict[str, Any]]:
@@ -299,7 +302,7 @@ def get_shopping_list_labels() -> List[Dict[str, Any]]:
     try:
         return mealie.get_labels()
     except Exception as e:
-        raise ToolError(f"Error fetching labels: {str(e)}")
+        raise ToolError(f"Error fetching labels: {str(e)}") from e
 
 @mcp.tool()
 def update_shopping_list_item(
@@ -332,14 +335,18 @@ def update_shopping_list_item(
             raise ToolError(f"Shopping list item with ID '{item_id}' not found.")
             
         # Merge updates
-        if note is not None: current_item['note'] = note
-        if quantity is not None: current_item['quantity'] = quantity
-        if checked is not None: current_item['checked'] = checked
-        if label_id is not None: current_item['labelId'] = label_id
+        if note is not None:
+            current_item['note'] = note
+        if quantity is not None:
+            current_item['quantity'] = quantity
+        if checked is not None:
+            current_item['checked'] = checked
+        if label_id is not None:
+            current_item['labelId'] = label_id
         
         return mealie.update_shopping_list_item(item_id, current_item)
     except Exception as e:
-        raise ToolError(f"Error updating shopping list item: {str(e)}")
+        raise ToolError(f"Error updating shopping list item: {str(e)}") from e
 
 @mcp.tool()
 def delete_mealplan(entry_id: str) -> str:
@@ -356,7 +363,7 @@ def delete_mealplan(entry_id: str) -> str:
         mealie.delete_meal_plan_entry(entry_id)
         return f"Successfully deleted mealplan entry '{entry_id}'."
     except Exception as e:
-        raise ToolError(f"Error deleting mealplan entry: {str(e)}")
+        raise ToolError(f"Error deleting mealplan entry: {str(e)}") from e
 
 @mcp.tool()
 def sync_shopping_list(
@@ -375,11 +382,10 @@ def sync_shopping_list(
         str: Status message of the sync.
     """
     try:
-        from mealie_planner.utils import get_planning_week_strings
-        from mealie_planner.shopping_sync import sync_shopping_list as run_sync
-        
         # Load state for low staples and freezer items
         from mealie_planner.database import load_state_from_db
+        from mealie_planner.shopping_sync import sync_shopping_list as run_sync
+        from mealie_planner.utils import get_planning_week_strings
         state = load_state_from_db()
         low_staples = state.get("low_staples", [])
         freezer_items = state.get("freezer_items", "")
@@ -395,7 +401,7 @@ def sync_shopping_list(
         else:
             return "Failed to synchronize the shopping list. Check the server logs."
     except Exception as e:
-        raise ToolError(f"Error during shopping list sync: {str(e)}")
+        raise ToolError(f"Error during shopping list sync: {str(e)}") from e
 
 if __name__ == "__main__":
     # Tool-override policy (IMPORTANT):

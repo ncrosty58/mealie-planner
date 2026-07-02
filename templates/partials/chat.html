@@ -1,0 +1,15 @@
+<div id="chat-window" class="chat-window">
+    <div class="chat-header">
+        <div style="font-weight: 700; font-size: 1.1rem;">Kitchen Assistant</div>
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <button id="chat-clear" style="background: none; border: none; color: white; cursor: pointer;" title="Clear History">🗑️</button>
+            <button onclick="toggleChat()" style="background: none; border: none; color: white; font-size: 1.4rem; cursor: pointer;">&times;</button>
+        </div>
+    </div>
+    <div id="chat-messages"></div>
+    <div class="chat-input-row">
+        <input type="text" id="chat-input" class="textarea-input" style="padding: 0.75rem; font-size: 0.9rem;" placeholder="Ask your chef...">
+        <button id="chat-send" class="btn btn-primary" disabled>Send</button>
+    </div>
+</div>
+<button class="chat-trigger" onclick="toggleChat()">💬</button>

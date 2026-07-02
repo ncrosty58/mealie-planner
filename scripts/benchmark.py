@@ -1,5 +1,6 @@
 import time
 
+
 class DummyClient:
     def __init__(self):
         self.cache = {}

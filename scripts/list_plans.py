@@ -1,6 +1,7 @@
 import os
 import sys
 from datetime import datetime, timedelta
+
 from dotenv import load_dotenv
 
 # Load .env file
@@ -10,6 +11,7 @@ load_dotenv()
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from mealie_planner.unified_client import UnifiedMealieClient
+
 
 def list_upcoming_meals():
     client = UnifiedMealieClient()

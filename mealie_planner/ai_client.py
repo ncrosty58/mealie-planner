@@ -1,9 +1,10 @@
-import os
 import json
 import logging
+import os
+from typing import Optional
+
 import requests
-from typing import Optional, List, Dict, Any
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class AIClient:
         if self._initialized and api_key is None and model_name is None:
             return
 
-        from .config import AI_VENDOR, ACTIVE_CORE_MODEL
+        from .config import ACTIVE_CORE_MODEL, AI_VENDOR
         self.vendor = AI_VENDOR
 
         if self.vendor == "gemini":
@@ -122,20 +123,16 @@ class AIClient:
                 "generationConfig": generation_config
             }
 
-            print("--- AI PROMPT (Gemini) ---")
-            print(prompt[:500] + "..." if len(prompt) > 500 else prompt)
-            print("-------------------")
+            logger.debug("AI prompt (Gemini): %s", prompt[:500] + "..." if len(prompt) > 500 else prompt)
 
             try:
                 resp = self.session.post(url, json=payload, timeout=180)
                 resp.raise_for_status()
                 data = resp.json()
-                print("--- AI RAW RESPONSE (Meta) ---")
-                print(f"Response ID: {data.get('responseId')}")
-                print("-----------------------")
+                logger.debug("AI response id: %s", data.get('responseId'))
                 return data["candidates"][0]["content"]["parts"][0]["text"]
             except requests.exceptions.RequestException as e:
-                print(f"Gemini API call failed: {e}")
+                logger.error("Gemini API call failed: %s", e)
                 raise
 
         else:

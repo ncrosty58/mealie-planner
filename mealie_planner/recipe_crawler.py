@@ -1,11 +1,18 @@
-import urllib.request
-import urllib.parse
-from bs4 import BeautifulSoup
-import requests
 import json
+import logging
+import urllib.parse
+import urllib.request
 
-from .config import load_skill_md, _RECIPE_FINDER_SKILL_DEFINITION, get_banned_recipes, _BLACKSTONE_COMPATIBILITY_SKILL_DEFINITION, SEMANTIC_MATCH_PROMPT_TEMPLATE
-from .exceptions import MealieAPIError, SkillParsingError
+import requests
+from bs4 import BeautifulSoup
+
+from .config import (
+    _BLACKSTONE_COMPATIBILITY_SKILL_DEFINITION,
+    _RECIPE_FINDER_SKILL_DEFINITION,
+    SEMANTIC_MATCH_PROMPT_TEMPLATE,
+)
+
+logger = logging.getLogger(__name__)
 
 class RecipeCrawler:
     def __init__(self, mealie_client, ai_client):
@@ -58,10 +65,10 @@ class RecipeCrawler:
                 # Validate it's a valid ID from the catalogue
                 valid_ids = {r["id"] for r in all_recipes}
                 if response in valid_ids:
-                    print(f"[Crawler] Semantic match found: '{ingredient_name}' -> recipe ID '{response}'")
+                    logger.info(f"[Crawler] Semantic match found: '{ingredient_name}' -> recipe ID '{response}'")
                     return response
         except Exception as e:
-            print(f"[Crawler] Semantic recipe matching failed: {e}")
+            logger.error(f"[Crawler] Semantic recipe matching failed: {e}")
             
         return None
 
@@ -92,7 +99,7 @@ class RecipeCrawler:
                     links.append(href)
             return links[:5]
         except Exception as e:
-            print(f"[Crawler] Web search failed: {e}")
+            logger.error(f"[Crawler] Web search failed: {e}")
             return []
 
     def get_url_metadata(self, url):
@@ -108,7 +115,7 @@ class RecipeCrawler:
             if meta_desc:
                 desc = meta_desc.get('content', '')
             return {'url': url, 'title': title.strip(), 'description': desc.strip()}
-        except:
+        except Exception:
             return None
 
     def validate_recipe_link_with_ai(self, url, title, description):
@@ -123,12 +130,12 @@ class RecipeCrawler:
         try:
             response = self.ai.call(prompt, expect_json=False)
             return 'YES' in response.upper()
-        except:
+        except Exception:
             return False
 
     def find_and_import_recipe(self, ingredient_name, existing_recipe_ids=None):
         """Search the web for a recipe, validate it with AI, and import it into Mealie."""
-        print(f"[Crawler] Searching for recipe for: {ingredient_name}")
+        logger.info(f"[Crawler] Searching for recipe for: {ingredient_name}")
         search_results = self.search_recipes(ingredient_name)
         
         for url in search_results:
@@ -139,17 +146,17 @@ class RecipeCrawler:
                 
                 is_valid = self.validate_recipe_link_with_ai(metadata['url'], metadata['title'], metadata['description'])
                 if not is_valid:
-                    print(f"[Crawler] AI rejected link: {url}")
+                    logger.info(f"[Crawler] AI rejected link: {url}")
                     continue
                 
-                print(f"[Crawler] Importing valid recipe: {url}")
+                logger.info(f"[Crawler] Importing valid recipe: {url}")
                 self.client.create_recipe_from_url(url)
                 self._detailed_recipes_cache = None
-                print(f"[Crawler] Successfully imported: {ingredient_name}")
+                logger.info(f"[Crawler] Successfully imported: {ingredient_name}")
                 return True
                 
             except Exception as e:
-                print(f"[Crawler] Error processing link {url}: {e}")
+                logger.error(f"[Crawler] Error processing link {url}: {e}")
                 continue
                 
         return False
@@ -176,7 +183,7 @@ def _persist_blackstone_verdict(recipe_details, result):
         if slug in cache and isinstance(cache[slug], dict):
             cache[slug]['extras'] = new_extras
     except Exception as e:
-        print(f"[Crawler] Failed to persist Blackstone verdict for '{slug}': {e}")
+        logger.error(f"[Crawler] Failed to persist Blackstone verdict for '{slug}': {e}")
 
 
 def check_blackstone_compatibility(recipe_details):
@@ -223,5 +230,5 @@ def check_blackstone_compatibility(recipe_details):
         _persist_blackstone_verdict(recipe_details, result)
         return result
     except Exception as e:
-        print(f"[Crawler] Standalone Blackstone griddle AI check failed, falling back: {e}")
+        logger.error(f"[Crawler] Standalone Blackstone griddle AI check failed, falling back: {e}")
         return False

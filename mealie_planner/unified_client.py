@@ -1,14 +1,15 @@
+import logging
 import os
 import sys
-import json
 import time
-import logging
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 # Run startup checks (verifying submodules and config templates)
 from .startup_check import run_startup_checks
+
 run_startup_checks()
 
 # Add mealie-mcp-server/src to the python path to import MealieFetcher
@@ -20,8 +21,8 @@ if mcp_src_dir not in sys.path:
 from mealie import MealieFetcher
 
 logger = logging.getLogger("mealie-planner-unified")
-from .models import StandardizedIngredients
 from .config import _INGREDIENT_STANDARDIZATION_SKILL_DEFINITION
+from .models import StandardizedIngredients
 
 _recipe_details_cache = {}
 # Per-key fetch timestamps so cached recipe details can expire (see RECIPE_CACHE_TTL).
@@ -135,17 +136,25 @@ class UnifiedMealieClient(MealieFetcher):
             self._recipe_details_cache_ts.pop(key, None)
 
     def get_recipes_details_bulk(self, recipe_ids: List[str]) -> Dict[str, Dict[str, Any]]:
-        """Fetch full details for a list of recipes sequentially to protect server stability."""
-        for rid in recipe_ids:
-            cached = self._recipe_details_cache.get(rid)
-            fresh = cached is not None and (time.time() - self._recipe_details_cache_ts.get(rid, 0)) < RECIPE_CACHE_TTL
-            if not fresh:
-                try:
-                    # Sequential fetch with a small breath to prevent SQLite/Worker locking
-                    self.get_recipe_details(rid)
-                    time.sleep(0.1)
-                except Exception as e:
-                    logger.error(f"Error fetching recipe {rid}: {e}")
+        """Fetch full details for a list of recipes with bounded concurrency.
+
+        Worker count is kept low to avoid overwhelming Mealie's SQLite backend."""
+        now = time.time()
+        to_fetch = [
+            rid for rid in recipe_ids
+            if self._recipe_details_cache.get(rid) is None
+            or (now - self._recipe_details_cache_ts.get(rid, 0)) >= RECIPE_CACHE_TTL
+        ]
+
+        if to_fetch:
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            with ThreadPoolExecutor(max_workers=min(4, len(to_fetch))) as executor:
+                futures = {executor.submit(self.get_recipe_details, rid): rid for rid in to_fetch}
+                for future in as_completed(futures):
+                    try:
+                        future.result()
+                    except Exception as e:
+                        logger.error(f"Error fetching recipe {futures[future]}: {e}")
 
         return {rid: self._recipe_details_cache.get(rid) for rid in recipe_ids}
 
@@ -194,7 +203,7 @@ class UnifiedMealieClient(MealieFetcher):
 
     def clear_shopping_list(self, list_id: str):
         """Clear all items from a shopping list using targeted fetch."""
-        items = self.get_shopping_list_items_legacy(list_id)
+        items = self.get_shopping_list_items_for_list(list_id)
         item_ids_to_delete = [item['id'] for item in items if 'id' in item]
         if item_ids_to_delete:
             return self.delete_shopping_list_items_bulk(item_ids_to_delete)
@@ -208,20 +217,11 @@ class UnifiedMealieClient(MealieFetcher):
         """Legacy alias for create_shopping_list_item."""
         return self.create_shopping_list_item(shopping_list_id=list_id, note=note, label_id=label_id)
     
-    def get_shopping_list_items(self, *args, **kwargs) -> Any:
-        """
-        Supports both legacy (list_id as first arg) and new (pagination params) signatures.
-        """
-        if args and isinstance(args[0], str) and len(args[0]) > 20:
-            return self.get_shopping_list_items_legacy(args[0])
-        return super().get_shopping_list_items(*args, **kwargs)
-
     def get_shopping_list_items_for_list(self, list_id: str) -> List[Dict[str, Any]]:
-        """Helper to get items specifically for one list."""
-        return self.get_shopping_list_items_legacy(list_id)
+        """Fetch all items currently on a specific shopping list.
 
-    def get_shopping_list_items_legacy(self, list_id: str) -> List[Dict[str, Any]]:
-        """Fetch all items currently on a shopping list (legacy compatibility)."""
+        (The inherited paginated get_shopping_list_items(page, per_page) remains
+        available for the vendored MCP tools.)"""
         res = self.get_shopping_list(list_id)
         if isinstance(res, dict):
             return res.get('listItems', [])

@@ -1,0 +1,39 @@
+[project]
+name = "mealie-planner"
+version = "1.0.0"
+description = "AI-powered weekly menu planner, shopping list syncer, and email briefing companion for Mealie"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12"
+dynamic = ["dependencies"]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[tool.setuptools]
+packages = ["mealie_planner", "mealie_planner.web", "mealie_planner.web.routes"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["mealie-mcp-server", "benchmark_meal_plan_delete.py"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B"]
+ignore = [
+    "B008",  # function call in default argument (Flask idioms)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Ad-hoc CLI/debug scripts: allow sys.path bootstrapping and looser style
+"scripts/*" = ["E402", "F401", "E722", "E741", "F841"]
+"mealie_planner/mcp_server.py" = ["E402"]
+"mealie_planner/unified_client.py" = ["E402"]
+"mealie_planner/mcp_agent.py" = ["E402"]

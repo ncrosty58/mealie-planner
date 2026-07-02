@@ -2,9 +2,9 @@ import json
 import unittest
 from unittest.mock import MagicMock, patch
 
+from mealie_planner.config import ACTIVE_LIST_ID, STAPLES_LIST_ID
 from mealie_planner.plan_generator import classify_early_late_dates
 from mealie_planner.shopping_sync import ShoppingListSync
-from mealie_planner.config import ACTIVE_LIST_ID
 
 
 class TestClassifyEarlyLateDates(unittest.TestCase):
@@ -88,9 +88,12 @@ class TestShoppingListSyncMerge(unittest.TestCase):
         client.get_meal_plan.return_value = []
         client.get_all_recipes.return_value = []
         client.get_recipes_details_bulk.return_value = {}
-        # First positional call in sync is staples (STAPLES_LIST_ID); none here.
-        client.get_shopping_list_items.return_value = []
-        client.get_shopping_list_items_for_list.return_value = active_items
+        # Dispatch by list id: the staples list is empty by default; every other
+        # list id returns the active shopping list under test.
+        client._staples = []
+        client.get_shopping_list_items_for_list.side_effect = (
+            lambda list_id: client._staples if list_id == STAPLES_LIST_ID else active_items
+        )
         client.get_labels.return_value = [{"name": "Produce", "id": "lbl-produce"}]
 
         ai.call.return_value = json.dumps({"items": ai_items})
@@ -247,7 +250,7 @@ class TestShoppingListSyncMerge(unittest.TestCase):
         syncer, client = self._make_syncer(active_items, ai_items)
         
         # Mock staples: Eggs and Milk
-        client.get_shopping_list_items.return_value = [
+        client._staples = [
             {"id": "staple-eggs", "note": "Eggs", "quantity": 1.0, "labelId": "lbl-produce"},
             {"id": "staple-milk", "note": "Milk", "quantity": 1.0, "labelId": "lbl-produce"}
         ]
@@ -395,6 +398,7 @@ class TestWeekRanges(unittest.TestCase):
     @patch("mealie_planner.utils.get_active_week_range")
     def test_get_next_week_range_mocked(self, mock_get_active_week):
         from datetime import datetime
+
         from mealie_planner.utils import get_next_week_range
 
         # Normal week
@@ -417,6 +421,7 @@ class TestWeekRanges(unittest.TestCase):
 
     def test_get_next_week_range(self):
         from datetime import timedelta
+
         from mealie_planner.utils import get_active_week_range, get_next_week_range
         
         curr_start, curr_end = get_active_week_range()

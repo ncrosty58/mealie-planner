@@ -4,7 +4,7 @@ Standalone CLI utilities. Run from the project root, e.g. `python -m scripts.lis
 or `python scripts/list_plans.py`. They reuse `mealie_planner` clients and read `.env`.
 
 > ⚠️ **Do not move or rename `clear_mealie.py`** — it is imported by `app.py`
-> (`from scripts.clear_mealie import wipe_mealie_data`) for the dashboard "Clear" action.
+> (`from mealie_planner.maintenance import wipe_mealie_data`) for the dashboard "Clear" action.
 
 ## Operational
 Routine/data operations against the live Mealie instance.
