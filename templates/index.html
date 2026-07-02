@@ -864,6 +864,7 @@
                     <h2 class="card-title" style="margin-bottom: 0;">Shopping List <span class="print-date-subtitle">({{ start_date }} &rarr; {{ end_date }})</span></h2>
                     <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                         <button class="btn btn-secondary" onclick="checkAllItems(this)">Check All</button>
+                        <button class="btn btn-danger" onclick="deleteCheckedItems(this)">Delete Checked</button>
                         <button class="btn btn-secondary" onclick="copyShoppingList(this)">Copy List</button>
                         <button class="btn btn-secondary" onclick="printShoppingList()">Print List</button>
                     </div>
@@ -1341,6 +1342,46 @@
                         }, 2000);
                     } else {
                         alert("Error checking items: " + data.error);
+                        btn.innerText = originalText;
+                        btn.disabled = false;
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("Connection error.");
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                });
+        }
+
+        function deleteCheckedItems(btn) {
+            const checkedCheckboxes = document.querySelectorAll('.shopping-list-checkbox:checked');
+            if (checkedCheckboxes.length === 0) {
+                alert("No items are checked!");
+                return;
+            }
+            if (!confirm(`Delete all ${checkedCheckboxes.length} checked item(s) from this shopping list?`)) return;
+            
+            const originalText = btn.innerText;
+            btn.innerText = "Deleting...";
+            btn.disabled = true;
+
+            fetch('/delete-checked-items', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({week: currentWeek}) })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        checkedCheckboxes.forEach(cb => {
+                            const itemDiv = cb.closest('.shopping-item');
+                            if (itemDiv) itemDiv.remove();
+                        });
+                        updateShoppingListLayout();
+                        btn.innerText = "Deleted!";
+                        setTimeout(() => { 
+                            btn.innerText = originalText;
+                            btn.disabled = false;
+                        }, 2000);
+                    } else {
+                        alert("Error deleting checked items: " + data.error);
                         btn.innerText = originalText;
                         btn.disabled = false;
                     }

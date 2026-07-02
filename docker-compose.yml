@@ -1,5 +1,6 @@
 services:
   mealie-planner:
+    image: ghcr.io/ncrosty58/mealie-planner:latest
     build: .
     container_name: mealie-planner
     restart: always

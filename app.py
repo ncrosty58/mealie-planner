@@ -539,6 +539,24 @@ def check_all_items():
         print(f"Error checking all items: {e}")
         return json.dumps({"success": False, "error": str(e)}), 500
 
+@app.route('/delete-checked-items', methods=['POST'])
+def delete_checked_items():
+    """Delete all checked items from the active shopping list."""
+    try:
+        week = (request.get_json(silent=True) or {}).get('week', 'current')
+        list_id = get_list_id_for_week(week)
+        items = mealie_client.get_shopping_list_items_for_list(list_id)
+        
+        checked_ids = [item['id'] for item in items if item.get('checked') and 'id' in item]
+        
+        if checked_ids:
+            mealie_client.delete_shopping_list_items_bulk(checked_ids)
+            
+        return json.dumps({"success": True, "count": len(checked_ids)})
+    except Exception as e:
+        print(f"Error deleting checked items: {e}")
+        return json.dumps({"success": False, "error": str(e)}), 500
+
 @app.route('/change-meal', methods=['POST'])
 def change_meal():
     try:
