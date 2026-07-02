@@ -6,7 +6,7 @@ from .config import (
     FAMILY_DIETARY_RULES_PROMPT, get_banned_recipes,
     _WEEKLY_MEAL_SELECTION_SKILL_DEFINITION,
     _BANNED_RECIPES_SKILL_DEFINITION,
-    ACTIVE_LIST_ID
+    ACTIVE_LIST_ID, RECENT_LOOKBACK_DAYS
 )
 from .parsers import parse_freezer_items, parse_exclusions
 from .exceptions import MealieAPIError, SkillParsingError
@@ -140,18 +140,38 @@ class PlanGenerator:
             return
         target_date_strings = [(start_date + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(num_days)]
 
-        # Fetch recently planned recipes (preceding 7 days) to avoid repeating them
+        # Fetch recently planned recipes (preceding RECENT_LOOKBACK_DAYS days) to avoid repeating them
         recent_recipe_names = []
+        recent_recipe_ids = set()
         try:
-            prev_start = start_date - timedelta(days=7)
+            prev_start = start_date - timedelta(days=RECENT_LOOKBACK_DAYS)
             prev_end = start_date - timedelta(days=1)
             prev_plans = self.client.get_detailed_meal_plan(prev_start.strftime("%Y-%m-%d"), prev_end.strftime("%Y-%m-%d"))
             for p in prev_plans:
+                if p.get('recipeId'):
+                    recent_recipe_ids.add(p['recipeId'])
                 if p.get('recipe') and p['recipe'].get('name'):
                     recent_recipe_names.append(p['recipe']['name'])
             recent_recipe_names = list(set(recent_recipe_names))
         except MealieAPIError as e:
             print(f"Error fetching recently planned recipes: {e}")
+
+        # Filter out recently used recipes to prevent re-using them (unless explicitly requested/prioritized)
+        from .shopping_sync import normalize_ingredient_name
+        recent_names_norm = {normalize_ingredient_name(name) for name in recent_recipe_names}
+        
+        filtered_recipes = []
+        for r in allowed_recipes:
+            is_recent = r['id'] in recent_recipe_ids or normalize_ingredient_name(r['name']) in recent_names_norm
+            if is_recent and r['id'] not in priority_recipe_ids:
+                print(f"[Plan Generation] Excluding recently planned recipe: {r['name']}")
+                continue
+            filtered_recipes.append(r)
+
+        # Safety fallback: if too many recipes were filtered out, restore them to avoid running out of choices
+        if len(filtered_recipes) < num_days + 3:
+            print(f"[Plan Generation] Warning: Filtering recent recipes left only {len(filtered_recipes)} options. Restoring recent recipes to ensure enough choices.")
+            filtered_recipes = allowed_recipes
 
         recipe_catalogue = [
             {
@@ -163,7 +183,7 @@ class PlanGenerator:
                 "ingredients": r.get("ingredients", []),
                 "instructions_preview": " ".join(r.get("instructions", []))[:120]
             }
-            for r in allowed_recipes
+            for r in filtered_recipes
         ]
         random.shuffle(recipe_catalogue)
 

@@ -65,17 +65,18 @@ async def run_mcp_chat(history, user_message, model_name=None, week_start_str=No
         model_name = ACTIVE_CHAT_MODEL
         
     mcp_src_dir = os.path.join(base_dir, "mealie-mcp-server", "src")
+    env = os.environ.copy()
+    env.update({
+        "PYTHONPATH": f"{mcp_src_dir}:{base_dir}",
+        "MEALIE_BASE_URL": os.getenv("MEALIE_API_URL", "http://mealie:9000"),
+        "MEALIE_API_KEY": os.getenv("MEALIE_TOKEN"),
+        "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY"),
+        "GEMINI_MODEL": ACTIVE_CHAT_MODEL,
+    })
     server_params = StdioServerParameters(
         command="python3",
         args=[os.path.join(base_dir, "mealie_planner", "mcp_server.py")],
-        env={
-            "PYTHONPATH": f"{mcp_src_dir}:{base_dir}",
-            "MEALIE_BASE_URL": os.getenv("MEALIE_API_URL", "http://mealie:9000"),
-            "MEALIE_API_KEY": os.getenv("MEALIE_TOKEN"),
-            "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY"),
-            "GEMINI_MODEL": ACTIVE_CHAT_MODEL,
-            "PATH": os.environ.get("PATH", "")
-        }
+        env=env
     )
     
     # 1. Convert history to Gemini API format
