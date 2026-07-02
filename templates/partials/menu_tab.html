@@ -1,6 +1,16 @@
 <div id="tab-menu" class="tab-view">
     <div class="card">
-        <div class="card-header"><h2 class="card-title">7-Day Menu</h2><span class="brand-label">Chef's Table</span></div>
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+                <h2 class="card-title">7-Day Menu</h2>
+                <span class="brand-label">Chef's Table</span>
+            </div>
+            <form action="{{ url_for('admin.clear_plan_route') }}" method="POST" onsubmit="return confirm('Are you sure you want to clear your current plan and start over?')" style="display: inline; margin: 0; padding: 0;">
+                <input type="hidden" name="week" value="current">
+                <input type="hidden" name="what" value="both">
+                <button type="submit" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">Regenerate Plan</button>
+            </form>
+        </div>
         <div class="menu-table">
             {% for day in days %}
                 <div class="menu-row {% if day.is_past %}past-day{% endif %}">

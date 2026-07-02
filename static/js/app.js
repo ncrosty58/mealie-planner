@@ -314,6 +314,7 @@
             inputEl.value = '';  // unrecognized entry; clear it back to the placeholder
             return;
         }
+        localStorage.setItem('shopping_list_dirty', 'true');
         inputEl.form.querySelector('.select-recipe-id').value = recipeId;
         showLoading('Updating Menu', 'Saving your selection…');
         inputEl.form.submit();
@@ -335,8 +336,10 @@
             if (d.status === 'complete') {
                 es.close();
                 if (d.warning) {
+                    localStorage.setItem('shopping_list_dirty', 'true');
                     window.location.href = `/?week=${APP.week}&error_msg=` + encodeURIComponent(d.warning);
                 } else {
+                    localStorage.setItem('shopping_list_dirty', 'false');
                     window.location.href = `/?week=${APP.week}&success_msg=Menu Ready`;
                 }
             } else {
@@ -345,6 +348,7 @@
         };
         es.onerror = () => {
             es.close();
+            localStorage.setItem('shopping_list_dirty', 'true');
             window.location.href = `/?week=${APP.week}&error_msg=Agent Error`;
         };
     }
@@ -456,7 +460,29 @@
         };
     }
 
+    function updateSyncIndicator() {
+        const ind = document.getElementById('sync-indicator');
+        if (!ind) return;
+        const isDirty = localStorage.getItem('shopping_list_dirty') === 'true';
+        if (isDirty) {
+            ind.className = 'sync-dot dirty';
+            ind.title = "You have unsynced changes! Click Refresh List to update Mealie groceries.";
+        } else {
+            ind.className = 'sync-dot synced';
+            ind.title = "Shopping list is synced";
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('success_msg')) {
+            const msg = urlParams.get('success_msg').toLowerCase();
+            if (msg.includes('ready') || msg.includes('recalculated') || msg.includes('cleared')) {
+                localStorage.setItem('shopping_list_dirty', 'false');
+            }
+        }
+        updateSyncIndicator();
+
         if (sessionStorage.getItem('open_staples_modal') === 'true') {
             sessionStorage.removeItem('open_staples_modal');
             openStaplesModal();

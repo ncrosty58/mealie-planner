@@ -693,3 +693,30 @@ textarea.textarea-input {
 .danger-action-row:not(:last-child) { border-bottom: 1px dashed var(--color-border); padding-bottom: 0.75rem; margin-bottom: 0.85rem; }
 .danger-action-info { display: flex; flex-direction: column; gap: 0.15rem; }
 .danger-action-title { font-weight: 600; font-size: 0.85rem; color: var(--text-main); }
+
+/* --- SYNC DOT STYLING --- */
+.sync-dot {
+    font-size: 0.8rem;
+    margin-left: 6px;
+    vertical-align: middle;
+    display: inline-block;
+}
+.sync-dot.synced {
+    color: #4CAF50 !important;
+}
+.sync-dot.dirty {
+    color: #FF9800 !important;
+    animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+    0% { opacity: 0.4; }
+    50% { opacity: 1; }
+    100% { opacity: 0.4; }
+}
+
+/* Hide card header forms during print */
+@media print {
+    .card-header form {
+        display: none !important;
+    }
+}
