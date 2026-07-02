@@ -9,11 +9,10 @@ jobs:
   deploy:
     runs-on: self-hosted
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Build and Restart Docker Container
+      - name: Deploy to production directory
         run: |
+          cd /opt/mealie-planner
+          git fetch origin main
+          git reset --hard origin/main
+          git submodule update --init --recursive
           docker compose up -d --build
