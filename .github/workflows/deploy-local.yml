@@ -1,0 +1,19 @@
+name: Deploy (Local Self-Hosted Runner)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build and Restart Docker Container
+        run: |
+          docker compose up -d --build
