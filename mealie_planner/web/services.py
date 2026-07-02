@@ -13,15 +13,11 @@ class Services:
     notifier: Any
     nutrition: Any
     plan_generator: Any
-    # Per-week locks so overlapping plan generations / syncs can't mutate the
-    # same Mealie lists concurrently.
-    week_locks: dict = field(default_factory=lambda: {
-        'current': threading.Lock(),
-        'next': threading.Lock(),
-    })
+    # Single lock since we only have one rolling next 7 days active range.
+    lock: threading.Lock = field(default_factory=threading.Lock)
 
-    def week_lock(self, week):
-        return self.week_locks.get(week, self.week_locks['current'])
+    def week_lock(self, week=None):
+        return self.lock
 
 
 def build_services() -> Services:

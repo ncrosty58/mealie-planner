@@ -42,7 +42,7 @@ class TestRoutes(unittest.TestCase):
 
         resp = app.test_client().get('/')
         self.assertEqual(resp.status_code, 200)
-        self.assertIn(b'Plan New Week', resp.data)
+        self.assertIn(b'Plan Next 7 Days', resp.data)
 
     def test_index_dashboard_view_when_plans_exist(self):
         mealie = MagicMock()
@@ -113,7 +113,7 @@ class TestRoutes(unittest.TestCase):
         resp = app.test_client().post('/clear', data={"week": "next", "what": "plan"})
         self.assertEqual(resp.status_code, 302)
         mock_wipe.assert_called_once_with(
-            week='next', what='plan', clear_past=True, client=services.mealie
+            week='current', what='plan', clear_past=True, client=services.mealie
         )
 
     def test_sync_blocked_while_generation_running(self):

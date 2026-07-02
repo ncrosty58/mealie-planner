@@ -9,88 +9,45 @@ from .config import TIMEZONE
 WeekContext = namedtuple('WeekContext', ['week', 'start_str', 'end_str', 'list_id'])
 
 
-def resolve_week(week, mode='planning'):
-    """Resolve a UI week selection ('current' or 'next') to a WeekContext.
-
-    mode='planning' returns the editable range (today -> Friday for the current
-    week); mode='active' returns the full Saturday -> Friday display range.
-    The next week is the same full range in both modes.
+def resolve_week(week=None, mode='planning'):
+    """Resolve the rolling next 7 days selection to a WeekContext.
+    
+    Ignores the week parameter to always use the next 7 days, pointing to ACTIVE_LIST_ID.
     """
-    from .config import ACTIVE_LIST_ID, NEXT_LIST_ID
+    from .config import ACTIVE_LIST_ID
 
-    week = 'next' if week == 'next' else 'current'
-    if week == 'next':
-        start, end = get_next_week_range()
-        list_id = NEXT_LIST_ID
-    elif mode == 'active':
-        start, end = get_active_week_range()
-        list_id = ACTIVE_LIST_ID
-    else:
-        start, end = get_planning_week_range()
-        list_id = ACTIVE_LIST_ID
-    return WeekContext(week, start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"), list_id)
+    start, end = get_next_7_days_range()
+    return WeekContext('current', start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"), ACTIVE_LIST_ID)
+
+def get_next_7_days_range():
+    """Calculate the rolling next 7 days range starting today."""
+    tz = ZoneInfo(TIMEZONE)
+    today = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    end_date = today + timedelta(days=6)
+    return today, end_date
 
 def get_active_week_range():
-    """
-    Calculate the current planning week range.
-    Starts on the most recent Saturday and ends the following Friday.
-    """
-    tz = ZoneInfo(TIMEZONE)
-    today = datetime.now(tz)
-    
-    # Find the most recent Saturday (or today if it is Saturday)
-    # weekday(): Mon=0, ..., Fri=4, Sat=5, Sun=6
-    days_since_saturday = (today.weekday() - 5 + 7) % 7
-    start_date = today - timedelta(days=days_since_saturday)
-    
-    # Planning week is 7 days: Saturday to Friday
-    end_date = start_date + timedelta(days=6)
-    
-    start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-    end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    return start_date, end_date
+    """Fallback compatibility wrapper returning next 7 days."""
+    return get_next_7_days_range()
 
 def get_next_week_range():
-    """
-    Calculate the next week range.
-    Starts on the upcoming Saturday and ends the following Friday.
-    """
+    """Fallback compatibility wrapper returning next week range."""
     start_date, end_date = get_active_week_range()
     next_start = start_date + timedelta(days=7)
     next_end = end_date + timedelta(days=7)
     return next_start, next_end
 
 def get_active_week_strings():
-    """Return YYYY-MM-DD strings for start and end dates."""
-    start, end = get_active_week_range()
+    """Return YYYY-MM-DD strings for start and end of next 7 days."""
+    start, end = get_next_7_days_range()
     return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
 
 def get_planning_week_range(today=None):
-    """
-    Calculate the week range that should be planned/edited.
-    Starts today and ends on the Friday of the current active week.
-    """
-    if today is None:
-        tz = ZoneInfo(TIMEZONE)
-        today = datetime.now(tz)
-        
-    # Find the most recent Saturday to determine the current week's Friday
-    days_since_saturday = (today.weekday() - 5 + 7) % 7
-    start_of_week = today - timedelta(days=days_since_saturday)
-    end_of_week = start_of_week + timedelta(days=6)
-    
-    start_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
-    end_date = end_of_week.replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    # Safety fallback
-    if start_date > end_date:
-        end_date = start_date
-        
-    return start_date, end_date
+    """Fallback compatibility wrapper returning next 7 days."""
+    return get_next_7_days_range()
 
 def get_planning_week_strings():
-    """Return YYYY-MM-DD strings for start and end dates of the planning week."""
+    """Return YYYY-MM-DD strings for start and end of planning range."""
     start, end = get_planning_week_range()
     return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
 
